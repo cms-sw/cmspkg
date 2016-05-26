@@ -577,7 +577,9 @@ class CmsPkg:
 def process(args, opt, cache_dir):
   global debug
   if args[0]=="rpm":
-    sys.exit(subprocess.call(" ".join(["%s; " % rpm_env ]+args), shell=True))
+    cmd = rpm_env+" ; "+args[0]
+    for a in args[1:]: cmd+=" '"+a+"'"
+    sys.exit(subprocess.call(cmd , shell=True))
 
   makedirs(cache_dir,True)
   lock = cmsLock(cache_dir)
