@@ -1,0 +1,297 @@
+#!/usr/bin/env python
+import cgitb, cgi
+import sys, os, json, re
+from os.path import exists, join, getmtime
+from commands import getstatusoutput
+from hashlib import sha256
+from glob import glob
+cgitb.enable()
+
+basedir = '/data/cmssw'
+default_repo = '0000000000000000000000000000000000000000000000000000000000000000'
+debug_msg = []
+debug = False
+search_depth = 0
+
+
+ReArch      = '[a-zA-Z0-9]+_[a-zA-Z0-9]+_[a-zA-Z0-9]+'
+ReRepo      = '[a-zA-Z0-9_-]+((\.[a-zA-Z0-9_-]+)+|)'
+ReHash      = '[0-9a-f]{32}'
+ReRepoHash  = '(apt|[0-9a-f]{64})'
+ReSrcName   = '[a-zA-Z0-9._-]+'
+RePkgName   = '(cms|lcg|external)[+][a-zA-Z0-9_-]+[+][a-zA-Z0-9._-]+[.]rpm'
+ReOtherName = '(cmsos|bootstrap.sh|WEB/[0-9a-zA-Z._/-]+)'
+
+REQUESTS = {
+  'SOURCES' : [ReRepo, ReHash, ReSrcName],
+  'RPMS'    : [ReRepo, ReArch, ReHash, RePkgName ],
+  'cache'   : [ReRepo, ReArch, ReRepoHash ],
+  'caches'  : [ReRepo, ReArch ],
+  'file'    : [ReRepo, ReArch, ReOtherName],
+  'driver'  : [ReRepo, ReArch],
+}
+
+def error_msg(msg):
+  return_json({"error":msg}, True)
+
+def return_json(data,err=False):
+  if err: print "Status: 404 Not Found\n"
+  print "Content-type: application/json\n"
+  if debug and debug_msg: data['debug']="\n".join(debug_msg)
+  print json.dumps(data,sort_keys=True,indent=2,separators=(',',': '))
+  sys.exit(0)
+
+def redirect(path):
+  print "Location: %s\n\n" % path
+  sys.exit(0)
+
+def get_parent_repo(repo):
+  repox = repo.split(".")
+  if len(repox)==1: return None
+  return ".".join(repox[0:-1])
+
+def apt_repo(repo):
+  prepo = repo.split(".")[0]
+  while repo:
+    if debug: debug_msg.append("Checking %s/%s" % (repo, "apt"))
+    cdir = join(basedir, repo, 'apt')
+    if exists (cdir): return repo
+    repo = get_parent_repo(repo)
+  return prepo
+
+def get_new_cache(repo, arch, uHash):
+  arch_dir = join(basedir, "repos", repo, arch)
+  cache = join(arch_dir, uHash)
+  if exists (cache):
+    if uHash == "latest": uHash = os.readlink(cache)
+    return uHash, sha256(str(int(getmtime(join(arch_dir, uHash, "RPMS.json"))))).hexdigest()
+  return uHash, None
+
+def get_parent(repo, arch, uHash):
+  arch_dir = join(basedir, "repos", repo, arch)
+  if not exists (arch_dir):
+    return get_parent_repo(repo), "latest"
+  if (uHash == default_repo): return None, None
+  if exists(join(arch_dir, uHash, "parent")):
+    pHash = os.readlink(join(arch_dir, uHash, "parent")).strip().split("/")[-1]
+    if exists (join(arch_dir, pHash)): return repo, pHash
+  if exists (join(arch_dir, default_repo)): return repo, default_repo
+  return None, None
+
+def search_parent_repo(repo, name):
+  global search_depth
+  xrepo = repo
+  while xrepo:
+    search_depth+=1
+    pFile =  join("repos", xrepo, name)
+    if debug: debug_msg.append("Searching %s" % (pFile))
+    if exists (join(basedir, pFile)): return pFile
+    xrepo = get_parent_repo(xrepo)
+  search_depth+=1
+  rfile = join("repos", name)
+  if debug: debug_msg.append("Searching %s" % (rfile))
+  if exists (join(basedir, rfile)): return rfile
+  if name.startswith("drivers/"): name = name[8:]
+  repo = apt_repo(repo)
+  search_depth+=1
+  rfile = join(repo, name)
+  if debug: debug_msg.append("Searching %s" % (rfile))
+  if exists (join(basedir, rfile)): return rfile
+  return None
+
+def search_file(repo, arch, uHash, name, package=True):
+  global search_depth
+  if debug: debug_msg.append("Searching %s" % (name))
+  while repo:
+    cache = join(basedir, "repos", repo, arch, uHash)
+    search_depth+=1
+    if debug: debug_msg.append("Searching %s/%s/%s/%s" % (repo, arch, uHash, name))
+    if exists (cache):
+      if uHash == "latest": uHash = os.readlink(cache)
+      pFile =  join("repos", repo, arch, uHash, name)
+      if exists (join(basedir,pFile)): return pFile
+    prepo, uHash  = get_parent(repo, arch, uHash)
+    if repo == prepo: continue
+    if not package: return search_parent_repo(repo, name)
+    repo = prepo
+  return None
+
+def get_package(repo, arch, hash, name, ref_hash):
+  global search_depth
+  search_depth = 0
+  if ref_hash != 'apt':
+    return search_file (repo, arch, ref_hash, join("RPMS", hash[0:2], hash, name), package=True)
+  else:
+    repo = apt_repo(repo)
+    search_depth+=1
+    rfile = join(repo,'RPMS', 'cache', hash, arch, name)
+    if exists (join(basedir, rfile)): return rfile
+  return None
+
+def get_file(repo, arch, name):
+  global search_depth
+  search_depth = 0
+  return search_file (repo, arch, "latest", name, package=False)
+
+def get_source(repo, hash, name):
+  global search_depth
+  search_depth = 0
+  fname = join("SOURCES", "cache", hash[0:2], hash, name)
+  xrepo = repo
+  while xrepo:
+    search_depth+=1
+    rfile = join ("repos", xrepo, fname)
+    if debug: debug_msg.append("Searching %s" % (rfile))
+    if exists (join(basedir, rfile)): return rfile
+    if xrepo == repo:
+      for srclink in glob (join(basedir, "repos", xrepo, "SOURCES", "links", "*-*")):
+        search_depth+=1        
+        rfile = join (srclink.replace(basedir+"/",""), fname)
+        if debug: debug_msg.append("Searching %s" % (rfile))
+        if exists (join(basedir, rfile)): return rfile
+    xrepo = get_parent_repo(xrepo)
+  search_depth+=1
+  repo = apt_repo(repo)
+  rfile = join(repo,'SOURCES', 'cache', hash, name)
+  if debug: debug_msg.append("Searching %s" % (rfile))
+  if exists (join(basedir, rfile)): return rfile
+  return None
+
+def check_request(req):
+  valid_fields = {
+    'ref_hash'   : '^(apt|[0-9a-f]{64}|[0-9a-f]{32})$',
+    'info'   : '^1$',
+    'debug'  : '^1$',
+  }
+  errs = []
+  for key in req.keys():
+    if not key in valid_fields:
+      errs.append("Invalid parameter: %s" % key)
+    else:
+      val = req.getvalue(key)
+      if not re.match(valid_fields[key],val): errs.append("Invalid value for parameter %s: %s" % (key, val))
+  if errs: error_msg("\n".join(errs))
+  return
+
+#### Actions ######
+def caches(repo, arch):
+  data = {}
+  data['caches']=[]
+  isNew = False
+  if debug: debug_msg.append("Checking %s/%s" % (repo, "latest"))
+  uHash, hash = get_new_cache(repo, arch, "latest")
+  if hash:
+    data['caches'].append([repo, uHash, hash])
+    isNew = True
+    if debug: debug_msg.append("Found hash %s/%s" % (uHash, hash))
+  prepo, pHash  = get_parent (repo, arch, uHash)
+  while prepo:
+    if debug: debug_msg.append("Checking parent %s/%s" % (prepo, pHash))
+    uHash, hash = get_new_cache(prepo, arch, pHash)
+    if hash:
+      data['caches'].append([prepo, uHash, hash])
+      if debug: debug_msg.append("Found hash %s/%s" % (uHash, hash))
+    prepo, pHash  = get_parent (prepo, arch, uHash)
+  if debug: debug_msg.append("Found New repo: %s" % (str(isNew)))
+  if not isNew:
+    repo = apt_repo(repo)
+    cdir = join(basedir, repo, 'apt', arch)
+    if exists (cdir):
+      data['caches'].append([repo, "apt", sha256(repo+"-"+arch+"-"+str(int(getmtime(cdir)))).hexdigest()])
+      if debug: debug_msg.append("Found parent %s/%s" % (repo, 'apt'))
+  return_json(data)
+
+def cache(repo, arch, uHash):
+  data = {}
+  if uHash != "apt":
+    cache = join(basedir, "repos", repo, arch, uHash, "RPMS.json")
+    if exists (cache): redirect("/cmssw/repos/%s/%s/%s/RPMS.json" % (repo, arch, uHash))
+    if debug: debug_msg.append("Found package cache for %s/%s/%s" % (repo, arch, uHash))
+    data['hash'] = sha256(json.dumps(data,sort_keys=True,separators=(',',': '))).hexdigest()
+    return_json(data)
+
+  repo = apt_repo(repo)
+  cdir = join(basedir, repo, uHash, arch)
+  if exists (cdir):
+    ReRPM = re.compile('(.+)[-]1[-]((1|\d+)(.%s|))\.%s\.rpm' % (arch,arch))
+    err, out = getstatusoutput("find %s -maxdepth 2 -mindepth 2 -name '*.rpm' -type l | sort | xargs -i readlink '{}'" % cdir)
+    for line in out.split("\n"):
+      items = line.split("/")
+      rpm   = items[-1]
+      rHash = items[-3]
+      g,p,vx = rpm.split("+",2)
+      m = ReRPM.match (vx)
+      v = m.group(1)
+      r = m.group(3)
+      pk = "+".join([g,p,v])
+      if not pk in data: data[pk]={}
+      data[pk][r] = [rHash, rpm, "", "", []]
+    if debug: debug_msg.append("Found APT package cache for %s/%s/%s" % (repo, arch, uHash))
+  data['hash'] = sha256(json.dumps(data,sort_keys=True,separators=(',',': '))).hexdigest()
+  return_json(data)
+
+def file_search_result(rfile, name):
+  if debug: debug_msg.append("Found file/package: %s" % rfile)
+  if debug: debug_msg.append("Search depth: %s" % str(search_depth))
+  if not rfile:
+    error_msg("Unable to find the file: %s" % (name))
+  if 'info' in req:
+    info = {}
+    info['path'] = rfile
+    rfile = join(basedir, rfile)
+    err, out = getstatusoutput("md5sum %s | sed 's| .*||'" % rfile)
+    if err: error_msg("Unable to find checksum: %s" % (name))
+    info['sha']=out
+    info['size'] = os.stat(rfile)[6]
+    return_json(info)
+  else:
+    redirect("/cmssw/%s" % rfile)
+  return
+
+def process(req):
+  rpath = os.environ['PATH_INFO'].strip("/")
+  if debug: debug_msg.append("Name: %s" % rpath)
+  items = rpath.split("/")
+  ilen = len(items)
+  if ilen==0: return error_msg("Invalid request: %s" % (rpath))
+  ftype = items[0]
+  if not ftype in REQUESTS: return error_msg("Invalid request: %s" % (rpath))
+  xlen = len(REQUESTS[ftype])+1
+  if ilen > xlen:
+    items = rpath.split("/",xlen-1)
+    ilen = len(items)
+  if ilen != (len(REQUESTS[ftype])+1): return error_msg("Invalid/Incompile request: %s" % (rpath))
+  if (not exists (join(basedir, "repos", items[1]))) and (not exists (join(basedir, items[1]))):
+    error_msg("Repository not found: "+items[1])
+  for i in range(1,ilen):
+    if re.match('^'+REQUESTS[ftype][i-1]+'$',items[i]): continue
+    return error_msg("Invalid request %s. Mismatch %s" % (rpath, items[i]))
+  if ftype == "SOURCES":
+    return file_search_result(get_source (*items[1:]), "%s" % (rpath))
+  elif ftype == "RPMS":
+    rHash = "apt"
+    if "ref_hash" in req: rHash = req.getvalue('ref_hash')
+    items.append(rHash) 
+    return file_search_result(get_package(*items[1:]), "%s" % (rpath))
+  elif ftype == "cache":
+    return cache(*items[1:])
+  elif ftype == "caches":
+    return caches(*items[1:])
+  elif ftype == "file":
+    return file_search_result(get_file (*items[1:]), "%s" % (rpath))
+  elif ftype == "driver":
+    items.append("drivers/"+items[2]+"-driver.txt")
+    return file_search_result(get_file (*items[1:]), "%s" % (rpath))
+  return error_msg("Unable to find the file: %s" % (rpath))
+
+###################################   
+req = {}
+try: 
+  req = cgi.FieldStorage()
+  check_request(req)
+except Exception , e:
+  pass
+
+if 'debug' in req: debug=True
+process(req)
+

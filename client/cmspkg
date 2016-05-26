@@ -1,0 +1,704 @@
+#!/usr/bin/env python
+from commands import getstatusoutput
+import sys, os, re, subprocess, json, urllib, threading
+from hashlib import sha256
+from os import getpid
+from time import sleep
+from os.path import join, exists, abspath, dirname, basename
+from glob import glob
+
+debug     = False
+repo_name = None
+repo_arch = None
+repo_server = 'cmsrep.cern.ch'
+cmspkg_cgi = 'cgi-bin/cmspkg'
+cache_dir = None
+rpm_download = None
+rpm_env = None
+rpm_partial = "partial"
+getcmd = None
+cmspkg_agent="CMSPKG-v1.0"
+getcmds = [ 
+            ['curl','--version','-q -f -s -H "Cache-Control: max-age=0" --user-agent "%s"'      % (cmspkg_agent),"-o %s"],
+            ['wget','--version','-q --header="Cache-Control: max-age=0" --user-agent="%s" -O -' % (cmspkg_agent),"-O %s"],
+          ]
+try:
+  install_path = __file__
+except Exception, e :
+  install_path = argv[0]
+install_path = dirname(dirname(abspath(install_path)))
+
+#####################################
+#Utility functions:
+######################################
+#Return a package name from a RPM File name
+#RPM file name format: <group>+<pkg-name>+<pkg-version>-1-([0-9]+|<arch>).<arch>.rpm
+#Returns: <group>+<pkg-name>+<pkg-version>
+def rpm2package(rpm, arch):
+  ReRPM = re.compile('(.+)[-]1[-]((1|\d+)(.%s|))\.%s\.rpm' % (arch,arch))
+  g,p,vx = rpm.split("+",2)
+  m = ReRPM.match (vx)
+  v = m.group(1)
+  r = m.group(3)
+  return "+".join([g,p,v])
+
+def print_msg(msg, type):
+  for m in msg.split("\n"): print "[%s]: %s" % (type, m)
+
+#Returns cmspkg url to access
+def cmspkg_url(params):
+  url = "http://%s/%s/%s?" % (repo_server, cmspkg_cgi, params['uri'])
+  if debug: url = url + "debug=1&"
+  del params['uri']
+  for p in params: url = url + p + "=" + params[p] + "&"
+  url=url[0:-1]
+  if debug: print "[DEBUG]: Accessing %s" % (url)
+  return url
+
+#Check server reply: print any debug/warning/error message
+def check_server_reply(reply, exit=True):
+  if 'debug'  in reply:
+    print_msg(reply.pop('debug'), "DEBUG")
+  if 'warning'  in reply:
+    print_msg(reply['warning'],"WARN")
+  if 'error' in reply:
+    print_msg(reply['error'],"ERROR")
+    if exit: sys.exit(1)
+  return
+
+#Use available command (curl or wget) to download url
+def fetch_url(data, outfile=None):
+  global getcmd
+  if not getcmd:
+    for cmd in getcmds:
+      err, out = run_cmd("%s %s 2>&1 >/dev/null" %(cmd[0],cmd[1]),False,False)
+      if not err:
+        getcmd = cmd
+        break
+    if not getcmd:
+      print "Error: Unable to find any of the following commands. Please make sure you have any one of these installed."
+      print " ","\n  ".join([x[0] for x in getcmds])
+      sys.exit(1)
+
+  url = cmspkg_url(data)
+  cmd = [getcmd[0], getcmd[2]]
+  if outfile: cmd.append(getcmd[3] % outfile)
+  cmd.append('"'+url+'"')
+  cmd_str = " ".join(cmd)
+  return run_cmd(cmd_str)
+
+#Run a shell command
+def run_cmd (cmd,debug=True,exit=True):
+  err, out = getstatusoutput(cmd)
+  if err:
+    if debug:
+      print "Command: ",cmd
+      print out
+    if exit: sys.exit(1)
+  return err, out
+
+def makedirs(path, force=False):
+  opt =''
+  if force: opt='-p'
+  run_cmd("mkdir %s %s" % (opt,path))
+  return
+
+#Varifies a file size and md5sums
+def verify_package(package, ofile):
+  sinfo = os.stat(ofile)
+  if sinfo[6] != package[3]:
+    print "Error: Download error: Size mismatch for %s (%s vs %s)." % (package[1], str(sinfo[6]), str(package[2]))
+    return False
+  err, out = run_cmd("md5sum %s | sed 's| .*||'" % ofile)
+  if out != package[2]:
+    print "Error: Download error: Checksum mismatch for %s (%s vs %s)." % (package[1], out, str(package[3]))
+    return False
+  return True
+
+#Download a packge from cmsrep. If package's size and mk5sums are not passed/available
+#then first get this information from cmsrep so that download package can be varified
+#After the successful download it puts the downlaod file in rpm_download directory
+def download_rpm(package):
+  if (package[2]=="") or (package[3]==""):
+    err, out = fetch_url({'uri':'RPMS/%s/%s/%s/%s' % (repo_name, repo_arch, package[0], urllib.quote(package[1])), 'info' : '1', 'ref_hash':package[5]})
+    reply = json.loads(out)
+    check_server_reply(reply)
+    if (not 'sha' in reply) or (not 'size' in reply):
+      print "Error: Server error: unable to find checksum/size of package: %s" % package[1]
+      return False
+    package[2] = reply['sha']
+    package[3] = reply['size']
+
+  ofile_tmp = join(rpm_download, rpm_partial, package[1])
+  err, out = fetch_url({'uri':'RPMS/%s/%s/%s/%s' % (repo_name, repo_arch, package[0], urllib.quote(package[1])), 'ref_hash':package[5]}, outfile=ofile_tmp)
+  if err: return False
+  if not exists(ofile_tmp):
+    print "Error: Unable to download package: "+package[1]
+    return False
+  if not verify_package(package, ofile_tmp): return False
+  err, out = run_cmd("mv %s %s" % (ofile_tmp, join(rpm_download, package[1])))
+  return not err
+
+#Returns rpm dependencies using rpm -qp --requires command
+def get_pkg_deps(rpm):
+  cmd = "%s; rpm -qp --requires %s" % (rpm_env, rpm)
+  err, out = run_cmd(cmd)
+  deps = []
+  ReReq = re.compile('^(cms|external|lcg)[+][^+]+[+].+')
+  for line in out.split("\n"):
+    line = line.strip()
+    if ReReq.match(line):
+      deps.append(line)
+  return deps
+
+def human_readable_size(size):
+  schar = 'B'
+  if size>1024:
+    size = int(size/1024)
+    schar = 'KB'
+    if size>1024:
+      size = int(size/1024)
+      schar = 'MB'
+  return str(size)+schar
+
+#Download a package if not already downloaed
+def download_package(package, downloader, index=1):
+  print "Get:%s http://%s cmssw/%s/%s %s" % (index, repo_server, repo_name, repo_arch, package[1])
+  ofile = join(rpm_download, package[1])
+  if (not exists (ofile)) and (not download_rpm(package)):
+    downloader.errors.append(1)
+    downloader.deps[package[1]]=[]
+    return
+  downloader.deps[package[1]]=get_pkg_deps(ofile)
+  return
+###############################################
+#End of Utility function
+###############################################
+
+###############################################
+#A Lock class to create a lock using file system files
+###############################################
+class cmsLock (object):
+  def __init__ (self, lock_dir):
+    self.piddir  = join(lock_dir,".Lock")
+    self.pidfile = join(self.piddir,"pid")
+    self.pid     = str(getpid())
+    self._hasLock = False
+    self._hasLock = self._get()
+
+  def __del__(self):
+    self._release ()
+
+  def __nonzero__(self):
+    return self._hasLock
+
+  def _isProcessRunning(self, pid):
+    running = False
+    try:
+      os.kill(pid, 0)
+      running = True
+    except:
+      pass
+    return running
+
+  def _release (self, force=False):
+    if (self._hasLock or force):
+      try:
+        if exists (self.piddir): run_cmd ("rm -rf %s" % self.piddir)
+      except:
+        pass
+    self._hasLock = False
+
+  def _get(self, count=0):
+    if count >= 5: return False
+    pid = self._readPid()
+    if pid:
+      if pid == self.pid: return True
+      if self._isProcessRunning(int(pid)): return False
+    self._create()
+    sleep(0.1)
+    return self._get(count+1)
+
+  def _readPid(self):
+    pid = None
+    try:
+      pid = open(self.pidfile).readlines()[0]
+    except:
+      pid = None
+    return pid
+
+  def _create(self):
+    self._release(True)
+    try:
+      err, out = getstatusoutput("mkdir %s" % self.piddir)
+      if err:
+         raise OSError("makedirs() failed (return: %s):\n%s" % (returncode, out))
+      lock = open (self.pidfile, 'w')
+      lock.write(self.pid)
+      lock.close()
+    except:
+      pass
+
+###############################################
+#Class to read cmspkg caches
+###############################################
+#Each cache file name is consists of <repo>-<upload-hash>-<uniq-hash-based-on-timestatmp>
+#Json format of cache file contains dictionary of packages where each package has dictionary of
+#its rivisions e.g.
+# "revision"=[ "pkg-md5sum" , "rpm-file-name", "md5sum-of-rpm-file", rpm-file-size, [list-of-any-extra-dependencies]]
+class pkgCache (object):
+  def __init__(self, readCaches=True):
+    self.packs = {}
+    self.active = {}
+    self.readActive (readCaches)
+
+  def readCache(self, rfile):
+    pkgs = json.loads(open(cache_dir+"/"+rfile).read())
+    pkgs.pop("hash",None)
+    for pk in pkgs:
+      if not pk in self.packs: self.packs[pk]={}
+      for r in pkgs[pk]:
+        if r in self.packs[pk]: continue
+        self.packs[pk][r] = pkgs[pk][r]+[rfile.split("-")[1]]
+    return
+
+  def readActive(self, readCaches=True):
+    activeFile = join(cache_dir, "active")
+    if not exists (activeFile): return
+    self.active = json.loads(open(activeFile).read())
+    if readCaches:
+      for c in self.active: self.readCache(c)
+    return
+
+###############################################
+#Class to do Parallel downloads of packages
+###############################################
+class rpmDownloader:
+  def __init__(self, parallel=4):
+    self.parallel = parallel
+    self.counter = 0
+    self.failed = []
+    self.deps = {}
+
+  def errors(self):
+    return len(self.failed) > 0
+
+  def run(self, packages):
+    threads = []
+    self.failed = []
+    self.deps = {}
+    total = len(packages)
+    while(len(packages) > 0):
+      threads = [t for t in threads if t.is_alive()]
+      if self.errors():
+        for t in threads: t.join()
+        return
+      if(len(threads) < self.parallel):
+        try:
+          self.counter = self.counter + 1
+          t = threading.Thread(target=download_package, args=(packages.pop(), self, self.counter))
+          t.start()
+          threads.append(t)
+        except Exception, e:
+          print "Error: error while downloading RPMS: " + str(e)
+      else:
+        sleep(1)
+    for t in threads: t.join()
+
+###############################################
+#cmspkg class for getting caches, and installing packages
+###############################################
+class CmsPkg:
+  def __init__(self, jobs=4):
+    self.rpm_cache = {}
+    self.cache = None
+    self.downloader = rpmDownloader(jobs)
+    return
+    
+  #Read rpm database for locally installed RPMS
+  def update_rpm_cache(self, force=False):
+    if (not force) and self.rpm_cache: return
+    self.rpm_cache.clear()
+    err, out = run_cmd("%s; rpm -qa --queryformat '%%{NAME} %%{RELEASE}\n'" % rpm_env)
+    for r in out.split("\n"):
+      n, rv = r.split(" ")
+      self.rpm_cache[n]=rv
+    return
+
+  #Read RPM database to get a package size
+  def package_size(self, pkg):
+    pkg_file = join(rpm_download, pkg)
+    err, out = run_cmd("%s; rpm -qp --queryformat '%%{SIZE}' %s" % (rpm_env, pkg_file))
+    st = os.stat(pkg_file)
+    return st.st_size, int(out)
+
+  #Download cmspkg caches from server. It is identical to "apt-get update"
+  #It first fetches the list of all caches from server and then only download the new caches.
+  #Note that the cache name include the timestamp of information. So if a cache was updated on server
+  #then it will have a different timestamp which will force us to fetch it.
+  def update(self, force=False, silent=False):
+    if not silent: print "Updating cmspkg caches ..."
+    #fetch list of all caches from cmspkg server
+    err, out = fetch_url({'uri':'caches/%s/%s' % (repo_name, repo_arch)})
+    caches = json.loads(out)
+    check_server_reply(caches)
+    if not 'caches' in caches:
+      print "Error: Server error: No caches received from server"
+      sys.exit(1)
+    new_caches = []
+    caches_added = 0
+    caches_removed = 0
+    if not silent:
+      print "  Remote  caches:",len(caches['caches'])
+      if force: print "Refreshing all caches...."
+    #check for new caches
+    for c in caches['caches']:
+      rfile = "-".join(c)
+      cfile = cache_dir+"/"+rfile
+      new_caches.append(rfile)
+      #if we have a cache then do not need to fetch unless forced
+      if not force and exists (cfile): continue
+      if debug: print "Gettings cache %s/%s" % (c[0], c[1])
+      err, out = fetch_url({'uri':'cache/%s/%s/%s' % (c[0], repo_arch, c[1])})
+      cache = json.loads(out)
+      check_server_reply(cache)
+      if not 'hash' in cache:
+        print "Error: server error: hash of cache missing in server reply"
+        sys.exit(1)
+      sr_sha = cache.pop('hash')
+      #Varify the newly download cache by checking its checksum
+      cl_sha = sha256(json.dumps(cache, sort_keys=True, separators=(',',': '))).hexdigest()
+      if cl_sha != sr_sha:
+        print "Error: Communication error: Cache size mismatch %s vs %s" % (cl_sha , sr_sha)
+        sys.exit(1)
+      cache['hash'] = sr_sha
+      #save the cache for future use
+      with open(cfile+"-tmp", 'w') as outfile:
+        outfile.write(json.dumps(cache,sort_keys=True,indent=2,separators=(',',': ')))
+        outfile.close()
+      err, out = run_cmd("mv %s-tmp %s" %(cfile, cfile))
+      caches_added += 1
+    local_caches = 0
+    #check for all available caches and delete those which are not on server any more
+    for cfile in glob(cache_dir+"/*-*"):
+      local_caches += 1
+      cname = cfile.replace(cache_dir+"/","")
+      if not cname in new_caches:
+        if debug: print "[DEBUG]: Cleaning up unused cmspkg cache: %s" % cname
+        err, out = run_cmd("rm -f %s" %(cfile))
+        caches_removed += 1
+    if not silent:
+      print "  Local   caches:",local_caches
+      print "  Caches updated:",caches_added
+      print "  Caches deleted:",caches_removed
+    if ((caches_added+caches_removed) == 0):
+      local_caches  = pkgCache(False)
+      diff = list(set(new_caches)-set(local_caches.active))+list(set(local_caches.active)-set(new_caches))
+      if not diff:
+        if not silent: print "Package cache up-to-date"
+        return
+    #Save list of all active caches. It is important that we read the caches in order
+    cfile = cache_dir+"/active"
+    with open(cfile+"-tmp", 'w') as outfile:
+      outfile.write(json.dumps(new_caches, indent=2,separators=(',',': ')))
+      outfile.close()
+    run_cmd("mv %s-tmp %s" %(cfile, cfile))
+    if not silent: print "cmspkg update done"
+    return
+
+  #Get the latest revision of a package. Mostly used for packages with multile revisions
+  def latest_revision(self, name):
+    return sorted(self.cache.packs[name],key=int)[-1]
+
+  #Returns the package information for a package name
+  #If package is already installed then return None
+  def package_data(self, name, reinstall=False):
+    if (name in self.rpm_cache) and (not reinstall): return None
+    if not name in self.cache.packs:
+      print "Error: unknown pakcage: ",name
+      sys.exit(1)
+    return self.cache.packs[name][self.latest_revision(name)]
+
+  #Recursively download all the dependencies
+  def download_deps(self, deps, deps_cache):
+    to_download = []
+    for dn in deps:
+      d = None
+      if dn in deps_cache: d = deps_cache[dn]
+      if not d: continue
+      to_download.append(d)
+    if not to_download: return
+    self.downloader.run(list(to_download))
+    if self.downloader.errors(): sys.exit(1)
+    ndeps = []
+    for d in to_download:
+      for xd in self.downloader.deps[d[1]]+d[4]:
+        if xd in deps_cache: continue
+        deps_cache[xd] = self.package_data(xd)
+        ndeps.append(xd)
+    if ndeps:
+      print "Downloading indirect dependencies...."
+      print "0 upgraded, ",len(ndeps)," newly installed, 0 removed and 0 not upgraded"
+    self.download_deps(sorted(ndeps), deps_cache)
+    return
+
+  #Just like apt-get clean, it cleans-up the download rpm from the cmspkg cache directory
+  def clean(self):
+    if exists (rpm_download):
+      run_cmd ("touch %s/tmp.rpm && rm -f %s/*.*" % (rpm_download, rpm_download))
+    return
+
+  #Installs a package.
+  def install(self, package, reinstall=False, force=False):
+    if not self.cache:
+      print "Reading Package Lists..."
+      self.cache = pkgCache()
+    #Error is unknow package
+    if not package in self.cache.packs:
+      print "error: unknown pakcage: ",package
+      sys.exit(1)
+
+    #Read rpm database
+    self.update_rpm_cache()
+    pk = self.package_data(package, reinstall)
+    if (not reinstall) and (not pk):
+      print "%s is already the newest version.\n0 upgraded, 0 newly installed, 0 removed and 0 not upgraded." % package
+      return
+
+    #make sure that rpm download directory is available
+    makedirs(join(rpm_download,rpm_partial),True)
+
+    #download the package
+    self.downloader.run([pk])
+    if self.downloader.errors(): sys.exit(1)
+    deps={}
+    npkgs = []
+    
+    #Find out package dependencies
+    print "Building Dependency Tree..."
+    for d in self.downloader.deps[pk[1]]+pk[4]:
+      if d in deps: continue
+      p = self.package_data(d)
+      deps[d] = p
+      if p: npkgs.append(d)
+    npkgs.sort()
+    pkg_to_install = "  "+package+"\n  "+"\n  ".join(npkgs)
+    print "The following NEW packages will be installed:"
+    print pkg_to_install
+    pkg_len = len(npkgs)+1
+    print "0 upgraded, ",pkg_len," newly installed, 0 removed and 0 not upgraded."
+    
+    #If not force and there are extra packages to install then ask user to confirm
+    if (not force) and (pkg_len>1):
+      res = raw_input("Continue installation (Y/n): ")
+      res = res.strip()
+      if not res in ["y", "Y"]: sys.exit(0)
+
+    #download all the dependencies of the package
+    self.download_deps (sorted(deps), deps)
+    pkg_to_install = pk[1]
+    size_compress, size_uncompress = self.package_size (pk[1])
+    for d in [p[1] for p in deps.values() if p]:
+      s1, s2 = self.package_size(d)
+      size_compress += s1
+      size_uncompress += s2
+      pkg_to_install += "  "+d
+    reinstall_opts = ""
+    if reinstall: reinstall_opts = "--replacepkgs --replacefiles"
+    print "Downloaded %s of archives." % human_readable_size(size_compress)
+    print "After unpacking %s of additional disk space will be used." % human_readable_size(size_uncompress)
+    rcmd = "%s; rpm -Uvh -r %s --force --prefix %s --ignoreos --ignorearch --oldpackage %s" %(rpm_env, install_path, install_path, reinstall_opts)
+    print "Executing RPM (%s)..." % rcmd
+    cmd = "cd %s && %s %s" %(rpm_download, rcmd,  pkg_to_install)
+
+    #Install the nwly downloaded packages(s)
+    err = subprocess.call(cmd, shell=True)
+    if not err:
+      self.update_rpm_cache(True)
+      if package in self.rpm_cache: self.clean()
+    return
+
+  #print the packages name which matched the pkg_search pattren. 
+  #If -f option is used the exact package name is matched
+  def search(self, pkg_search="", exact=False):
+    self.cache = pkgCache()
+    for pk in self.cache.packs:
+      found = False
+      if pkg_search=="":
+        found = True
+      elif exact:
+        found = (pk==pkg_search)
+      else:
+        found = (pkg_search in pk)
+      if found:
+        data = self.cache.packs[pk][sorted(self.cache.packs[pk],key=int)[-1]]
+        print "%s - CMS Experiment package SpecChecksum:%s" % (pk, data[0])
+    return
+   
+  #Shows a package detail just like apt-cache showpkg
+  def show(self, pkg):
+    self.cache = pkgCache()
+    if not pkg in self.cache.packs:
+      exit(1)
+    pkg_data = self.cache.packs[pkg][self.latest_revision(pkg)]
+    pkg_file = pkg_data[1]
+    pkg_info = pkg_data[1].rsplit('.',2)
+    pkg_items = pkg_info[0].rsplit('-',2)
+    pkg_xinfo = pkg_items[0].split('+',2)
+    print "Package: "+pkg_items[0]
+    print "Section: "+pkg_xinfo[0]
+    print "Packager: CMS <hn-cms-sw-develtools@cern.ch>"
+    print "Version: "+pkg_items[1]+"-"+pkg_items[2]
+    print "Architecture: "+pkg_info[1]
+    print "Size: 1"
+    print "MD5Sum: "
+    print "Filename: "
+    print "Summary: CMS Experiment package SpecChecksum:"+pkg_data[0]
+    print "Description: \n No description\n"
+    return
+
+  #Help function to just download a package without installing it.
+  def download(self, package):
+    if not self.cache:
+      print "Reading Package Lists..."
+      self.cache = pkgCache()
+    makedirs(join(rpm_download,rpm_partial),True)
+    if package.endswith('.rpm'): package = rpm2package (package, repo_arch)
+    if not package in self.cache.packs:
+      print "error: unknown pakcage: ",package
+      sys.exit(1)
+    pk = self.cache.packs[package][self.latest_revision(package)]
+    self.downloader.run([pk])
+    if self.downloader.errors(): sys.exit(1)
+    return
+
+#Process the input command/options
+#cmspkg always create a lock
+def process(args, opt, cache_dir):
+  global debug
+  if args[0]=="rpm":
+    sys.exit(subprocess.call(" ".join(["%s; " % rpm_env ]+args), shell=True))
+
+  makedirs(cache_dir,True)
+  lock = cmsLock(cache_dir)
+  if not lock:
+    print "Unable to obtain lock, there is already a process running"
+    return
+
+  if True:
+    repo = CmsPkg(opt.jobs)
+    if args[0] == "update":
+      repo.update(force=opts.force)
+    elif args[0] == "clean":
+      repo.clean()
+    elif args[0] in ["install","reinstall"]:
+      cDebug = debug
+      debug = False
+      updateForce=False
+      if not exists (join(cache_dir , "active")): updateForce=True
+      repo.update(force=updateForce, silent=True)
+      debug = cDebug
+      for pkg in args[1:]:
+        repo.install(pkg, reinstall=opts.reinstall, force=opts.force)
+    elif args[0] in ["download"]:
+      cDebug = debug
+      debug = False
+      updateForce=False
+      if not exists (join(cache_dir , "active")): updateForce=True
+      print cache_dir, updateForce
+      repo.update(force=updateForce, silent=True)
+      debug = cDebug
+      for pkg in args[1:]:
+        repo.download(pkg)
+    elif args[0] == "search":
+      if not exists (join(cache_dir , "active")): repo.update(True)
+      pkg = ""
+      if len(args)==2: pkg =args[1]
+      repo.search(pkg, exact=opts.force)
+    elif args[0] == "show":
+      if not exists (join(cache_dir , "active")): repo.update(True)
+      repo.show(args[1])
+
+#Helpers function to find out the env e.g. repository name, rpm command path
+def get_env(install_dir,arch):
+  pkgdir = join (install_dir, arch, 'cms', 'cmspkg')
+  repo = None
+  rpm_dir = None
+  #If cmspkg package exists then we use that
+  if exists(pkgdir):
+    ver = os.getenv("CMSPKG_VERSION",None)
+    if ver and not exists (join(pkgdir, ver)): ver=None
+    else: ver="*"
+    err, out = run_cmd ("source %s/%s/etc/profile.d/init.sh; echo $CMS_REPO" % (pkgdir, ver))
+    repo = out.split()[-1]
+    rpm_dir = "%s/%s/etc/profile.d/init.sh" % (pkgdir, ver)
+  else:
+    #We fall back to apt-get 
+    pkgdir =join(install_dir, arch, "external", "apt")
+    ver = os.getenv("CMSAPT_VERSION",None)
+    if ver and not exists (join(pkgdir, ver)): ver=None
+    else: ver="*"
+    err, out = run_cmd ("ls -drt %s/%s/external/apt/%s/etc/sources.list" % (install_dir, arch, ver),debug=False, exit=False)
+    if err: return repo, None
+    err, out = run_cmd ("cat %s | grep '^ *rpm ' | sed 's|/apt/%s .*||;s|.*/||'" % (out.split()[-1], arch),debug=False, exit=False)
+    if err: return repo, None
+    repo = out.strip()
+    rpm_dir = "%s/%s/external/apt/%s/bin/apt-get | sed 's|/bin/apt-get|/etc/profile.d/init.sh|'" % (install_dir, arch, ver)
+
+  err , out = run_cmd ("ls -drt %s | tail -1" % rpm_dir)
+  return repo, "source %s" % out
+ 
+if __name__ == '__main__':
+  from optparse import OptionParser
+  cmspkg_cmds = ["update","search","install","reinstall","clean","show","download", "rpm"]
+  parser = OptionParser(usage=basename(sys.argv[0])+" -a|--architecture <arch>\n"
+  "              [-s|--server server]\n"
+  "              [-p|--path path]\n"
+  "              [-j|--jobs num]\n"
+  "              [-f|--force]\n"
+  "              [-d|--debug]\n"
+  "              [--reinstall]\n"
+  "              "+" | ".join(cmspkg_cmds)+" [package| -- rpm <args>]\n\n"
+  "This script internally sets the cmspkg(rpm) or apt environment for the given architecture.\n"
+  "If you have to use a specific version of cmspkg or apt then use environment variables CMSPKG_VERSION or CMSAPT_VERSION")
+  parser.add_option("--reinstall",     dest="reinstall", action="store_true", default=False, help="Reinstall a package e.g. its latest revision")
+  parser.add_option("-f", "--force",   dest="force",     action="store_true", default=False, help="Force an update or installation")
+  parser.add_option("-y",              dest="force",     action="store_true", default=False, help="Assume yes for installation")
+  parser.add_option("-a", "--architecture",dest="architecture", default=None, help="Architecture string")
+  parser.add_option("-p", "--path",dest="path", default=install_path, help="Install path.")
+  parser.add_option("-j", "--jobs",    dest="jobs", default=4, type="int", help="Max parallel downloads")
+  parser.add_option("-d", "--debug",   dest="debug",default=False, action="store_true", help="Print more debug outputs")
+  parser.add_option("-s", "--server",  dest="server", default=repo_server, help="Name of cmsrep server.")
+
+  opts, args = parser.parse_args()
+  if not opts.architecture:
+    parser.error("Missing architecture string")
+  else:
+    repo_arch=opts.architecture
+  install_path = opts.path
+  repo_server  = opts.server
+
+  repo_name, rpm_env = get_env (install_path, opts.architecture)
+  if (not repo_name) or (not rpm_env):
+    print "Error: Unable to find repository name or rpm installation. Are you sure you have a bootstrap area?"
+    sys.exit(1)
+  cache_dir = join(install_path, repo_arch, 'var/cmspkg/cache')
+  rpm_download = join(install_path,repo_arch, 'var/cmspkg/rpms')
+  if opts.debug: debug = True
+  if len(args) == 0:
+    parser.error("Too few arguments")
+  if not args[0] in cmspkg_cmds:
+    parser.error("Unknown command "+args[0])
+  if args[0] in ["install","reinstall","download"]: 
+    if len(args) < 2:
+      parser.error("Too few arguments")
+  elif (args[0] in ["update", "clean"]):
+    if len(args) != 1:
+      parser.error("Too many arguments")
+  elif (args[0] in ["search"]):
+    if len(args) > 2:
+      parser.error("Too many arguments")
+  if args[0] == "reinstall":
+    opts.reinstall = True
+
+  process(args, opts, cache_dir)
