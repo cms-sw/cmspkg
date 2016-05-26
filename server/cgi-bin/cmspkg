@@ -41,6 +41,15 @@ def return_json(data,err=False):
   print json.dumps(data,sort_keys=True,indent=2,separators=(',',': '))
   sys.exit(0)
 
+def get_apt_md5sums(md5dir):
+  md5sums = {}
+  if exists (md5dir):
+    err, out =  getstatusoutput("cat %s/*.md5cache" % md5dir)
+    for line in out.split("\n"):
+      items = line.split(" ")
+      md5sums [ items[0] ] = items[1]
+  return md5sums
+
 def redirect(path):
   print "Location: %s\n\n" % path
   sys.exit(0)
@@ -213,6 +222,7 @@ def cache(repo, arch, uHash):
   repo = apt_repo(repo)
   cdir = join(basedir, repo, uHash, arch)
   if exists (cdir):
+    md5sums = get_apt_md5sums(join(basedir, repo, "md5cache", arch, "genpkglist"))
     ReRPM = re.compile('(.+)[-]1[-]((1|\d+)(.%s|))\.%s\.rpm' % (arch,arch))
     err, out = getstatusoutput("find %s -maxdepth 2 -mindepth 2 -name '*.rpm' -type l | sort | xargs -i readlink '{}'" % cdir)
     for line in out.split("\n"):
@@ -225,7 +235,13 @@ def cache(repo, arch, uHash):
       r = m.group(3)
       pk = "+".join([g,p,v])
       if not pk in data: data[pk]={}
-      data[pk][r] = [rHash, rpm, "", "", []]
+      md5sum = ""
+      size = ""
+      if rpm in md5sums:
+        md5sum = md5sums[rpm]
+        while line[0:3] == "../": line=line.replace("../","")
+        size = os.stat(join(basedir, repo, line))[6]
+      data[pk][r] = [rHash, rpm, md5sum, size, []]
     if debug: debug_msg.append("Found APT package cache for %s/%s/%s" % (repo, arch, uHash))
   data['hash'] = sha256(json.dumps(data,sort_keys=True,separators=(',',': '))).hexdigest()
   return_json(data)
