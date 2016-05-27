@@ -158,7 +158,6 @@ fi
 if [ "${COMMAND}" = "INIT" ] ; then
   #For INIT command, create a temp upload directory and return
   #Create a tmp direcotry with world writeable permissions (comp users uses their own user to upload)
-  (umask 000 && mkdir -p ${TMPDIR} && mkdir -p ${TMPDIR}/delete)
   TMPREPO_BASE="$(mktemp -d -p ${TMPDIR}/ tmp-${DES_REPO}-${ARCH}-XXXXXXXX)"
   echo "${PARENT_HASH}" > ${TMPREPO_BASE}/parent_hash
   echo "NEW_TEMP_REPOSITORY:${TMPREPO_BASE}"
