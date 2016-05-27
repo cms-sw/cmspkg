@@ -46,7 +46,7 @@ COMMAND="$1"             #Required: INIT|CLONE
 ARCH="$2"                #Required: Architecture string e.g. slc6_amd64_gcc530, slc6_aarch64_gcc530 etc.
 SRC_REPO="$3"            #Required: Name of rpm repository to use e.g. cms , comp, comp.pre etc.
 DES_REPO="$4"            #Required: Name of destination repo, for sync-back it should be empty
-TMPREPO_BASE="$5"        #Required: Tmp directory name under under TMPDIR obtained via INIT request
+TMPREPO_BASE="$5"        #Required: Tmp directory name under TMPDIR obtained via INIT request
 
 #Make sure COMMAND, SRC_REPO and ARCH command-line args are provided and have valid values
 if [ "X${COMMAND}" = "X" -o "X${SRC_REPO}" = "X" -o "X${ARCH}" = "X" ] ; then
@@ -60,7 +60,7 @@ if [ "X$(echo ${COMMAND} | egrep '^(INIT|CLONE)$')" = "X" ] ; then
 fi
 
 #Check the DES_REPO, if empty (sync-back) then set to SRC_REPO
-#Incase DES_REPO is provided (upload without sync-back) then
+#In case DES_REPO is provided (upload without sync-back) then
 # - make sure that it contains valid characters [a-zA-Z0-9_]
 # - set it to SRC_REPO.DES_REPO
 if [ "X${DES_REPO}" = "X" ] ; then
@@ -167,7 +167,7 @@ fi
 
 #CLONE request is made
 #If it is upload with syncback then we want to make sure that parent hash is
-#same as original parent. For upload only we do not care if parent has changed.
+#same as original parent. For upload only, we do not care if parent has changed.
 if [ "${SRC_REPO}" = "${DES_REPO}" -a "X${PARENT_HASH}" != "X${ORIG_PARENT_HASH}" ] ; then
   #someone has uploaded new RPMs, so we need to restart
   echo "Parent mismatch, please re-try"
@@ -175,7 +175,7 @@ if [ "${SRC_REPO}" = "${DES_REPO}" -a "X${PARENT_HASH}" != "X${ORIG_PARENT_HASH}
   exit 1
 fi
 
-#First arg of the private-upload script. Only one process with this arg should be running
+#Decide the first arg of the private-upload script. Only one process with this arg should be running
 #at one time. By default we allow parallel upload for DES_REPO/ARCH except for the following
 # - for upload commands i.e. no sync-back which always create a new des_repo
 # - upload with sync-back but src repo is not yet migrated to new style of upload
@@ -193,7 +193,7 @@ fi
 
 #Run the internal private-upload.sh script to process now upload.
 #Only one process should be working on PRIVATE_UPLOAD_ARG1 (either DES_REPO or combination of ARCH/DES_REPO)
-#We make use of process command-line args to find out if any private-upload.sh is running for
+#We make use of process command-line args to find out if any private-upload.sh is running
 #If we find any such process then we wait and try again untill threre is no
 #private-upload.sh for PRIVATE_UPLOAD_ARG1. private-upload.sh also checks at the start that it is the
 #only process working for PRIVATE_UPLOAD_ARG1
@@ -211,7 +211,7 @@ while true ; do
   #If there is already a process running then wait and continue
   [ $(pgrep -x -f "^/bin/bash .*/private-upload.sh ${PRIVATE_UPLOAD_ARG1} .*" | wc -l) -gt 0 ] && sleep 10 && continue
 
-  #OK looks like there no process running for this cmspkg transaction
+  #OK looks like there is no process running for this cmspkg transaction
   #A special exit code (20) from private-upload.sh should indicate that there is another
   #private-upload.sh ${ARCH} ${DES_REPO} running. In that case we just wait and re-try
   XCODE=0
