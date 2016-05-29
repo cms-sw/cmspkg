@@ -1748,8 +1748,10 @@ defaultPackages="$additionalPkgs $defaultPkgs"
 #[ "X$defaultPackages" = X ] || apt-get -y install  $defaultPackages >$tempdir/apt-get-install.log 2>&1 ||  cleanup_and_exit 1 "There was \
 #a problem while installing the default packages "
 
-mkdir $rootdir/common
-cp $tempdir/cmspkg $rootdir/common
+if [ ! -f $rootdir/common/cmspkg ] ; then
+  mkdir -p $rootdir/common
+  cp -f $tempdir/cmspkg $rootdir/common
+fi
 [ "X$defaultPackages" = X ] || $rootdir/common/cmspkg -a $cmsplatf -f install $defaultPackages >$tempdir/apt-get-install.log 2>&1 ||  cleanup_and_exit 1 "There was \
 #a problem while installing the default packages "
 echo "Done"
