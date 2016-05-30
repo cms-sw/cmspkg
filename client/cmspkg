@@ -19,8 +19,8 @@ rpm_partial = "partial"
 getcmd = None
 cmspkg_agent="CMSPKG-v1.0"
 getcmds = [ 
-            ['curl','--version','-q -f -s -H "Cache-Control: max-age=0" --user-agent "%s"'      % (cmspkg_agent),"-o %s"],
-            ['wget','--version','-q --header="Cache-Control: max-age=0" --user-agent="%s" -O -' % (cmspkg_agent),"-O %s"],
+            ['curl','--version','--connect-timeout 60 --max-time 600 -q -f -s -H "Cache-Control: max-age=0" --user-agent "%s"'      % (cmspkg_agent),"-o %s"],
+            ['wget','--version','--timeout=600 -q --header="Cache-Control: max-age=0" --user-agent="%s" -O -' % (cmspkg_agent),"-O %s"],
           ]
 try:
   install_path = __file__
@@ -50,7 +50,7 @@ def cmspkg_url(params):
   url = "http://%s/%s/%s?" % (repo_server, cmspkg_cgi, params['uri'])
   if debug: url = url + "debug=1&"
   del params['uri']
-  for p in params: url = url + p + "=" + params[p] + "&"
+  for p in params: url = url + p + "=" + str(params[p]) + "&"
   url=url[0:-1]
   if debug: print "[DEBUG]: Accessing %s" % (url)
   return url
@@ -89,12 +89,13 @@ def fetch_url(data, outfile=None):
 
 #Run a shell command
 def run_cmd (cmd,debug=True,exit=True):
+  if debug: print "Running Command: ",cmd
   err, out = getstatusoutput(cmd)
   if err:
-    if debug:
-      print "Command: ",cmd
-      print out
+    if debug: print out
     if exit: sys.exit(1)
+  elif debug:
+    print out
   return err, out
 
 def makedirs(path, force=False):
@@ -120,14 +121,24 @@ def verify_package(package, ofile):
 #After the successful download it puts the downlaod file in rpm_download directory
 def download_rpm(package):
   if (package[2]=="") or (package[3]==""):
-    err, out = fetch_url({'uri':'RPMS/%s/%s/%s/%s' % (repo_name, repo_arch, package[0], urllib.quote(package[1])), 'info' : '1', 'ref_hash':package[5]})
+    udata = {'uri':'RPMS/%s/%s/%s/%s' % (repo_name, repo_arch, package[0], urllib.quote(package[1])), 'ref_hash':package[5]}
+    if package[2]=="": udata["sha"]=1
+    if package[3]=="": udata["size"]=1 
+    err, out = fetch_url(udata)
     reply = json.loads(out)
     check_server_reply(reply)
-    if (not 'sha' in reply) or (not 'size' in reply):
-      print "Error: Server error: unable to find checksum/size of package: %s" % package[1]
-      return False
-    package[2] = reply['sha']
-    package[3] = reply['size']
+    if 'sha' in udata:
+      if not 'sha' in reply:
+        print "Error: Server error: unable to find checksum of package: %s" % package[1]
+        return False
+      else:
+        package[2] = reply['sha']
+    if 'size' in udata:
+      if not 'size' in reply:
+        print "Error: Server error: unable to find size of package: %s" % package[1]
+        return False
+      else:
+        package[3] = reply['size']
 
   ofile_tmp = join(rpm_download, rpm_partial, package[1])
   err, out = fetch_url({'uri':'RPMS/%s/%s/%s/%s' % (repo_name, repo_arch, package[0], urllib.quote(package[1])), 'ref_hash':package[5]}, outfile=ofile_tmp)

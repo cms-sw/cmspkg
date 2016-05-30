@@ -30,8 +30,8 @@ cleanup_and_exit () {
 }
 
 download_method=
-download_curl () { curl -f -H "Cache-Control: max-age=0" -q -s "$1" -o "$2.tmp" && mv "$2.tmp" "$2"; }
-download_wget () { (wget --no-check-certificate --header="Cache-Control: max-age=0" -q -O "$2.tmp" "$1" 2>/dev/null || wget -q -O "$2.tmp" "$1") && mv "$2.tmp" "$2"; }
+download_curl () { curl -f -H "Cache-Control: max-age=0" --connect-timeout 60 --max-time 600 -q -s "$1" -o "$2.tmp" && mv "$2.tmp" "$2"; }
+download_wget () { wget --no-check-certificate --header="Cache-Control: max-age=0" --timeout=600 -q -O "$2.tmp" "$1" 2>/dev/null && mv "$2.tmp" "$2"; }
 download_none () { cleanup_and_exit 1 "No curl or wget, cannot fetch $1" 
 }
 
@@ -1558,7 +1558,7 @@ download_${download_method} $cmspkg $tempdir/cmspkg
 [ -f $tempdir/cmspkg ] || cleanup_and_exit 1 "FATAL: Unable to download cmsos: $cmspkg"
 chmod +x $tempdir/cmspkg
 
-downloadScript="$tempdir/cmspkg -a $cmsplatf -p $DOWNLOAD_DIR -s $server download"
+downloadScript="$tempdir/cmspkg --debug -a $cmsplatf -p $DOWNLOAD_DIR -s $server download"
 echo_n "Downloading bootstrap core packages..."
 for pkg in $packageList
 do
