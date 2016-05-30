@@ -222,7 +222,8 @@ def cache(repo, arch, uHash):
   repo = apt_repo(repo)
   cdir = join(basedir, repo, uHash, arch)
   if exists (cdir):
-    md5sums = get_apt_md5sums(join(basedir, repo, "md5cache", arch, "genpkglist"))
+    #md5sums = get_apt_md5sums(join(basedir, repo, "md5cache", arch, "genpkglist"))
+    md5sums = {}
     ReRPM = re.compile('(.+)[-]1[-]((1|\d+)(.%s|))\.%s\.rpm' % (arch,arch))
     err, out = getstatusoutput("find %s -maxdepth 2 -mindepth 2 -name '*.rpm' -type l | sort | xargs -i readlink '{}'" % cdir)
     for line in out.split("\n"):
