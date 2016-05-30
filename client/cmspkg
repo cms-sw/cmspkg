@@ -67,7 +67,7 @@ def check_server_reply(reply, exit=True):
   return
 
 #Use available command (curl or wget) to download url
-def fetch_url(data, outfile=None):
+def fetch_url(data, outfile=None, debug=False):
   global getcmd
   if not getcmd:
     for cmd in getcmds:
@@ -85,16 +85,17 @@ def fetch_url(data, outfile=None):
   if outfile: cmd.append(getcmd[3] % outfile)
   cmd.append('"'+url+'"')
   cmd_str = " ".join(cmd)
-  return run_cmd(cmd_str)
+  return run_cmd(cmd_str, outdebug=debug)
 
 #Run a shell command
-def run_cmd (cmd,debug=True,exit=True):
-  if debug: print "Running Command: ",cmd
+def run_cmd (cmd,outdebug=False,exit=True):
+  if debug: print "[CMD]: ",cmd
   err, out = getstatusoutput(cmd)
   if err:
-    if debug: print out
-    if exit: sys.exit(1)
-  elif debug:
+    if exit:
+      print out
+      sys.exit(1)
+  elif outdebug:
     print out
   return err, out
 
@@ -370,7 +371,7 @@ class CmsPkg:
       #if we have a cache then do not need to fetch unless forced
       if not force and exists (cfile): continue
       if debug: print "Gettings cache %s/%s" % (c[0], c[1])
-      err, out = fetch_url({'uri':'cache/%s/%s/%s' % (c[0], repo_arch, c[1])})
+      err, out = fetch_url({'uri':'cache/%s/%s/%s' % (c[0], repo_arch, c[1])},debug=False)
       cache = json.loads(out)
       check_server_reply(cache)
       if not 'hash' in cache:

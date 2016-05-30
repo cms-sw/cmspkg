@@ -1557,9 +1557,11 @@ cmspkg=$server/$server_main_dir/repos/cmspkg
 download_${download_method} $cmspkg $tempdir/cmspkg
 [ -f $tempdir/cmspkg ] || cleanup_and_exit 1 "FATAL: Unable to download cmsos: $cmspkg"
 chmod +x $tempdir/cmspkg
+cmspkg_debug=""
+[ "X$debug" = "Xtrue" ] && cmspkg_debug="--debug"
 
-downloadScript="$tempdir/cmspkg --debug -a $cmsplatf -p $DOWNLOAD_DIR -s $server download"
-echo_n "Downloading bootstrap core packages..."
+downloadScript="$tempdir/cmspkg ${cmspkg_debug} -a $cmsplatf -p $DOWNLOAD_DIR -s $server download"
+echo "Downloading bootstrap core packages..."
 for pkg in $packageList
 do
     $downloadScript $pkg
@@ -1752,8 +1754,8 @@ if [ ! -f $rootdir/common/cmspkg ] ; then
   mkdir -p $rootdir/common
   cp -f $tempdir/cmspkg $rootdir/common
 fi
-[ "X$defaultPackages" = X ] || $rootdir/common/cmspkg -a $cmsplatf -f install $defaultPackages >$tempdir/apt-get-install.log 2>&1 ||  cleanup_and_exit 1 "There was \
-#a problem while installing the default packages "
+[ "X$defaultPackages" = X ] || $rootdir/common/cmspkg ${cmspkg_debug} -a $cmsplatf -f install $defaultPackages >$tempdir/apt-get-install.log 2>&1 || (cat $tempdir/apt-get-install.log  && cleanup_and_exit 1 "There was a problem while installing the default packages ")
+[ "X$debug" = "Xtrue" ] && cat $tempdir/apt-get-install.log
 echo "Done"
 
 echo "Bootstrap environment to be found in: "
