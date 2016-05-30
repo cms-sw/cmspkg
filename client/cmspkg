@@ -652,9 +652,9 @@ def get_env(install_dir,arch):
     ver = os.getenv("CMSAPT_VERSION",None)
     if ver and not exists (join(pkgdir, ver)): ver=None
     else: ver="*"
-    err, out = run_cmd ("ls -drt %s/%s/external/apt/%s/etc/sources.list" % (install_dir, arch, ver),debug=False, exit=False)
+    err, out = run_cmd ("ls -drt %s/%s/external/apt/%s/etc/sources.list" % (install_dir, arch, ver), outdebug=False, exit=False)
     if err: return repo, None
-    err, out = run_cmd ("cat %s | grep '^ *rpm ' | sed 's|/apt/%s .*||;s|.*/||'" % (out.split()[-1], arch),debug=False, exit=False)
+    err, out = run_cmd ("cat %s | grep '^ *rpm ' | sed 's|/apt/%s .*||;s|.*/||'" % (out.split()[-1], arch), outdebug=False, exit=False)
     if err: return repo, None
     repo = out.strip()
     rpm_dir = "%s/%s/external/apt/%s/bin/apt-get | sed 's|/bin/apt-get|/etc/profile.d/init.sh|'" % (install_dir, arch, ver)
