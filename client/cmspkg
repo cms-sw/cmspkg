@@ -174,14 +174,24 @@ def human_readable_size(size):
   return str(size)+schar
 
 #Download a package if not already downloaed
-def download_package(package, downloader, index=1):
-  print "Get:%s http://%s cmssw/%s/%s %s" % (index, repo_server, repo_name, repo_arch, package[1])
+def download_package(package, downloader):
+  downloader.lock.acquire()
+  downloader.counter = downloader.counter + 1
+  print "Get:%s http://%s cmssw/%s/%s %s" % (downloader.counter, repo_server, repo_name, repo_arch, package[1])
+  downloader.lock.release()
   ofile = join(rpm_download, package[1])
+  err=False
+  pkg_deps = []
   if (not exists (ofile)) and (not download_rpm(package)):
-    downloader.errors.append(1)
-    downloader.deps[package[1]]=[]
-    return
-  downloader.deps[package[1]]=get_pkg_deps(ofile)
+    err = True
+  else:
+    pkg_deps = get_pkg_deps(ofile)
+  try:
+    downloader.lock.acquire()
+    downloader.deps[package[1]]=pkg_deps
+    if err: downloader.error = err
+  finally:
+    downloader.lock.release()
   return
 ###############################################
 #End of Utility function
@@ -289,26 +299,21 @@ class rpmDownloader:
   def __init__(self, parallel=4):
     self.parallel = parallel
     self.counter = 0
-    self.failed = []
+    self.error = False
     self.deps = {}
-
-  def errors(self):
-    return len(self.failed) > 0
+    self.lock = threading.Lock()
 
   def run(self, packages):
     threads = []
-    self.failed = []
+    self.error = False
     self.deps = {}
     total = len(packages)
     while(len(packages) > 0):
+      if self.error: break
       threads = [t for t in threads if t.is_alive()]
-      if self.errors():
-        for t in threads: t.join()
-        return
       if(len(threads) < self.parallel):
         try:
-          self.counter = self.counter + 1
-          t = threading.Thread(target=download_package, args=(packages.pop(), self, self.counter))
+          t = threading.Thread(target=download_package, args=(packages.pop(), self))
           t.start()
           threads.append(t)
         except Exception, e:
@@ -316,6 +321,7 @@ class rpmDownloader:
       else:
         sleep(1)
     for t in threads: t.join()
+    return
 
 ###############################################
 #cmspkg class for getting caches, and installing packages
@@ -441,7 +447,7 @@ class CmsPkg:
       to_download.append(d)
     if not to_download: return
     self.downloader.run(list(to_download))
-    if self.downloader.errors(): sys.exit(1)
+    if self.downloader.error: sys.exit(1)
     ndeps = []
     for d in to_download:
       for xd in self.downloader.deps[d[1]]+d[4]:
@@ -482,7 +488,7 @@ class CmsPkg:
 
     #download the package
     self.downloader.run([pk])
-    if self.downloader.errors(): sys.exit(1)
+    if self.downloader.error: sys.exit(1)
     deps={}
     npkgs = []
     
@@ -581,7 +587,7 @@ class CmsPkg:
       sys.exit(1)
     pk = self.cache.packs[package][self.latest_revision(package)]
     self.downloader.run([pk])
-    if self.downloader.errors(): sys.exit(1)
+    if self.downloader.error: sys.exit(1)
     return
 
 #Process the input command/options
