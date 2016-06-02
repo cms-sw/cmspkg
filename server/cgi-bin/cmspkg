@@ -265,12 +265,18 @@ def file_search_result(rfile, name):
   return
 
 def process(req):
-  rpath = os.environ['PATH_INFO'].strip("/")
+  rpath = []
+  try:
+    rpath = os.environ['PATH_INFO'].strip("/")
+  except Exception , e:
+    redirect("/cmspkg.html")
+
   if debug: debug_msg.append("Name: %s" % rpath)
   items = rpath.split("/")
   ilen = len(items)
-  if ilen==0: return error_msg("Invalid request: %s" % (rpath))
+  if ilen==0: redirect("/cmspkg.html")
   ftype = items[0]
+  if ftype == "api": redirect("/cmspkg.html")
   if not ftype in REQUESTS: return error_msg("Invalid request: %s" % (rpath))
   xlen = len(REQUESTS[ftype])+1
   if ilen > xlen:
