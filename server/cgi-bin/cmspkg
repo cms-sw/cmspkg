@@ -276,7 +276,7 @@ def process(req):
   ilen = len(items)
   if ilen==0: redirect("/cmspkg.html")
   ftype = items[0]
-  if ftype == "api": redirect("/cmspkg.html")
+  if (ftype == "api") or (ftype==""): redirect("/cmspkg.html")
   if not ftype in REQUESTS: return error_msg("Invalid request: %s" % (rpath))
   xlen = len(REQUESTS[ftype])+1
   if ilen > xlen:
