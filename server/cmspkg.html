@@ -1,0 +1,48 @@
+<html><head></head><body><center><h2>cmspkg API</h2></center>
+<ul><li><b>/cmspkg/caches</b>/<i>repo:</i>/<i>architecture:</i><br/><br> Returns the list of available caches for an architecutre of a repository. Each cache contains meta information about the packages. Each item in this list contains <b>repo-name</b>, <b>cache-name</b> and the <b>timestamp</b> of the cache.
+<pre>{
+  "caches": [
+    [
+      "cms.cmsbuild",
+      "8adc29ef59285e646f85194008ab573f21fe0b0a79861cab641dcbcc5d745c29",
+      "afc0ce77b4b66794eac90859687cfa98b2eb8bb7bed1f02a3f3dfc9dc8dedc20"
+    ],
+    [
+      "cms.cmsbuild",
+      "0000000000000000000000000000000000000000000000000000000000000000",
+      "2958951d78e10b668e944422e539ea5bfc240e936edd0118ac5f7f8d52248fd0"
+    ]
+  ]
+}</pre></li></ul>
+<ul><li><b>/cmspkg/cache</b>/<i>repo-name:</i>/<i>architecture:</i>/<i>cache-name:</i><br/><br> Returns meta-data information about packages avilable in <b>cache-name</b>. Each package contains the revision of the package and for each revision its <b>package-hash</b>, <b>file-name</b> and optionally <b>md5sum</b> and <b>size</b> of the file. It also contains list of any additioanl/forced <b>dependencies</b> for the package.
+<pre>{
+  "external+A+1.1": {
+    "1": [
+      "ac849a7d586fc3c9cd8cfb0550a78e3d",
+      "external+A+1.1-1-1.slc6_amd64_gcc530.rpm",
+      "a993899c2681831d418573da4393a0b8",
+      8821,
+      []
+    ]
+  },
+  "external+B+1.0": {
+    "1": [
+      "12c5d488d0bf9512432bedfe81cb2560",
+      "external+B+1.0-1-1.slc6_amd64_gcc530.rpm",
+      "6de0bb4cc649e68d0a58a6672dbad6ea",
+      8841,
+      []
+    ]
+  },
+  "hash": "3f534caae54699ff2f8e21b9d875bd48345b75839de3940c8b09ed10afcab839"
+}</pre></li></ul>
+<ul><li><b>/cmspkg/driver</b>/<i>repo:</i>/<i>architecture:</i>[?sha=1[&size=1]]<br/><br> To get the latest bootstrap driver file for an architecture of a repository.<br/><br/>Additional paratemers <b>size</b> and/or <b>sha</b> can be passed to get size/sha of the file
+<pre>{
+  "path": "repos/cms.cmsbuild/drivers/slc6_amd64_gcc530-driver.txt",
+  "sha": "05bab0d01817d0cabe22115da50dbd78",
+  "size": 6773
+}</pre></li></ul>
+<ul><li><b>/cmspkg/RPMS</b>/<i>repo-names:</i>/<i>architecture:</i>/<i>package-hash:</i>/<i>file-name:</i>?ref_hash=<i>cache-name:</i>[&sha=1[&size=1]]<br/><br> To get a package file.<br/><br/>Additional paratemers <b>size</b> and/or <b>sha</b> can be passed to get size/sha of the file</li></ul>
+<ul><li><b>/cmspkg/SOURCES</b>/<i>repo:</i>/<i>src-url-md5sum:</i>/<i>src-file-name:</i>[?sha=1[&size=1]]<br/><br> To get a package file.<br/><br/>Additional paratemers <b>size</b> and/or <b>sha</b> can be passed to get size/sha of the file.</li></ul>
+<ul><li><b>/cmspkg/file</b>/<i>repo:</i>/<i>architecture:</i>/<i>file:</i>[?sha=1[&size=1]]<br/><br> To get a repository file e.g. bootstrap.sh or cmspkg client.<br/><br/>Additional paratemers <b>size</b> and/or <b>sha</b> can be passed to get size/sha of the file</li></ul>
+</body><html>
