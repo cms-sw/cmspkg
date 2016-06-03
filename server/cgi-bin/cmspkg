@@ -73,7 +73,7 @@ def get_new_cache(repo, arch, uHash):
   cache = join(arch_dir, uHash)
   if exists (cache):
     if uHash == "latest": uHash = os.readlink(cache)
-    return uHash, sha256(str(int(getmtime(join(arch_dir, uHash, "RPMS.json"))))).hexdigest()
+    return uHash, str(int(getmtime(join(arch_dir, uHash, "RPMS.json"))))
   return uHash, None
 
 def get_parent(repo, arch, uHash):
@@ -206,7 +206,7 @@ def caches(repo, arch):
     repo = apt_repo(repo)
     cdir = join(basedir, repo, 'apt', arch)
     if exists (cdir):
-      data['caches'].append([repo, "apt", sha256(repo+"-"+arch+"-"+str(int(getmtime(cdir)))).hexdigest()])
+      data['caches'].append([repo, "apt", str(int(getmtime(cdir)))])
       if debug: debug_msg.append("Found parent %s/%s" % (repo, 'apt'))
   return_json(data)
 
