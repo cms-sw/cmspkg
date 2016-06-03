@@ -35,14 +35,16 @@
     ]
   },
   "hash": "3f534caae54699ff2f8e21b9d875bd48345b75839de3940c8b09ed10afcab839"
-}</pre></li></ul>
-<ul><li><b>/cmspkg/driver</b>/<i>repo:</i>/<i>architecture:</i>[?sha=1[&size=1]]<br/><br> To get the latest bootstrap driver file for an architecture of a repository.<br/><br/>Additional paratemers <b>size</b> and/or <b>sha</b> can be passed to get size/sha of the file
+}
+
+In order to verify the contents of the cache, remove the <b>hash</b> key from the cache and calculate the sha256 of the cache. If it does not match the <b>hash</b> then contents of cache were not properly transferred.</pre></li></ul>
+<ul><li><b>/cmspkg/driver</b>/<i>repo:</i>/<i>architecture:</i><b>[?sha=1[&size=1]]</b><br/><br> To get the latest bootstrap driver file for an architecture of a repository.<br/><br/>Additional paratemers <b>size</b> and/or <b>sha</b> can be passed to get size/sha of the file
 <pre>{
   "path": "repos/cms/drivers/slc6_amd64_gcc530-driver.txt",
   "sha": "05bab0d01817d0cabe22115da50dbd78",
   "size": 6773
 }</pre></li></ul>
-<ul><li><b>/cmspkg/RPMS</b>/<i>repo-names:</i>/<i>architecture:</i>/<i>package-hash:</i>/<i>file-name:</i>?ref_hash=<i>cache-name:</i>[&sha=1[&size=1]]<br/><br> To get a package file.<br/><br/>Additional paratemers <b>size</b> and/or <b>sha</b> can be passed to get size/sha of the file</li></ul>
-<ul><li><b>/cmspkg/SOURCES</b>/<i>repo:</i>/<i>src-url-md5sum:</i>/<i>src-file-name:</i>[?sha=1[&size=1]]<br/><br> To get a package file.<br/><br/>Additional paratemers <b>size</b> and/or <b>sha</b> can be passed to get size/sha of the file.</li></ul>
-<ul><li><b>/cmspkg/file</b>/<i>repo:</i>/<i>architecture:</i>/<i>file:</i>[?sha=1[&size=1]]<br/><br> To get a repository file e.g. bootstrap.sh or cmspkg client.<br/><br/>Additional paratemers <b>size</b> and/or <b>sha</b> can be passed to get size/sha of the file</li></ul>
+<ul><li><b>/cmspkg/RPMS</b>/<i>repo-names:</i>/<i>architecture:</i>/<i>package-hash:</i>/<i>file-name:</i>?<b>ref_hash=</b><i>cache-name:</i><b>[&sha=1[&size=1]]</b><br/><br> To get a package file.<br/><br/>Additional paratemers <b>size</b> and/or <b>sha</b> can be passed to get size/sha of the file</li></ul>
+<ul><li><b>/cmspkg/SOURCES</b>/<i>repo:</i>/<i>src-url-md5sum:</i>/<i>src-file-name:</i><b>[?sha=1[&size=1]]</b><br/><br> To get a package file.<br/><br/>Additional paratemers <b>size</b> and/or <b>sha</b> can be passed to get size/sha of the file.</li></ul>
+<ul><li><b>/cmspkg/file</b>/<i>repo:</i>/<i>architecture:</i>/<i>file:</i><b>[?sha=1[&size=1]]</b><br/><br> To get a repository file e.g. bootstrap.sh or cmspkg client.<br/><br/>Additional paratemers <b>size</b> and/or <b>sha</b> can be passed to get size/sha of the file</li></ul>
 </body><html>
