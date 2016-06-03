@@ -188,12 +188,10 @@ def check_request(req):
 def caches(repo, arch):
   data = {}
   data['caches']=[]
-  isNew = False
   if debug: debug_msg.append("Checking %s/%s" % (repo, "latest"))
   uHash, hash = get_new_cache(repo, arch, "latest")
   if hash:
     data['caches'].append([repo, uHash, hash])
-    isNew = True
     if debug: debug_msg.append("Found hash %s/%s" % (uHash, hash))
   prepo, pHash  = get_parent (repo, arch, uHash)
   while prepo:
@@ -204,7 +202,7 @@ def caches(repo, arch):
       if debug: debug_msg.append("Found hash %s/%s" % (uHash, hash))
     prepo, pHash  = get_parent (prepo, arch, uHash)
   if debug: debug_msg.append("Found New repo: %s" % (str(isNew)))
-  if not isNew:
+  if len(data)==0:
     repo = apt_repo(repo)
     cdir = join(basedir, repo, 'apt', arch)
     if exists (cdir):
