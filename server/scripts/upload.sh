@@ -180,7 +180,7 @@ fi
 # - upload with sync-back but src repo is not yet migrated to new style of upload
 #   To avoid multiple process copying SOURCES/WEB
 # - new repos which also create new des repo
-PRIVATE_UPLOAD_ARG1="${DES_REPO}-${ARCH}"
+PRIVATE_UPLOAD_ARG1="${ARCH}:${DES_REPO}"
 if [ "$CREATE_REPO" = "YES" -o "${SRC_REPO}" != "${DES_REPO}" ] ; then
   PRIVATE_UPLOAD_ARG1="${DES_REPO}"
 else
@@ -202,26 +202,22 @@ while true ; do
     if [ "$CREATE_REPO" != "YES" -a "${SRC_REPO}" = "${DES_REPO}" ] ; then
       RES="$(findRepo ${CMSPKG_REPOS} ${SRC_REPO} SOURCES)" || exit 19
       if [ "X${RES}" != "X" ] ; then
-        PRIVATE_UPLOAD_ARG1="${DES_REPO}-${ARCH}"
+        PRIVATE_UPLOAD_ARG1="${ARCH}:${DES_REPO}"
       fi
     fi
   fi
 
-  #If there is already a process running then wait and continue
-  [ $(pgrep -x -f "^/bin/bash .*/private-upload.sh ${PRIVATE_UPLOAD_ARG1} .*" | wc -l) -gt 0 ] && sleep 10 && continue
-
-  #OK looks like there is no process running for this cmspkg transaction
+  #run the private-upload to process the new RPMS
   #A special exit code (20) from private-upload.sh should indicate that there is another
   #private-upload.sh ${ARCH} ${DES_REPO} running. In that case we just wait and re-try
   XCODE=0
   $(dirname $0)/private-upload.sh ${PRIVATE_UPLOAD_ARG1} ${ARCH} ${DES_REPO} ${SRC_REPO} ${TMPREPO_BASE} || XCODE=$?
-  rm -f ${TMPREPO_BASE}/running
 
   #For Special exit code 20 we wait and retry
   [ "$XCODE" = "20" ] && sleep 10 && continue
-  
+
   #OK, we are done here. Just cleanup the tmp directory and exit with the exit code of
-  # private-upload script
+  #private-upload script
   rm -rf ${TMPREPO_BASE}
   exit $XCODE
 done

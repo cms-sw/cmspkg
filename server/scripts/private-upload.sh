@@ -1,5 +1,5 @@
 #!/bin/bash -ex
-[ $(pgrep -x -f "^/bin/bash .*/private-upload.sh $1 .*" | wc -l) -gt 2 ] && exit 20
+[ $(pgrep -x -f "^/bin/bash .*/private-upload.sh  *($2:|)$3 .*" | wc -l) -gt 2 ] && exit 20
 
 #This script can only be run from upload.sh script. Any other attempt will not process
 #Check if script was run from upload.sh otherwise exit
@@ -54,22 +54,17 @@ elif [ "${NEW_STYLE_SRC_REPO}" = "YES" ] ; then
   #sync-back is requested but actual src repo with this arch is one of the 
   #parent of src_repo (so need to initialize)
 
-  #We just sync current ACTUAL_SRC_REPO in to DES_REPO with all the transactions
-  #We create hardlinks for RPMs and copy of meta data (RPMS.json files)
+  #We just sync current ACTUAL_SRC_REPO in to DES_REPO with all the transactions in to DEFAULT_HASH
+  #We create hardlinks for RPMs and merge of meta data (RPMS.json) files of transactions
   #Note, in new style repo, each transaction has a symlink (parent) pointing to its parent
 
   SRC_REPO_DIR="${CMSPKG_REPOS}/${ACTUAL_SRC_REPO}"
-
-  #create SOURCES links
-  if [ -d ${SRC_REPO_DIR}/SOURCES/links ]  ; then
-    mkdir -p ${TMPREPO_DES}/SOURCES/links
-    rsync -a --chmod=a+rX --include "${ARCH}-*" --exclude '*' ${SRC_REPO_DIR}/SOURCES/links/ ${TMPREPO_DES}/SOURCES/links/
-  fi
 
   #Keep on sync-ing if REPO_HASH is set. In case parent symlink in repo is broken (due to cleanup job)
   #then fall back to DEFAULT_HASH (where cleanup job should have copied all RPMS).
   #Note that DEFAULT_HASH has no parent
   #Start from the current parent hash
+  mkdir -p ${TMPREPO_ARCH}/${DEFAULT_HASH}/RPMS/
   REPO_HASH="${PARENT_HASH}"
   ALL_HASHES=""
   while [ "X${REPO_HASH}" != "X" ] ; do
@@ -80,63 +75,60 @@ elif [ "${NEW_STYLE_SRC_REPO}" = "YES" ] ; then
     fi
 
     #Check for cyclic dependency
-    if [ $(echo ${ALL_HASHES} | grep "${REPO_HASH} " | wc -l) -gt 0 ] ; then
+    if [ $(echo " ${ALL_HASHES} " | grep " ${REPO_HASH} " | wc -l) -gt 0 ] ; then
       echo "Error: Looks like repository ${SRC_REPO} was man handled. Cyclic dependency found:"
       echo "${REPO_HASH}"
       echo "${ALL_HASHES}" | sed "s|^.*${REPO_HASH} ||" | tr ' ' '\n'
       exit 19
     fi
     
-    #List of all hashes
-    ALL_HASHES="${ALL_HASHES}${REPO_HASH} "
-
     #First create hard-links for every thing except meta data files (RPMS.json)
-    mkdir -p ${TMPREPO_ARCH}/${REPO_HASH}/RPMS/
-    rsync -a --chmod=a+rX --link-dest ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/RPMS/ ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/RPMS/ ${TMPREPO_ARCH}/${REPO_HASH}/RPMS/
-
-    #Now make a copy of meta-data informtion (RPMS.json)
-    cp -f ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/RPMS.json ${TMPREPO_ARCH}/${REPO_HASH}/RPMS.json
+    rsync -a --chmod=a+rX --link-dest ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/RPMS/ ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/RPMS/ ${TMPREPO_ARCH}/${DEFAULT_HASH}/RPMS/
 
     #Hard links for WEB and SOURCES/cache
     for subdir in WEB SOURCES/cache ; do
       if [ -d ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/${subdir} ] ; then
-        mkdir -p ${TMPREPO_ARCH}/${REPO_HASH}/${subdir}
-        rsync -a --chmod=a+rX --link-dest ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/${subdir}/ ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/${subdir}/ ${TMPREPO_ARCH}/${REPO_HASH}/${subdir}/
+        mkdir -p ${TMPREPO_DES}/${subdir}
+        rsync -a --ignore-existing --chmod=a+rX --link-dest ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/${subdir}/ ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/${subdir}/ ${TMPREPO_DES}/${subdir}/
       fi
     done
 
     #Copy any SOURCES symlinks/drivers files
     for subdir in SOURCES/${ARCH} drivers ; do
       if [ -d ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/${subdir} ] ; then
-        mkdir -p ${TMPREPO_ARCH}/${REPO_HASH}/${subdir}
-        rsync -a --chmod=a+rX ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/${subdir}/ ${TMPREPO_ARCH}/${REPO_HASH}/${subdir}/
-      fi
-    done
-
-    #Hardlinks any arch specific files e.g. history
-    for subdir in history ; do
-      if [ -d ${SRC_REPO_DIR}/${ARCH}/${subdir} ] ; then
-        mkdir -p ${TMPREPO_ARCH}/${subdir}
-        rsync -a --chmod=a+rX ${SRC_REPO_DIR}/${ARCH}/${subdir}/ ${TMPREPO_ARCH}/${subdir}/
+        mkdir -p ${TMPREPO_DES}/${subdir}
+        rsync -a --ignore-existing --chmod=a+rX ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/${subdir}/ ${TMPREPO_DES}/${subdir}/
       fi
     done
 
     #copy any common files
     for cfile in cmsos bootstrap.sh ; do
-      [ -f ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/${cfile} ] && cp ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/${cfile} ${TMPREPO_ARCH}/${REPO_HASH}/${cfile}
+      [ -f ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/${cfile} ] && cp ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/${cfile} ${TMPREPO_DES}/${cfile}
     done
 
     #If it is default hash then stop processing as default repo has no parent
-    [ "${REPO_HASH}" = "${DEFAULT_HASH}" ] && break
+    if [ "${REPO_HASH}" = "${DEFAULT_HASH}" ] ; then
+      cp ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/RPMS.json ${TMPREPO_ARCH}/${DEFAULT_HASH}/RPMS.json
+      break
+    fi
+
+    #List of all hashes: we add it here so that DEFAULT HASH does not go in this list
+    #Keep the order as we use this order to merge the RPMS.json files later
+    ALL_HASHES="${REPO_HASH} ${ALL_HASHES}"
 
     #Get the parent by reading the parent symlink. Be prepared that it could be broken (due to cleanup job)
-    NEXT_PARENT_HASH="$(readlink ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/parent | sed 's|^.*/||' || true)"
-    [ "X${NEXT_PARENT_HASH}" = "X" ] && NEXT_PARENT_HASH="${DEFAULT_HASH}"
-    ln -sf ../${NEXT_PARENT_HASH} ${TMPREPO_ARCH}/${REPO_HASH}/parent
-    REPO_HASH="${NEXT_PARENT_HASH}"
+    REPO_HASH="$(readlink ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/parent | sed 's|^.*/||' || true)"
+    [ "X${REPO_HASH}" = "X" ] && REPO_HASH="${DEFAULT_HASH}"
   done
-  #create symlink latest pointing to the original parent hash
-  ln -sf ${PARENT_HASH} ${TMPREPO_ARCH}/latest
+  #Merge the transactions. Read the trnasactions hashes and merge them back to DEFAULT
+  MERGE_META_SCRIPT=$(dirname $0)/merge-meta.py
+  for h in ${ALL_HASHES} ; do
+    ${MERGE_META_SCRIPT} ${TMPREPO_ARCH}/${DEFAULT_HASH}/RPMS.json ${SRC_REPO_DIR}/${ARCH}/${h}/RPMS.json
+  done
+
+  #create symlink latest pointing to the new parent hash i.e. DEFAULT_HASH
+  ln -sf ${DEFAULT_HASH} ${TMPREPO_ARCH}/latest
+  PARENT_HASH=${DEFAULT_HASH}
 else   #i.e  [ "X${APT_REPO}" != "X" ] ; then
   #There was no new style repo found but we have a apt repo which we have to
   #use to initialize. In this case we just find all the RPMS from APT REPO

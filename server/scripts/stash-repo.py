@@ -8,6 +8,7 @@ from commands import getstatusoutput
 from hashlib import sha256
 from json import loads, dumps
 import traceback, re
+from cmspkg_utils import merge_meta
 
 #Format: Order list of repo where for each repo once should have a list with 3 items
 #[ RepoNameTo Match, Days-to-keep, max-transactions-to-keep]
@@ -26,24 +27,6 @@ DEFAULT_HASH = "0000000000000000000000000000000000000000000000000000000000000000
 
 #Helper function to format a string
 def format(s, **kwds): return s % kwds
-
-#Merge Two transactions
-def merge_meta(arch_dir, default, uHash, dryRun=False):
-  data=loads(open(join(arch_dir,default,"RPMS.json")).read())
-  updates=loads(open(join(arch_dir,uHash,"RPMS.json")).read())
-  for pkg in updates:
-    if pkg == 'hash': continue
-    if not pkg in data:
-      data[pkg]=updates[pkg]
-    else:
-      for revision in updates[pkg]: data[pkg][revision]=updates[pkg][revision]
-  data.pop('hash', None)
-  data['hash'] = sha256(dumps(data,sort_keys=True,separators=(',',': '))).hexdigest()
-  if not dryRun:
-    with open(join(arch_dir,default,"RPMS.json-"+uHash), 'w') as outfile:
-      outfile.write(dumps(data,sort_keys=True,indent=2,separators=(',',': ')))
-      outfile.close()
-  return
 
 #Starting from a upload transaction for an architecture, this function returns 
 #All the parents reachable but not including DEFAULT_HASH
@@ -85,23 +68,23 @@ def stashArch (repo_dir, arch, uHash, dryRun=False):
   for common_file in out.split("\n"):
     if common_file.endswith("RPMS.json"): continue
     cmd = cmd + " && cp -rf "+common_file+" %(repo_dir)s/"
+  default_meta = join(repoInfo["default_dir"],"RPMS.json")
   try:
-    merge_meta (arch_dir, DEFAULT_HASH, uHash, dryRun)
+    merge_meta (default_meta, join(repoInfo["hash_dir"],"RPMS.json"), default_meta+"-"+uHash, dryRun)
   except Exception, e:
     print e
     traceback.print_exc()
     return False
   cmd = format (cmd , **repoInfo)
-  new_meta = join(repoInfo["default_dir"],"RPMS.json")
   if not dryRun:
     err, out = getstatusoutput (cmd)
     if err:
       print out
-      getstatusoutput("rm -f %s-%s" % (new_meta, uHash))
+      getstatusoutput("rm -f %s-%s" % (default_meta, uHash))
       return False
   else:
     print cmd
-  cmd = "mv %s-%s %s" % (new_meta, uHash, new_meta)
+  cmd = "mv %s-%s %s" % (default_meta, uHash, default_meta)
   if not dryRun:
     err, out = getstatusoutput (cmd)
     if err:
