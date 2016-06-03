@@ -201,8 +201,7 @@ def caches(repo, arch):
       data['caches'].append([prepo, uHash, hash])
       if debug: debug_msg.append("Found hash %s/%s" % (uHash, hash))
     prepo, pHash  = get_parent (prepo, arch, uHash)
-  if debug: debug_msg.append("Found New repo: %s" % (str(isNew)))
-  if len(data)==0:
+  if len(data['caches'])==0:
     repo = apt_repo(repo)
     cdir = join(basedir, repo, 'apt', arch)
     if exists (cdir):
