@@ -17,7 +17,7 @@ rpm_download = None
 rpm_env = None
 rpm_partial = "partial"
 getcmd = None
-cmspkg_agent="CMSPKG-v1.0"
+cmspkg_agent="CMSPKG/1.0"
 getcmds = [ 
             ['curl','--version','--connect-timeout 60 --max-time 600 -q -f -s -H "Cache-Control: max-age=0" --user-agent "%s"'      % (cmspkg_agent),"-o %s"],
             ['wget','--version','--timeout=600 -q --header="Cache-Control: max-age=0" --user-agent="%s" -O -' % (cmspkg_agent),"-O %s"],
