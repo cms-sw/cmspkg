@@ -544,7 +544,7 @@ class CmsPkg:
       size_uncompress += s2
       pkg_to_install += "  "+d
     reinstall_opts = ""
-    if reinstall: reinstall_opts = "--replacepkgs --replacefiles"
+    if reinstall and (package in self.rpm_cache): reinstall_opts = "--replacepkgs --replacefiles --nodeps"
     print "Downloaded %s of archives." % human_readable_size(size_compress)
     print "After unpacking %s of additional disk space will be used." % human_readable_size(size_uncompress)
     rcmd = "%s; rpm -Uvh -r %s --force --prefix %s --ignoreos --ignorearch --oldpackage %s" %(rpm_env, install_path, install_path, reinstall_opts)
