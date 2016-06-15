@@ -13,6 +13,7 @@ repo_arch = None
 repo_server = 'cmsrep.cern.ch'
 cmspkg_cgi = 'cgi-bin/cmspkg'
 cache_dir = None
+pkgs_dir = None
 rpm_download = None
 rpm_env = None
 rpm_partial = "partial"
@@ -44,6 +45,21 @@ def rpm2package(rpm, arch):
 
 def print_msg(msg, type):
   for m in msg.split("\n"): print "[%s]: %s" % (type, m)
+
+#create package installation stamp file
+def package_installed(package):
+  pkg_file = join(pkgs_dir, package)
+  if exists (pkg_file): return
+  run_cmd("mkdir -p %s; touch %s" % (pkgs_dir, pkg_file))
+
+#remove package installation stamp file
+def package_removed(package):
+  pkg_file = join(pkgs_dir, package)
+  if exists (pkg_file):
+    run_cmd("rm -f %s" % pkgs_file)
+  pkg_file = join(install_path, repo_arch, ".cmsdistrc", "PKG_"+package)
+  if exists (pkg_file):
+    run_cmd("rm -f %s" % pkgs_file)
 
 #Returns cmspkg url to access
 def cmspkg_url(params):
@@ -333,7 +349,7 @@ class CmsPkg:
     self.cache = None
     self.downloader = rpmDownloader(jobs)
     return
-    
+
   #Read rpm database for locally installed RPMS
   def update_rpm_cache(self, force=False):
     if (not force) and self.rpm_cache: return
@@ -482,6 +498,7 @@ class CmsPkg:
     pk = self.package_data(package, reinstall)
     if (not reinstall) and (not pk):
       print "%s is already the newest version.\n0 upgraded, 0 newly installed, 0 removed and 0 not upgraded." % package
+      package_installed(package)
       return
 
     #make sure that rpm download directory is available
@@ -534,7 +551,9 @@ class CmsPkg:
     err = subprocess.call(cmd, shell=True)
     if not err:
       self.update_rpm_cache(True)
-      if package in self.rpm_cache: self.clean()
+      if package in self.rpm_cache:
+        package_installed(package)
+        self.clean()
     return
 
   #print the packages name which matched the pkg_search pattren. 
@@ -680,6 +699,7 @@ if __name__ == '__main__':
     print "Error: Unable to find repository name or rpm installation. Are you sure you have a bootstrap area?"
     sys.exit(1)
   cache_dir = join(install_path, repo_arch, 'var/cmspkg/cache')
+  pkgs_dir  = join(install_path, repo_arch, 'var/cmspkg/pkgs')
   rpm_download = join(install_path,repo_arch, 'var/cmspkg/rpms')
   if opts.debug: debug = True
   if len(args) == 0:
