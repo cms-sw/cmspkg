@@ -1541,8 +1541,9 @@ then
 fi
 
 # Fetch the required RPMS for RPM and APT from the server and install them using rpmcpio
+CMSPKG_VER=V00_00
 export DOWNLOAD_DIR=$rootdir/bootstraptmp/BOOTSTRAP
-mkdir -p $DOWNLOAD_DIR/$cmsplatf/cms/cmspkg/1.0/etc/profile.d
+mkdir -p $DOWNLOAD_DIR/$cmsplatf/cms/cmspkg/$CMSPKG_VER/etc/profile.d
 cd $DOWNLOAD_DIR
 # Get the architecture driver from the web
 driver="$server/cgi-bin/cmspkg/driver/$repository/$cmsplatf"
@@ -1552,7 +1553,7 @@ download_${download_method} $driver $tempdir/$cmsplatf-driver.txt
 eval `cat $tempdir/$cmsplatf-driver.txt`
 echo "Done."
 
-echo "CMS_REPO=$repository" > $DOWNLOAD_DIR/$cmsplatf/cms/cmspkg/1.0/etc/profile.d/init.sh
+echo "export CMS_REPO_NAME=$repository" > $DOWNLOAD_DIR/$cmsplatf/cms/cmspkg/$CMSPKG_VER/etc/profile.d/init.sh
 cmspkg=$server/$server_main_dir/repos/cmspkg
 download_${download_method} $cmspkg $tempdir/cmspkg
 [ -f $tempdir/cmspkg ] || cleanup_and_exit 1 "FATAL: Unable to download cmsos: $cmspkg"
@@ -1562,10 +1563,9 @@ cmspkg_debug=""
 
 downloadScript="$tempdir/cmspkg ${cmspkg_debug} -a $cmsplatf -p $DOWNLOAD_DIR -s $server download"
 echo "Downloading bootstrap core packages..."
+$downloadScript $packageList || cleanup_and_exit 1 "Error downloading $pkg. Exiting."
 for pkg in $packageList
 do
-    $downloadScript $pkg
-    [ -f $DOWNLOAD_DIR/$cmsplatf/var/cmspkg/rpms/$pkg ] || cleanup_and_exit 1 "Error downloading $pkg. Exiting."
     mv $DOWNLOAD_DIR/$cmsplatf/var/cmspkg/rpms/$pkg $pkg
 done
 echo "Done."
@@ -1724,8 +1724,8 @@ echo "Done"
 if [ ! -d $rootdir/$cmsplatf/cms/cmspkg ] ; then
   mkdir -p $rootdir/$cmsplatf/cms
   mv $DOWNLOAD_DIR/$cmsplatf/cms/cmspkg $rootdir/$cmsplatf/cms
-  echo "source \$(ls -rt $rootdir/$cmsplatf/external/rpm/*/etc/profile.d/init.sh | tail -1)" >> $rootdir/$cmsplatf/cms/cmspkg/1.0/etc/profile.d/init.sh
-  echo "[ -e $rootdir/common/apt-site-env.sh ] && source $rootdir/common/apt-site-env.sh" >> $rootdir/$cmsplatf/cms/cmspkg/1.0/etc/profile.d/init.sh
+  echo "source \$(ls $rootdir/$cmsplatf/external/rpm/*/etc/profile.d/init.sh | tail -1)" >> $rootdir/$cmsplatf/cms/cmspkg/$CMSPKG_VER/etc/profile.d/init.sh
+  echo "[ -e $rootdir/common/apt-site-env.sh ] && source $rootdir/common/apt-site-env.sh" >> $rootdir/$cmsplatf/cms/cmspkg/$CMSPKG_VER/etc/profile.d/init.sh
 fi
 
 # If we want to use a test instance, we need to adjust the sources.list accordingly.

@@ -100,6 +100,7 @@ def run_cmd (cmd,outdebug=False,exit=True):
   return err, out
 
 def makedirs(path, force=False):
+  if exists(path): return
   opt =''
   if force: opt='-p'
   run_cmd("mkdir %s %s" % (opt,path))
@@ -174,7 +175,7 @@ def human_readable_size(size):
   return str(size)+schar
 
 #Download a package if not already downloaed
-def download_package(package, downloader):
+def download_package(package, downloader, find_deps):
   downloader.lock.acquire()
   downloader.counter = downloader.counter + 1
   print "Get:%s http://%s cmssw/%s/%s %s" % (downloader.counter, repo_server, repo_name, repo_arch, package[1])
@@ -184,7 +185,7 @@ def download_package(package, downloader):
   pkg_deps = []
   if (not exists (ofile)) and (not download_rpm(package)):
     err = True
-  else:
+  elif find_deps:
     pkg_deps = get_pkg_deps(ofile)
   try:
     downloader.lock.acquire()
@@ -303,7 +304,7 @@ class rpmDownloader:
     self.deps = {}
     self.lock = threading.Lock()
 
-  def run(self, packages):
+  def run(self, packages, find_deps=True):
     threads = []
     self.error = False
     self.deps = {}
@@ -313,7 +314,7 @@ class rpmDownloader:
       threads = [t for t in threads if t.is_alive()]
       if(len(threads) < self.parallel):
         try:
-          t = threading.Thread(target=download_package, args=(packages.pop(), self))
+          t = threading.Thread(target=download_package, args=(packages.pop(), self, find_deps))
           t.start()
           threads.append(t)
         except Exception, e:
@@ -586,7 +587,7 @@ class CmsPkg:
       print "error: unknown pakcage: ",package
       sys.exit(1)
     pk = self.cache.packs[package][self.latest_revision(package)]
-    self.downloader.run([pk])
+    self.downloader.run([pk], False)
     if self.downloader.error: sys.exit(1)
     return
 
@@ -625,7 +626,6 @@ def process(args, opt, cache_dir):
       debug = False
       updateForce=False
       if not exists (join(cache_dir , "active")): updateForce=True
-      print cache_dir, updateForce
       repo.update(force=updateForce, silent=True)
       debug = cDebug
       for pkg in args[1:]:
@@ -641,32 +641,10 @@ def process(args, opt, cache_dir):
 
 #Helpers function to find out the env e.g. repository name, rpm command path
 def get_env(install_dir,arch):
-  pkgdir = join (install_dir, arch, 'cms', 'cmspkg')
-  repo = None
-  rpm_dir = None
-  #If cmspkg package exists then we use that
-  if exists(pkgdir):
-    ver = os.getenv("CMSPKG_VERSION",None)
-    if ver and not exists (join(pkgdir, ver)): ver=None
-    else: ver="*"
-    err, out = run_cmd ("source %s/%s/etc/profile.d/init.sh; echo $CMS_REPO" % (pkgdir, ver))
-    repo = out.split()[-1]
-    rpm_dir = "%s/%s/etc/profile.d/init.sh" % (pkgdir, ver)
-  else:
-    #We fall back to apt-get 
-    pkgdir =join(install_dir, arch, "external", "apt")
-    ver = os.getenv("CMSAPT_VERSION",None)
-    if ver and not exists (join(pkgdir, ver)): ver=None
-    else: ver="*"
-    err, out = run_cmd ("ls -drt %s/%s/external/apt/%s/etc/sources.list" % (install_dir, arch, ver), outdebug=False, exit=False)
-    if err: return repo, None
-    err, out = run_cmd ("cat %s | grep '^ *rpm ' | sed 's|/apt/%s .*||;s|.*/||'" % (out.split()[-1], arch), outdebug=False, exit=False)
-    if err: return repo, None
-    repo = out.strip()
-    rpm_dir = "%s/%s/external/apt/%s/bin/apt-get | sed 's|/bin/apt-get|/etc/profile.d/init.sh|'" % (install_dir, arch, ver)
-
-  err , out = run_cmd ("ls -drt %s | tail -1" % rpm_dir)
-  return repo, "source %s" % out
+  err, out = run_cmd ("ls -d %s/%s/cms/cmspkg/*/etc/profile.d/init.sh" % (install_dir, arch))
+  rpm_init = out.split()[-1]
+  err, out = run_cmd ("cat %s | grep CMS_REPO | grep = | sed 's|^.*=||'" % rpm_init)
+  return out.split()[0].strip(), "source %s" % rpm_init
  
 if __name__ == '__main__':
   from optparse import OptionParser
@@ -679,16 +657,15 @@ if __name__ == '__main__':
   "              [-d|--debug]\n"
   "              [--reinstall]\n"
   "              "+" | ".join(cmspkg_cmds)+" [package| -- rpm <args>]\n\n"
-  "This script internally sets the cmspkg(rpm) or apt environment for the given architecture.\n"
-  "If you have to use a specific version of cmspkg or apt then use environment variables CMSPKG_VERSION or CMSAPT_VERSION")
-  parser.add_option("--reinstall",     dest="reinstall", action="store_true", default=False, help="Reinstall a package e.g. its latest revision")
-  parser.add_option("-f", "--force",   dest="force",     action="store_true", default=False, help="Force an update or installation")
-  parser.add_option("-y",              dest="force",     action="store_true", default=False, help="Assume yes for installation")
-  parser.add_option("-a", "--architecture",dest="architecture", default=None, help="Architecture string")
-  parser.add_option("-p", "--path",dest="path", default=install_path, help="Install path.")
-  parser.add_option("-j", "--jobs",    dest="jobs", default=4, type="int", help="Max parallel downloads")
-  parser.add_option("-d", "--debug",   dest="debug",default=False, action="store_true", help="Print more debug outputs")
-  parser.add_option("-s", "--server",  dest="server", default=repo_server, help="Name of cmsrep server.")
+  "This script internally sets the cmspkg(rpm) environment for the given architecture.")
+  parser.add_option("--reinstall",         dest="reinstall", action="store_true", default=False, help="Reinstall a package e.g. its latest revision")
+  parser.add_option("-f", "--force",       dest="force",     action="store_true", default=False, help="Force an update or installation")
+  parser.add_option("-y",                  dest="force",     action="store_true", default=False, help="Assume yes for installation")
+  parser.add_option("-d", "--debug",       dest="debug",     action="store_true", default=False, help="Print more debug outputs")
+  parser.add_option("-a", "--architecture",dest="architecture", default=None,          help="Architecture string")
+  parser.add_option("-p", "--path",        dest="path",         default=install_path,  help="Install path.")
+  parser.add_option("-j", "--jobs",        dest="jobs",         default=4, type="int", help="Max parallel downloads")
+  parser.add_option("-s", "--server",      dest="server",       default=repo_server,   help="Name of cmsrep server.")
 
   opts, args = parser.parse_args()
   if not opts.architecture:
