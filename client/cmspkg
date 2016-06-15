@@ -19,6 +19,7 @@ rpm_env = None
 rpm_partial = "partial"
 getcmd = None
 cmspkg_agent="CMSPKG/1.0"
+pkgs_to_keep = ["cms[+](local-cern-siteconf|afs-relocation-cern)[+]","external[+](apt|rpm)[+]","cms[+](cmspkg|cmssw|cmssw-patch|cms-common)[+]"]
 getcmds = [ 
             ['curl','--version','--connect-timeout 60 --max-time 600 -q -f -s -H "Cache-Control: max-age=0" --user-agent "%s"'      % (cmspkg_agent),"-o %s"],
             ['wget','--version','--timeout=600 -q --header="Cache-Control: max-age=0" --user-agent="%s" -O -' % (cmspkg_agent),"-O %s"],
@@ -56,10 +57,16 @@ def package_installed(package):
 def package_removed(package):
   pkg_file = join(pkgs_dir, package)
   if exists (pkg_file):
-    run_cmd("rm -f %s" % pkgs_file)
+    run_cmd("rm -f %s" % pkg_file)
   pkg_file = join(install_path, repo_arch, ".cmsdistrc", "PKG_"+package)
   if exists (pkg_file):
-    run_cmd("rm -f %s" % pkgs_file)
+    run_cmd("rm -f %s" % pkg_file)
+
+#get user response
+def ask_user_to_continue(msg, exit=True):
+  res = raw_input(msg)
+  res = res.strip()
+  if not res in ["y", "Y"]: sys.exit(0)
 
 #Returns cmspkg url to access
 def cmspkg_url(params):
@@ -525,10 +532,7 @@ class CmsPkg:
     print "0 upgraded, ",pkg_len," newly installed, 0 removed and 0 not upgraded."
     
     #If not force and there are extra packages to install then ask user to confirm
-    if (not force) and (pkg_len>1):
-      res = raw_input("Continue installation (Y/n): ")
-      res = res.strip()
-      if not res in ["y", "Y"]: sys.exit(0)
+    if (not force) and (pkg_len>1): ask_user_to_continue("Continue installation (Y/n): ")
 
     #download all the dependencies of the package
     self.download_deps (sorted(deps), deps)
@@ -610,6 +614,98 @@ class CmsPkg:
     if self.downloader.error: sys.exit(1)
     return
 
+  #uninstall a package and remove its stamp file
+  def remove(self, package, force=False):
+    self.update_rpm_cache()
+    if package in self.rpm_cache:
+      if not force: ask_user_to_continue("Are you sure to delete %s (Y/n): " % package)
+      print "Removing package",package
+      err, out = run_cmd("%s; rpm -e %s" % (rpm_env, package))
+      package_removed (package)
+      print "Removed",package
+    else:
+      print "Package %s not installed" % package
+    return
+
+  #cleanup the distributuion. delete RPMs which are not used by
+  #explicitly installed packages
+  def dist_clean(self, force=False):
+    def keepPack(pkg, cache):
+      if pkg in cache["KEPT"]: return
+      cache["KEPT"][pkg]=1
+      cache["RPMS"].pop(pkg,None)
+      err, out = run_cmd("%s; rpm -qR --queryformat '%%{NAME}\n' %s" % (rpm_env, pkg))
+      for dep in out.split("\n"): cache["RPMS"].pop(dep.strip(),None)
+
+    def checkDeps(pkg, cache):
+      if pkg in cache["CHECK"]: return
+      cache["CHECK"][pkg]=1
+      if not pkg in cache["RPMS"]:
+        keepPack(pkg, cache)
+        return
+      err, out = run_cmd("%s; rpm -q --whatrequires --queryformat '%%{NAME}\n' %s" % (rpm_env, pkg), False, False)
+      if err: return
+      for req in out.split("\n"):
+        req=req.strip()
+        checkDeps(req, cache)
+        if (req in cache["RPMS"]) and (pkg in cache["RPMS"]):
+          cache["RPMS"][pkg]["USEDBY"][req]=1
+
+    keep_regexp = [re.compile("^"+x+".*$") for x in pkgs_to_keep]
+    explicit_pkgs = {}
+    if exists(pkgs_dir):
+      for pkg in glob(pkgs_dir+"/*+*+*"):
+        explicit_pkgs[basename(pkg)]=1
+    cmsdistrc_dir = join(install_path, repo_arch, ".cmsdistrc")
+    if exists (cmsdistrc_dir):
+      for pkg in glob(cmsdistrc_dir+"/PKG_*+*+*"):
+        explicit_pkgs[basename(pkg[4:])]=1
+    for pkg in explicit_pkgs:
+      keep_regexp.append(re.compile("^"+re.escape(pkg)+"$"))
+    self.update_rpm_cache(True)
+    cache = {"RPMS" : {}, "KEPT": {}, "CHECK" : {}}
+    for pkg in self.rpm_cache:
+      if not re.match("^(cms|external|lcg)[+].+",pkg): continue
+      cache["RPMS"][pkg]={"USEDBY":{}}
+
+    for pkg in cache["RPMS"].keys():
+      for exp in keep_regexp:
+        if not re.match(exp, pkg): continue
+        keepPack(pkg, cache)
+        break
+
+    for pkg in cache["RPMS"].keys(): checkDeps(pkg, cache)
+    if not cache["RPMS"]:
+      print "Nothing to clean"
+      return
+
+    print "Following packages will be removed from the installation:"
+    print "  "+"\n  ".join(sorted(cache["RPMS"].keys()))
+    if not force: ask_user_to_continue("Are you sure to remove above packages (Y/n): ")
+    rpms2del = []
+    while cache["RPMS"]:
+      dels = []
+      del_count = len(rpms2del)
+      for pkg in sorted(cache["RPMS"].keys()):
+        if len(cache["RPMS"][pkg]["USEDBY"])==0:
+          dels.append(pkg)
+          del_count+=1
+          if del_count>=20: break
+      for pkg in dels:
+        cache["RPMS"].pop(pkg,None)
+        for dep in cache["RPMS"]: cache["RPMS"][dep]["USEDBY"].pop(pkg,None)
+      rpms2del = rpms2del + dels
+      if del_count>=20:
+        pkgs = " ".join(rpms2del)
+        print "Removing ",pkgs
+        err, out = run_cmd("%s; rpm -e %s" % (rpm_env, pkgs))
+        rpms2del =[]
+    if rpms2del:
+      pkgs = " ".join(rpms2del)
+      print "Removing ",pkgs
+      err, out = run_cmd("%s; rpm -e %s" % (rpm_env, pkgs))
+    return
+
 #Process the input command/options
 #cmspkg always create a lock
 def process(args, opt, cache_dir):
@@ -649,6 +745,10 @@ def process(args, opt, cache_dir):
       debug = cDebug
       for pkg in args[1:]:
         repo.download(pkg)
+    elif args[0] in ["remove"]:
+      for pkg in args[1:]: repo.remove(pkg, force=opts.force)
+    elif args[0] in ["dist_clean"]:
+      repo.dist_clean(force=opts.force)
     elif args[0] == "search":
       if not exists (join(cache_dir , "active")): repo.update(True)
       pkg = ""
@@ -667,7 +767,7 @@ def get_env(install_dir,arch):
  
 if __name__ == '__main__':
   from optparse import OptionParser
-  cmspkg_cmds = ["update","search","install","reinstall","clean","show","download", "rpm"]
+  cmspkg_cmds = ["update","search","install","reinstall","clean","remove","dist_clean","show","download", "rpm"]
   parser = OptionParser(usage=basename(sys.argv[0])+" -a|--architecture <arch>\n"
   "              [-s|--server server]\n"
   "              [-p|--path path]\n"
@@ -706,10 +806,10 @@ if __name__ == '__main__':
     parser.error("Too few arguments")
   if not args[0] in cmspkg_cmds:
     parser.error("Unknown command "+args[0])
-  if args[0] in ["install","reinstall","download"]: 
+  if args[0] in ["install","reinstall","download","remove"]: 
     if len(args) < 2:
       parser.error("Too few arguments")
-  elif (args[0] in ["update", "clean"]):
+  elif (args[0] in ["update", "clean","dist_clean"]):
     if len(args) != 1:
       parser.error("Too many arguments")
   elif (args[0] in ["search"]):
