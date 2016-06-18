@@ -101,6 +101,7 @@ def search_parent_repo(repo, name):
   if debug: debug_msg.append("Searching %s" % (rfile))
   if exists (join(basedir, rfile)): return rfile
   if name.startswith("drivers/"): name = name[8:]
+  if not repo: return None
   repo = apt_repo(repo)
   search_depth+=1
   rfile = join(repo, name)
@@ -214,7 +215,7 @@ def cache(repo, arch, uHash):
   if uHash != "apt":
     cache = join(basedir, "repos", repo, arch, uHash, "RPMS.json")
     if exists (cache): redirect("/cmssw/repos/%s/%s/%s/RPMS.json" % (repo, arch, uHash))
-    if debug: debug_msg.append("Found package cache for %s/%s/%s" % (repo, arch, uHash))
+    if debug: debug_msg.append("Not found package cache for %s/%s/%s" % (repo, arch, uHash))
     data['hash'] = sha256(json.dumps(data,sort_keys=True,separators=(',',': '))).hexdigest()
     return_json(data)
 

@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 from commands import getstatusoutput
 import sys, os, re, subprocess, json, urllib, threading
-from hashlib import sha256
 from os import getpid
 from time import sleep
 from os.path import join, exists, abspath, dirname, basename
@@ -46,6 +45,16 @@ def rpm2package(rpm, arch):
 
 def print_msg(msg, type):
   for m in msg.split("\n"): print "[%s]: %s" % (type, m)
+
+def get_cache_hash(cache):
+  from hashlib import sha256
+  return sha256(json.dumps(cache, sort_keys=True, separators=(',',': '))).hexdigest()
+
+def save_cache(cache, cache_file):
+  with open(cache_file+"-tmp", 'w') as outfile:
+    outfile.write(json.dumps(cache, indent=2,separators=(',',': ')))
+    outfile.close()
+  run_cmd("mv %s-tmp %s" %(cache_file, cache_file))
 
 #create package installation stamp file
 def package_installed(package):
@@ -146,7 +155,7 @@ def verify_package(package, ofile):
 #After the successful download it puts the downlaod file in rpm_download directory
 def download_rpm(package):
   if (package[2]=="") or (package[3]==""):
-    udata = {'uri':'RPMS/%s/%s/%s/%s' % (repo_name, repo_arch, package[0], urllib.quote(package[1])), 'ref_hash':package[5]}
+    udata = {'uri':'RPMS/%s/%s/%s/%s' % (repo_name, repo_arch, package[0], urllib.quote(package[1])), 'ref_hash':package[-1]}
     if package[2]=="": udata["sha"]=1
     if package[3]=="": udata["size"]=1 
     err, out = fetch_url(udata)
@@ -166,7 +175,7 @@ def download_rpm(package):
         package[3] = reply['size']
 
   ofile_tmp = join(rpm_download, rpm_partial, package[1])
-  err, out = fetch_url({'uri':'RPMS/%s/%s/%s/%s' % (repo_name, repo_arch, package[0], urllib.quote(package[1])), 'ref_hash':package[5]}, outfile=ofile_tmp)
+  err, out = fetch_url({'uri':'RPMS/%s/%s/%s/%s' % (repo_name, repo_arch, package[0], urllib.quote(package[1])), 'ref_hash':package[-1]}, outfile=ofile_tmp)
   if err: return False
   if not exists(ofile_tmp):
     print "Error: Unable to download package: "+package[1]
@@ -332,18 +341,20 @@ class rpmDownloader:
     self.error = False
     self.deps = {}
     total = len(packages)
-    while(len(packages) > 0):
+    index = 0
+    while(index < total):
       if self.error: break
       threads = [t for t in threads if t.is_alive()]
       if(len(threads) < self.parallel):
         try:
-          t = threading.Thread(target=download_package, args=(packages.pop(), self, find_deps))
+          t = threading.Thread(target=download_package, args=(packages[index], self, find_deps))
           t.start()
           threads.append(t)
         except Exception, e:
           print "Error: error while downloading RPMS: " + str(e)
+        index += 1
       else:
-        sleep(1)
+        sleep(0.1)
     for t in threads: t.join()
     return
 
@@ -409,16 +420,13 @@ class CmsPkg:
         sys.exit(1)
       sr_sha = cache.pop('hash')
       #Varify the newly download cache by checking its checksum
-      cl_sha = sha256(json.dumps(cache, sort_keys=True, separators=(',',': '))).hexdigest()
+      cl_sha = get_cache_hash(cache)
       if cl_sha != sr_sha:
         print "Error: Communication error: Cache size mismatch %s vs %s" % (cl_sha , sr_sha)
         sys.exit(1)
       cache['hash'] = sr_sha
       #save the cache for future use
-      with open(cfile+"-tmp", 'w') as outfile:
-        outfile.write(json.dumps(cache,sort_keys=True,indent=2,separators=(',',': ')))
-        outfile.close()
-      err, out = run_cmd("mv %s-tmp %s" %(cfile, cfile))
+      save_cache(cache, cfile)
       caches_added += 1
     local_caches = 0
     #check for all available caches and delete those which are not on server any more
@@ -614,6 +622,53 @@ class CmsPkg:
     if self.downloader.error: sys.exit(1)
     return
 
+  #Clone the remote repository for local distribution
+  def clone(self, clone_dir):
+    if not self.cache:
+      print "Reading Package Lists..."
+      self.cache = pkgCache()
+    default_trans = "0000000000000000000000000000000000000000000000000000000000000000"
+    download_dir = join(clone_dir, repo_name, repo_arch, default_trans, "RPMS")
+    if not exists (download_dir): makedirs(download_dir,True)
+    makedirs(join(rpm_download,rpm_partial),True)
+    clone_cache_file = download_dir+".json"
+    clone_cache = {}
+    if exists (clone_cache_file):
+      clone_cache = json.loads(open(clone_cache_file).read())
+      clone_cache.pop('hash',None)
+    print "Packages on Server:",len(self.cache.packs)
+    print "Packages in clone: ",len(clone_cache)
+    files2download=[]
+    update_hash = False
+    for pkg in self.cache.packs:
+      for r in self.cache.packs[pkg]:
+        if (pkg in clone_cache) and (r in clone_cache[pkg]): continue
+        if not pkg in clone_cache: clone_cache[pkg]={}
+        update_hash = True
+        data = self.cache.packs[pkg][r]
+        clone_cache[pkg][r]=data[:-1]
+        clone_file = join(download_dir, data[0][:2], data[0], data[1])
+        if not exists (clone_file): files2download.append(data)
+    if files2download:
+      self.downloader.run(files2download, False)
+      for pk in files2download:
+        subdir = join(download_dir, pk[0][:2], pk[0])
+        clone_file = join(subdir, pk[1])
+        download_file = join (rpm_download, pk[1])
+        if exists (download_file):
+          run_cmd ("mkdir -p %s && mv %s %s" % (subdir, download_file, clone_file))
+        else:
+          print "Unable to download: %s/%s/%s/%s" % (repo_name, repo_arch, pk[0], pk[1])
+          self.downloader.error = True
+      if self.downloader.error: sys.exit(1)
+    if update_hash:
+      clone_cache['hash'] = get_cache_hash(clone_cache)
+      save_cache(clone_cache, clone_cache_file)
+      if not exists (join(clone_dir, repo_name, repo_arch, "latest")):
+        run_cmd("ln -s %s %s/%s/%s/latest" % (default_trans, clone_dir, repo_name, repo_arch))
+    print "Repo successfully cloned"
+    return
+
   #uninstall a package and remove its stamp file
   def remove(self, package, force=False):
     self.update_rpm_cache()
@@ -747,8 +802,12 @@ def process(args, opt, cache_dir):
         repo.download(pkg)
     elif args[0] in ["remove"]:
       for pkg in args[1:]: repo.remove(pkg, force=opts.force)
+      if opts.dist_clean:  repo.dist_clean(force=opts.force)
     elif args[0] in ["dist_clean"]:
       repo.dist_clean(force=opts.force)
+    elif args[0] in ["clone"]:
+      repo.update(force=opts.force)
+      repo.clone(install_path)
     elif args[0] == "search":
       if not exists (join(cache_dir , "active")): repo.update(True)
       pkg = ""
@@ -767,7 +826,7 @@ def get_env(install_dir,arch):
  
 if __name__ == '__main__':
   from optparse import OptionParser
-  cmspkg_cmds = ["update","search","install","reinstall","clean","remove","dist_clean","show","download", "rpm"]
+  cmspkg_cmds = ["update","search","install","reinstall","clean","remove","dist_clean","show","download", "rpm", "clone"]
   parser = OptionParser(usage=basename(sys.argv[0])+" -a|--architecture <arch>\n"
   "              [-s|--server server]\n"
   "              [-p|--path path]\n"
@@ -785,8 +844,10 @@ if __name__ == '__main__':
   parser.add_option("-p", "--path",        dest="path",         default=install_path,  help="Install path.")
   parser.add_option("-j", "--jobs",        dest="jobs",         default=4, type="int", help="Max parallel downloads")
   parser.add_option("-s", "--server",      dest="server",       default=repo_server,   help="Name of cmsrep server.")
+  parser.add_option("-c", "--dist_clean",  dest="dist_clean",   action="store_true",   default=False, help="Only used with 'remove' command to do the distribution cleanup after the package removal.")
 
   opts, args = parser.parse_args()
+  if len(args) == 0: parser.error("Too few arguments")
   if not opts.architecture:
     parser.error("Missing architecture string")
   else:
@@ -794,16 +855,22 @@ if __name__ == '__main__':
   install_path = opts.path
   repo_server  = opts.server
 
-  repo_name, rpm_env = get_env (install_path, opts.architecture)
-  if (not repo_name) or (not rpm_env):
-    print "Error: Unable to find repository name or rpm installation. Are you sure you have a bootstrap area?"
-    sys.exit(1)
-  cache_dir = join(install_path, repo_arch, 'var/cmspkg/cache')
-  pkgs_dir  = join(install_path, repo_arch, 'var/cmspkg/pkgs')
-  rpm_download = join(install_path,repo_arch, 'var/cmspkg/rpms')
+  cmspkg_local_dir = join(install_path, repo_arch, 'var/cmspkg')
+  if not args[0] in ["clone"]:
+    repo_name, rpm_env = get_env (install_path, opts.architecture)
+    if (not repo_name) or (not rpm_env):
+      print "Error: Unable to find repository name or rpm installation. Are you sure you have a bootstrap area?"
+      sys.exit(1)
+  elif len(args) != 2:
+    parser.error("Too many/few arguments")
+  else:
+    repo_name = args[1]
+    cmspkg_local_dir = join(install_path, repo_name, repo_arch, 'cmspkg')
+
+  cache_dir    = join(cmspkg_local_dir, 'cache')
+  pkgs_dir     = join(cmspkg_local_dir, 'pkgs')
+  rpm_download = join(cmspkg_local_dir, 'rpms')
   if opts.debug: debug = True
-  if len(args) == 0:
-    parser.error("Too few arguments")
   if not args[0] in cmspkg_cmds:
     parser.error("Unknown command "+args[0])
   if args[0] in ["install","reinstall","download","remove"]: 
