@@ -153,7 +153,7 @@ def verify_package(package, ofile):
 #Download a packge from cmsrep. If package's size and mk5sums are not passed/available
 #then first get this information from cmsrep so that download package can be varified
 #After the successful download it puts the downlaod file in rpm_download directory
-def download_rpm(package):
+def download_rpm(package, tries=3):
   if (package[2]=="") or (package[3]==""):
     udata = {'uri':'RPMS/%s/%s/%s/%s' % (repo_name, repo_arch, package[0], urllib.quote(package[1])), 'ref_hash':package[-1]}
     if package[2]=="": udata["sha"]=1
@@ -175,8 +175,9 @@ def download_rpm(package):
         package[3] = reply['size']
 
   ofile_tmp = join(rpm_download, rpm_partial, package[1])
-  err, out = fetch_url({'uri':'RPMS/%s/%s/%s/%s' % (repo_name, repo_arch, package[0], urllib.quote(package[1])), 'ref_hash':package[-1]}, outfile=ofile_tmp)
-  if err: return False
+  for i in range(tries):
+    err, out = fetch_url({'uri':'RPMS/%s/%s/%s/%s' % (repo_name, repo_arch, package[0], urllib.quote(package[1])), 'ref_hash':package[-1]}, outfile=ofile_tmp)
+    if not err: break
   if not exists(ofile_tmp):
     print "Error: Unable to download package: "+package[1]
     return False
@@ -224,6 +225,7 @@ def download_package(package, downloader, find_deps):
     downloader.deps[package[1]]=pkg_deps
     if err: downloader.error = err
   finally:
+    if err: downloader.error = err
     downloader.lock.release()
   return
 ###############################################
