@@ -187,7 +187,7 @@ def download_rpm(package, tries=3):
 
 #Returns rpm dependencies using rpm -qp --requires command
 def get_pkg_deps(rpm):
-  cmd = "%s; rpm -qp --requires %s" % (rpm_env, rpm)
+  cmd = "%s; rpm -qp --requires %s" % (rpm_env, join(rpm_download, rpm))
   err, out = run_cmd(cmd)
   deps = []
   ReReq = re.compile('^(cms|external|lcg)[+][^+]+[+].+')
@@ -208,26 +208,11 @@ def human_readable_size(size):
   return str(size)+schar
 
 #Download a package if not already downloaed
-def download_package(package, downloader, find_deps):
-  downloader.lock.acquire()
-  downloader.counter = downloader.counter + 1
-  print "Get:%s http://%s cmssw/%s/%s %s" % (downloader.counter, repo_server, repo_name, repo_arch, package[1])
-  downloader.lock.release()
-  ofile = join(rpm_download, package[1])
-  err=False
-  pkg_deps = []
-  if (not exists (ofile)) and (not download_rpm(package)):
-    err = True
-  elif find_deps:
-    pkg_deps = get_pkg_deps(ofile)
-  try:
-    downloader.lock.acquire()
-    downloader.deps[package[1]]=pkg_deps
-    if err: downloader.error = err
-  finally:
-    if err: downloader.error = err
-    downloader.lock.release()
-  return
+def download_package(package):
+  if exists (join(rpm_download, package[1])): return
+  try: download_rpm(package)
+  except Exception, e: print "Error: Downloading RPMS: " + str(e)
+
 ###############################################
 #End of Utility function
 ###############################################
@@ -334,31 +319,33 @@ class rpmDownloader:
   def __init__(self, parallel=4):
     self.parallel = parallel
     self.counter = 0
-    self.error = False
-    self.deps = {}
     self.lock = threading.Lock()
 
-  def run(self, packages, find_deps=True):
-    threads = []
-    self.error = False
-    self.deps = {}
+  def run(self, packages):
     total = len(packages)
     index = 0
+    threads = []
     while(index < total):
-      if self.error: break
       threads = [t for t in threads if t.is_alive()]
       if(len(threads) < self.parallel):
+        package = packages[index]
+        index += 1
+        self.counter = self.counter + 1
+        print "Get:%s http://%s cmssw/%s/%s %s" % (self.counter, repo_server, repo_name, repo_arch, package[1])
         try:
-          t = threading.Thread(target=download_package, args=(packages[index], self, find_deps))
+          t = threading.Thread(target=download_package, args=(package,))
           t.start()
           threads.append(t)
         except Exception, e:
-          print "Error: error while downloading RPMS: " + str(e)
-        index += 1
+          print "Error: Downloading RPMS: " + str(e)
+          break
       else:
         sleep(0.1)
     for t in threads: t.join()
-    return
+    if index != total: return False
+    for package in packages:
+      if not exists (join(rpm_download, package[1])): return False
+    return True
 
 ###############################################
 #cmspkg class for getting caches, and installing packages
@@ -480,11 +467,10 @@ class CmsPkg:
       if not d: continue
       to_download.append(d)
     if not to_download: return
-    self.downloader.run(list(to_download))
-    if self.downloader.error: sys.exit(1)
+    if not self.downloader.run(list(to_download)): sys.exit(1)
     ndeps = []
     for d in to_download:
-      for xd in self.downloader.deps[d[1]]+d[4]:
+      for xd in get_pkg_deps(d[1])+d[4]:
         if xd in deps_cache: continue
         deps_cache[xd] = self.package_data(xd)
         ndeps.append(xd)
@@ -522,14 +508,13 @@ class CmsPkg:
     makedirs(join(rpm_download,rpm_partial),True)
 
     #download the package
-    self.downloader.run([pk])
-    if self.downloader.error: sys.exit(1)
+    if not self.downloader.run([pk]): sys.exit(1)
     deps={}
     npkgs = []
     
     #Find out package dependencies
     print "Building Dependency Tree..."
-    for d in self.downloader.deps[pk[1]]+pk[4]:
+    for d in get_pkg_deps(pk[1])+pk[4]:
       if d in deps: continue
       p = self.package_data(d)
       deps[d] = p
@@ -620,8 +605,7 @@ class CmsPkg:
       print "error: unknown pakcage: ",package
       sys.exit(1)
     pk = self.cache.packs[package][self.latest_revision(package)]
-    self.downloader.run([pk], False)
-    if self.downloader.error: sys.exit(1)
+    if not self.downloader.run([pk]): sys.exit(1)
     return
 
   #Clone the remote repository for local distribution
@@ -652,7 +636,7 @@ class CmsPkg:
         clone_file = join(download_dir, data[0][:2], data[0], data[1])
         if not exists (clone_file): files2download.append(data)
     if files2download:
-      self.downloader.run(files2download, False)
+      err = self.downloader.run(files2download)
       for pk in files2download:
         subdir = join(download_dir, pk[0][:2], pk[0])
         clone_file = join(subdir, pk[1])
@@ -661,8 +645,7 @@ class CmsPkg:
           run_cmd ("mkdir -p %s && mv %s %s" % (subdir, download_file, clone_file))
         else:
           print "Unable to download: %s/%s/%s/%s" % (repo_name, repo_arch, pk[0], pk[1])
-          self.downloader.error = True
-      if self.downloader.error: sys.exit(1)
+      if err: sys.exit(1)
     if update_hash:
       clone_cache['hash'] = get_cache_hash(clone_cache)
       save_cache(clone_cache, clone_cache_file)
