@@ -102,7 +102,7 @@ elif [ "${NEW_STYLE_SRC_REPO}" = "YES" ] ; then
     done
 
     #copy any common files
-    for cfile in cmsos bootstrap.sh ; do
+    for cfile in cmsos ; do
       [ -f ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/${cfile} ] && cp ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/${cfile} ${TMPREPO_DES}/${cfile}
     done
 
