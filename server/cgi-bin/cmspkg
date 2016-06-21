@@ -1,13 +1,16 @@
 #!/usr/bin/env python
 import cgitb, cgi
-import sys, os, json, re
-from os.path import exists, join, getmtime
+import sys, os, re
+from os.path import exists, join, getmtime, dirname
 from commands import getstatusoutput
 from hashlib import sha256
 from glob import glob
+try: import json
+except:import simplejson as json
 cgitb.enable()
 
 basedir = '/data/cmssw'
+wwwroot_prefix = ""
 default_repo = '0000000000000000000000000000000000000000000000000000000000000000'
 debug_msg = []
 debug = False
@@ -29,6 +32,7 @@ REQUESTS = {
   'caches'  : [ReRepo, ReArch ],
   'file'    : [ReRepo, ReArch, ReOtherName],
   'driver'  : [ReRepo, ReArch],
+  'upgrade' : [],
 }
 
 def error_msg(msg):
@@ -51,7 +55,7 @@ def get_apt_md5sums(md5dir):
   return md5sums
 
 def redirect(path):
-  print "Location: %s\n\n" % path
+  print "Location: %s%s\n\n" % (wwwroot_prefix,path)
   sys.exit(0)
 
 def get_parent_repo(repo):
@@ -242,27 +246,47 @@ def cache(repo, arch, uHash):
   data['hash'] = sha256(json.dumps(data,sort_keys=True,separators=(',',': '))).hexdigest()
   return_json(data)
 
+def get_file_info (rfile, name):
+  info = {}
+  info['path'] = rfile
+  rfile = join(basedir, rfile)
+  if ('info' in req) or ('sha' in req):
+    err, out = getstatusoutput("md5sum %s | sed 's| .*||'" % rfile)
+    if err: error_msg("Unable to find checksum: %s" % (name))
+    info['sha']=out
+  if ('info' in req) or ('size' in req):
+    info['size'] = os.stat(rfile)[6]
+  return info
+
 def file_search_result(rfile, name):
   if debug: debug_msg.append("Found file/package: %s" % rfile)
   if debug: debug_msg.append("Search depth: %s" % str(search_depth))
   if not rfile:
     error_msg("Unable to find the file: %s" % (name))
   if ('info' in req) or ('size' in req) or ('sha' in req):
-    info = {}
-    info['path'] = rfile
-    rfile = join(basedir, rfile)
-    if ('info' in req) or ('sha' in req):
-      err, out = getstatusoutput("md5sum %s | sed 's| .*||'" % rfile)
-      if err: error_msg("Unable to find checksum: %s" % (name))
-      info['sha']=out
-    if ('info' in req) or ('size' in req):
-      info['size'] = os.stat(rfile)[6]
-    return_json(info)
+    return_json(get_file_info(rfile, name))
   else:
     redirect("/cmssw/%s" % rfile)
   return
 
+def upgrade():
+  if ('info' in req):
+    cmspkg_client = join("repos", "cmspkg.py")
+    err, ver =  getstatusoutput("python %s/%s --version" % (basedir,cmspkg_client))
+    if err: ver = "V00-00-00"
+    info = get_file_info (cmspkg_client,cmspkg_client)
+    info['version'] = ver
+    return_json(info)
+  else:
+    redirect("/cmssw/repos/cmspkg.py")
+  return
+
 def process(req):
+  global wwwroot_prefix
+  try:
+    wwwroot_prefix = dirname(dirname(os.environ['SCRIPT_NAME']))
+    if wwwroot_prefix == "/": wwwroot_prefix=""
+  except: wwwroot_prefix=""
   rpath = ""
   try: rpath = os.environ['PATH_INFO'].strip("/")
   except: pass
@@ -278,6 +302,7 @@ def process(req):
     items = rpath.split("/",xlen-1)
     ilen = len(items)
   if ilen != (len(REQUESTS[ftype])+1): return error_msg("Invalid/Incompile request: %s" % (rpath))
+  if ftype == "upgrade": return upgrade()
   if (not exists (join(basedir, "repos", items[1]))) and (not exists (join(basedir, items[1]))):
     error_msg("Repository not found: "+items[1])
   for i in range(1,ilen):
