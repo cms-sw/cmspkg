@@ -1541,9 +1541,8 @@ then
 fi
 
 # Fetch the required RPMS for RPM and APT from the server and install them using rpmcpio
-CMSPKG_VER=V00_00
 export DOWNLOAD_DIR=$rootdir/bootstraptmp/BOOTSTRAP
-mkdir -p $DOWNLOAD_DIR/$cmsplatf/cms/cmspkg/$CMSPKG_VER/etc/profile.d
+mkdir -p $DOWNLOAD_DIR
 cd $DOWNLOAD_DIR
 # Get the architecture driver from the web
 driver="$server/cgi-bin/cmspkg/driver/$repository/$cmsplatf"
@@ -1553,17 +1552,15 @@ download_${download_method} $driver $tempdir/$cmsplatf-driver.txt
 eval `cat $tempdir/$cmsplatf-driver.txt`
 echo "Done."
 
-echo "export CMS_REPO_NAME=$repository" > $DOWNLOAD_DIR/$cmsplatf/cms/cmspkg/$CMSPKG_VER/etc/profile.d/init.sh
-cmspkg=$server/$server_main_dir/repos/cmspkg
-download_${download_method} $cmspkg $tempdir/cmspkg
-[ -f $tempdir/cmspkg ] || cleanup_and_exit 1 "FATAL: Unable to download cmsos: $cmspkg"
-chmod +x $tempdir/cmspkg
+CMSPKG_SCRIPT="cmspkg.py $cmspkg_debug --repository $repository --architecture $cmsplatf --server $server"
+cmspkg=$server/$server_main_dir/repos/cmspkg.py
+download_${download_method} $cmspkg $tempdir/cmspkg.py
+[ -f $tempdir/cmspkg.py ] || cleanup_and_exit 1 "FATAL: Unable to download cmsos: $cmspkg"
+chmod +x $tempdir/cmspkg.py
 cmspkg_debug=""
 [ "X$debug" = "Xtrue" ] && cmspkg_debug="--debug"
-
-downloadScript="$tempdir/cmspkg ${cmspkg_debug} -a $cmsplatf -p $DOWNLOAD_DIR -s $server download"
 echo "Downloading bootstrap core packages..."
-$downloadScript $packageList || cleanup_and_exit 1 "Error downloading $pkg. Exiting."
+$tempdir/$CMSPKG_SCRIPT --path $DOWNLOAD_DIR download $packageList || cleanup_and_exit 1 "Error downloading $pkg. Exiting."
 for pkg in $packageList
 do
     mv $DOWNLOAD_DIR/$cmsplatf/var/cmspkg/rpms/$pkg $pkg
@@ -1721,40 +1718,10 @@ do
 done
 echo "Done"
 
-if [ ! -d $rootdir/$cmsplatf/cms/cmspkg ] ; then
-  mkdir -p $rootdir/$cmsplatf/cms
-  mv $DOWNLOAD_DIR/$cmsplatf/cms/cmspkg $rootdir/$cmsplatf/cms
-  echo "source \$(ls $rootdir/$cmsplatf/external/rpm/*/etc/profile.d/init.sh | tail -1)" >> $rootdir/$cmsplatf/cms/cmspkg/$CMSPKG_VER/etc/profile.d/init.sh
-  echo "[ -e $rootdir/common/apt-site-env.sh ] && source $rootdir/common/apt-site-env.sh" >> $rootdir/$cmsplatf/cms/cmspkg/$CMSPKG_VER/etc/profile.d/init.sh
-fi
-
-# If we want to use a test instance, we need to adjust the sources.list accordingly.
-if $testInstance
-then
-    perl -p -i -e "s|^([^#][^;].*) http://cmsrep.cern.ch cms/cpt/Software/download/cms/|#\$1 http://cmsrep.cern.ch cmssw/cms/|;
-                   s|#;||;
-                   s|\@GROUPS\@|$groups|;
-                   s|\@SERVER\@|$server|;
-                   s|\@SERVER_PATH\@|$server_main_dir/|;
-                   s|\@REPOSITORY\@|$repository|" $rootdir/$cmsplatf/external/apt/$apt_version/etc/sources.list
-fi
-
-# Source the apt environment and upgrade what is already there.
-#echo_n "Initializing apt-get environment."
-#source $rootdir/$cmsplatf/external/apt/$apt_version/etc/profile.d/init.sh
-#apt-get update >$tempdir/apt-get-update.log 2>&1 || cleanup_and_exit 1 "There was a problem while running apt-get update. "
-
-#echo "Done"
+$tempdir/$CMSPKG_SCRIPT --path $rootdir setup
 echo_n "Installing default packages."
 defaultPackages="$additionalPkgs $defaultPkgs"
-#[ "X$defaultPackages" = X ] || apt-get -y install  $defaultPackages >$tempdir/apt-get-install.log 2>&1 ||  cleanup_and_exit 1 "There was \
-#a problem while installing the default packages "
-
-if [ ! -f $rootdir/common/cmspkg ] ; then
-  mkdir -p $rootdir/common
-  cp -f $tempdir/cmspkg $rootdir/common
-fi
-[ "X$defaultPackages" = X ] || $rootdir/common/cmspkg ${cmspkg_debug} -a $cmsplatf -f install $defaultPackages >$tempdir/apt-get-install.log 2>&1 || (cat $tempdir/apt-get-install.log  && cleanup_and_exit 1 "There was a problem while installing the default packages ")
+[ "X$defaultPackages" = X ] || $rootdir/common/cmspkg ${cmspkg_debug} --architecture $cmsplatf -f install $defaultPackages >$tempdir/apt-get-install.log 2>&1 || (cat $tempdir/apt-get-install.log  && cleanup_and_exit 1 "There was a problem while installing the default packages ")
 [ "X$debug" = "Xtrue" ] && cat $tempdir/apt-get-install.log
 echo "Done"
 
