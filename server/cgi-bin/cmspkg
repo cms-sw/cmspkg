@@ -10,8 +10,7 @@ except:import simplejson as json
 cgitb.enable()
 
 basedir = None
-cmssw_dirname = "cmssw"
-wwwroot_prefix = ""
+repo_uri = "cmssw"
 default_repo = '0000000000000000000000000000000000000000000000000000000000000000'
 debug_msg = []
 debug = False
@@ -57,7 +56,7 @@ def get_apt_md5sums(md5dir):
   return md5sums
 
 def redirect(path):
-  print "Location: %s/%s/%s\n\n" % (wwwroot_prefix, cmssw_dirname, path)
+  print "Location: /%s/%s\n\n" % (repo_uri, path)
   sys.exit(0)
 
 def get_parent_repo(repo):
@@ -176,7 +175,7 @@ def get_source(repo, hash, name):
 def check_request(req):
   valid_fields = {
     'ref_hash'   : '^(apt|[0-9a-f]{64}|[0-9a-f]{32})$',
-    'cmssw_dirname' : '^[a-zA-Z0-9_.-]+(/[a-zA-Z0-9_.-]+)*$',
+    'repo_uri'   : '^[a-zA-Z0-9_.-]+(/[a-zA-Z0-9_.-]+)*$',
     'info'   : '^1$',
     'debug'  : '^1$',
     'size'   : '^1$',
@@ -285,12 +284,6 @@ def upgrade():
   return
 
 def process(req):
-  global wwwroot_prefix, useDev
-  try:
-    if os.environ['SCRIPT_NAME'][-4:] == "-dev": useDev="-dev"
-    wwwroot_prefix = dirname(dirname(os.environ['SCRIPT_NAME']))
-    if wwwroot_prefix == "/": wwwroot_prefix=""
-  except: wwwroot_prefix=""
   rpath = ""
   try: rpath = os.environ['PATH_INFO'].strip("/")
   except: pass
@@ -339,7 +332,12 @@ except:
   pass
 
 if 'debug' in req: debug=True
-if 'cmssw_dirname' in req: cmssw_dirname=req.getvalue('cmssw_dirname').strip("/")
-basedir = join(os.environ['DOCUMENT_ROOT'],cmssw_dirname)
+if 'repo_uri' in req:
+  repo_uri=req.getvalue('repo_uri')
+else:
+  try:repo_uri = join(dirname(dirname(os.environ['SCRIPT_NAME'])),repo_uri)
+  except: pass
+basedir = join(os.environ['DOCUMENT_ROOT'],repo_uri.strip("/"))
+if os.environ['SCRIPT_NAME'][-4:] == "-dev": useDev="-dev"
 process(req)
 
