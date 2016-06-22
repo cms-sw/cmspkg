@@ -9,12 +9,14 @@ try: import json
 except:import simplejson as json
 cgitb.enable()
 
-basedir = '/data/cmssw'
+basedir = None
+cmssw_dirname = "cmssw"
 wwwroot_prefix = ""
 default_repo = '0000000000000000000000000000000000000000000000000000000000000000'
 debug_msg = []
 debug = False
 search_depth = 0
+useDev = ""
 
 
 ReArch      = '[a-zA-Z0-9]+_[a-zA-Z0-9]+_[a-zA-Z0-9]+'
@@ -55,7 +57,7 @@ def get_apt_md5sums(md5dir):
   return md5sums
 
 def redirect(path):
-  print "Location: %s%s\n\n" % (wwwroot_prefix,path)
+  print "Location: %s/%s/%s\n\n" % (wwwroot_prefix, cmssw_dirname, path)
   sys.exit(0)
 
 def get_parent_repo(repo):
@@ -174,6 +176,7 @@ def get_source(repo, hash, name):
 def check_request(req):
   valid_fields = {
     'ref_hash'   : '^(apt|[0-9a-f]{64}|[0-9a-f]{32})$',
+    'cmssw_dirname' : '^[a-zA-Z0-9_.-]+(/[a-zA-Z0-9_.-]+)*$',
     'info'   : '^1$',
     'debug'  : '^1$',
     'size'   : '^1$',
@@ -218,7 +221,7 @@ def cache(repo, arch, uHash):
   data = {}
   if uHash != "apt":
     cache = join(basedir, "repos", repo, arch, uHash, "RPMS.json")
-    if exists (cache): redirect("/cmssw/repos/%s/%s/%s/RPMS.json" % (repo, arch, uHash))
+    if exists (cache): redirect("repos/%s/%s/%s/RPMS.json" % (repo, arch, uHash))
     if debug: debug_msg.append("Not found package cache for %s/%s/%s" % (repo, arch, uHash))
     data['hash'] = sha256(json.dumps(data,sort_keys=True,separators=(',',': '))).hexdigest()
     return_json(data)
@@ -266,24 +269,25 @@ def file_search_result(rfile, name):
   if ('info' in req) or ('size' in req) or ('sha' in req):
     return_json(get_file_info(rfile, name))
   else:
-    redirect("/cmssw/%s" % rfile)
+    redirect(rfile)
   return
 
 def upgrade():
+  cmspkg_client = join("repos", "cmspkg%s.py" % useDev)
   if ('info' in req):
-    cmspkg_client = join("repos", "cmspkg.py")
     err, ver =  getstatusoutput("python %s/%s --version" % (basedir,cmspkg_client))
     if err: ver = "V00-00-00"
     info = get_file_info (cmspkg_client,cmspkg_client)
     info['version'] = ver
     return_json(info)
   else:
-    redirect("/cmssw/repos/cmspkg.py")
+    redirect(cmspkg_client)
   return
 
 def process(req):
-  global wwwroot_prefix
+  global wwwroot_prefix, useDev
   try:
+    if os.environ['SCRIPT_NAME'][-4:] == "-dev": useDev="-dev"
     wwwroot_prefix = dirname(dirname(os.environ['SCRIPT_NAME']))
     if wwwroot_prefix == "/": wwwroot_prefix=""
   except: wwwroot_prefix=""
@@ -294,7 +298,7 @@ def process(req):
   if debug: debug_msg.append("Name: %s" % rpath)
   items = rpath.split("/")
   ftype = items[0]
-  if (ftype == "api") or (ftype==""): redirect("/cmspkg.html")
+  if (ftype == "api") or (ftype==""): redirect("cmspkg.html")
   if not ftype in REQUESTS: return error_msg("Invalid request: %s" % (rpath))
   ilen = len(items)
   xlen = len(REQUESTS[ftype])+1
@@ -335,5 +339,7 @@ except:
   pass
 
 if 'debug' in req: debug=True
+if 'cmssw_dirname' in req: cmssw_dirname=req.getvalue('cmssw_dirname').strip("/")
+basedir = join(os.environ['DOCUMENT_ROOT'],cmssw_dirname)
 process(req)
 

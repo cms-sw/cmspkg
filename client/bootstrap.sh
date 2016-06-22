@@ -1242,6 +1242,7 @@ server_main_dir=cmssw
 repository=cms
 groups="lcg cms external"
 unsupportedDistribution=false
+useDev=
 
 rootdir=$(pwd)
 testInstance=false
@@ -1312,6 +1313,9 @@ while [ $# -gt 0 ]; do
         -debug )
           debug=true; shift
           doReturn="\n"
+          ;;
+        -dev )
+          useDev="-dev"; shift
           ;;
         -assume-yes|-y )
           assumeYes=true; shift
@@ -1552,8 +1556,8 @@ download_${download_method} $driver $tempdir/$cmsplatf-driver.txt
 eval `cat $tempdir/$cmsplatf-driver.txt`
 echo "Done."
 
-CMSPKG_SCRIPT="cmspkg.py $cmspkg_debug --repository $repository --architecture $cmsplatf --server $server"
-cmspkg=$server/$server_main_dir/repos/cmspkg.py
+CMSPKG_SCRIPT="cmspkg.py $cmspkg_debug --repository $repository --architecture $cmsplatf --server $server $([ -z $useDev ] || echo -$useDev)"
+cmspkg=$server/$server_main_dir/repos/cmspkg${useDev}.py
 download_${download_method} $cmspkg $tempdir/cmspkg.py
 [ -f $tempdir/cmspkg.py ] || cleanup_and_exit 1 "FATAL: Unable to download cmsos: $cmspkg"
 chmod +x $tempdir/cmspkg.py
