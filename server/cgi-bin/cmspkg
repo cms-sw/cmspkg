@@ -180,6 +180,7 @@ def check_request(req):
     'debug'  : '^1$',
     'size'   : '^1$',
     'sha'    : '^1$',
+    'ping'   : '^1$',
   }
   errs = []
   for key in req.keys():
@@ -331,6 +332,9 @@ try:
 except:
   pass
 
+if 'ping' in req:
+  print "Content-type: text/plain\n\nOK"
+  sys.exit(0)
 if 'debug' in req: debug=True
 if 'repo_uri' in req:
   repo_uri=req.getvalue('repo_uri')
