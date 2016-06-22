@@ -145,6 +145,7 @@ def get_package(repo, arch, hash, name, ref_hash):
 
 def get_file(repo, arch, name):
   global search_depth
+  if useDev and name=="bootstrap.sh": name=="bootstrap-dev.sh"
   search_depth = 0
   return search_file (repo, arch, "latest", name, package=False)
 
