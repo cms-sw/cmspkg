@@ -333,7 +333,7 @@ except:
   pass
 
 if 'ping' in req:
-  print "Content-type: text/plain\n\nOK"
+  print "Content-type: text/plain\n\nCMSPKG OK"
   sys.exit(0)
 if 'debug' in req: debug=True
 if 'repo_uri' in req:

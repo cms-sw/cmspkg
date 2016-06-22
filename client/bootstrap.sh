@@ -30,7 +30,7 @@ cleanup_and_exit () {
 }
 
 download_method=
-download_curl () { curl -f -H "Cache-Control: max-age=0" --connect-timeout 60 --max-time 600 -q -s "$1" -o "$2.tmp" && mv "$2.tmp" "$2"; }
+download_curl () { curl -L -f -H "Cache-Control: max-age=0" --connect-timeout 60 --max-time 600 -q -s "$1" -o "$2.tmp" && mv "$2.tmp" "$2"; }
 download_wget () { wget --no-check-certificate --header="Cache-Control: max-age=0" --timeout=600 -q -O "$2.tmp" "$1" 2>/dev/null && mv "$2.tmp" "$2"; }
 download_none () { cleanup_and_exit 1 "No curl or wget, cannot fetch $1" 
 }
@@ -1240,7 +1240,6 @@ chmod u+x $rpmFindProvides $tempdir/bin/rpmHeader.pl
 server=cmsrep.cern.ch
 server_main_dir=cmssw
 repository=cms
-groups="lcg cms external"
 unsupportedDistribution=false
 useDev=
 
@@ -1288,13 +1287,11 @@ while [ $# -gt 0 ]; do
         -groups|-g )
           [ $# -gt 1 ] || cleanup_and_exit 1 "Option \`$1' requires at lease one argument"
           shift
-          groups=""
           while [ $# -gt 0 ]
           do
             [ "X$(echo $1 | cut -b1)" = X- ] && break
             [ "X$1" = Xsetup ] && break
             [ "X$1" = Xreseed ] && break
-            groups="$groups $1"
             shift
           done
           testInstance=true
@@ -1346,7 +1343,6 @@ bootstrap.sh setup [-path <cms-path>] [-server <server>] [-server-path <download
 -server <server>  : repositories are to be found on server <server> (default cmsrep.cern.ch).
 -server-path <download-path> : package structure is found on <download-path> on server (default cms/cpt/Software/download/apt).
 -repository <repository> : use private apt repository cms.<username> (default: public repository)
--groups <groups-list> : list of the channels we want to subscribe to (default: "cms external lcg virtual").
 EOF_HELP
         cleanup_and_exit 1
         ;;
@@ -1357,9 +1353,30 @@ EOF_HELP
 done
 
 # Get cmsos from the web.
-cmsos="$server/cgi-bin/cmspkg/file/$repository/$cmsplatf/cmsos"
+xserver=
+found_server=no
+for x in $(echo $server | tr / ' ') ; do
+  [ "X$xserver" = "X" ] && xserver=$x || xserver=$xserver/$x
+  rm -f $tempdir/ping
+  download_${download_method} "$xserver/cgi-bin/cmspkg${useDev}?ping=1" $tempdir/ping || true
+  if [ -f $tempdir/ping ] ; then
+    if [ "X$(cat $tempdir/ping)" = "XCMSPKG OK" ] ; then
+      found_server=yes
+      break
+    fi
+  fi
+done
+[ "$found_server" = "yes" ] || cleanup_and_exit 1 "Unable to find /cgi-bin/cmspkg on $server"
+repo_uri=$(echo $server | cut -d/ -f2-100)
+repo_uri_opt=""
+if [ "X${repo_uri}" != "X${server}" ] ; then
+  repo_uri_opt="repo_uri=${repo_uri}"
+fi
+server=$xserver
+
+cmsos="$server/cgi-bin/cmspkg${useDev}/file/$repository/$cmsplatf/cmsos?${repo_uri_opt}"
 [ "X$verbose" = Xtrue ] && echo_n "Downloading cmsos file..."
-download_${download_method} $cmsos $tempdir/cmsos
+download_${download_method} "$cmsos" $tempdir/cmsos
 [ -f $tempdir/cmsos ] || cleanup_and_exit 1 "FATAL: Unable to download cmsos: $cmsos"
 source $tempdir/cmsos
 
@@ -1549,20 +1566,23 @@ export DOWNLOAD_DIR=$rootdir/bootstraptmp/BOOTSTRAP
 mkdir -p $DOWNLOAD_DIR
 cd $DOWNLOAD_DIR
 # Get the architecture driver from the web
-driver="$server/cgi-bin/cmspkg/driver/$repository/$cmsplatf"
+driver="$server/cgi-bin/cmspkg${useDev}/driver/$repository/$cmsplatf?${repo_uri_opt}"
 echo_n "Downloading driver file..."
-download_${download_method} $driver $tempdir/$cmsplatf-driver.txt
+download_${download_method} "$driver" $tempdir/$cmsplatf-driver.txt
 [ -f $tempdir/$cmsplatf-driver.txt ] || cleanup_and_exit 1 "Unable to download platform driver: $driver"
 eval `cat $tempdir/$cmsplatf-driver.txt`
 echo "Done."
 
-CMSPKG_SCRIPT="cmspkg.py $cmspkg_debug --repository $repository --architecture $cmsplatf --server $server $([ -z $useDev ] || echo -$useDev)"
+cmspkg_opts=""
+cmspkg_debug=""
+[ "X$debug" = "Xtrue" ] && cmspkg_debug="--debug"
+[ -z $repo_uri_opt ]    || cmspkg_opts="${cmspkg_opts} --server-path $repo_uri"
+[ -z $useDev ]          || cmspkg_opts="${cmspkg_opts} --use-dev"
+CMSPKG_SCRIPT="cmspkg.py ${cmspkg_debug} ${cmspkg_opts} --repository $repository --architecture $cmsplatf --server $server"
 cmspkg=$server/$server_main_dir/repos/cmspkg${useDev}.py
 download_${download_method} $cmspkg $tempdir/cmspkg.py
 [ -f $tempdir/cmspkg.py ] || cleanup_and_exit 1 "FATAL: Unable to download cmsos: $cmspkg"
 chmod +x $tempdir/cmspkg.py
-cmspkg_debug=""
-[ "X$debug" = "Xtrue" ] && cmspkg_debug="--debug"
 echo "Downloading bootstrap core packages..."
 $tempdir/$CMSPKG_SCRIPT --path $DOWNLOAD_DIR download $packageList || cleanup_and_exit 1 "Error downloading $pkg. Exiting."
 for pkg in $packageList

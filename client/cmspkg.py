@@ -81,6 +81,7 @@ def ask_user_to_continue(msg, exit=True):
 def cmspkg_url(params):
   url = "http://%s/%s/%s?" % (opts.server, cmspkg_cgi, params['uri'])
   if opts.debug: url = url + "debug=1&"
+  if opts.server_path: url = url + "repo_uri=%s&" % opts.server_path
   del params['uri']
   for p in params: url = url + p + "=" + str(params[p]) + "&"
   url=url[0:-1]
@@ -728,18 +729,20 @@ class CmsPkg:
         outfile.write('source $(ls %s/$1/external/rpm/*/etc/profile.d/init.sh | tail -1)\n' % opts.install_prefix)
         outfile.write('[ -e %s/common/apt-site-env.sh ] && source %s/common/apt-site-env.sh\n' % (opts.install_prefix, opts.install_prefix))
         outfile.close()
-    pkg_share_dir = join(opts.install_prefix, "share", "cms", "cmspkg", version)
-    if not exists(pkg_share_dir):
+    pkg_share_dir = join(opts.install_prefix, "share", "cms", "cmspkg")
+    if not exists(join(pkg_share_dir, version)):
       makedirs(pkg_share_dir, True)
-      run_cmd("rsync -a %s/ %s/" % (pkg_dir, pkg_share_dir))
+      run_cmd("rsync -a %s/ %s/tmp-%s/" % (pkg_dir, pkg_share_dir,version))
+      run_cmd("mv %s/tmp-%s %s/%s" % (pkg_share_dir, version, pkg_share_dir, version))
     common_cmspkg = join(opts.install_prefix, "common", "cmspkg")
     if not exists(common_cmspkg):
       makedirs(dirname(common_cmspkg))
-      useDev=""
-      if opts.useDev: useDev="--dev"
+      exOpt=""
+      if opts.useDev: exOpt="--use-dev"
+      if opts.server_path: exOpt=exOpt + " --server-path %s " % opts.server_path
       outfile = open(common_cmspkg, 'w')
       if outfile:
-        outfile.write("#!/bin/bash\n$(/bin/ls %s/share/cms/cmspkg/V*/cmspkg.py | tail -1) --path %s --repository %s --server %s %s $@\n" % (opts.install_prefix, opts.install_prefix, opts.repository, opts.server, useDev))
+        outfile.write("#!/bin/bash\n$(/bin/ls %s/share/cms/cmspkg/V*/cmspkg.py | tail -1) --path %s --repository %s --server %s %s $@\n" % (opts.install_prefix, opts.install_prefix, opts.repository, opts.server, exOpt))
         outfile.close()
       run_cmd("chmod +x %s" % common_cmspkg)
     print "cmspkg setup done."
@@ -903,12 +906,13 @@ if __name__ == '__main__':
   parser.add_option("-y",                  dest="force",     action="store_true", default=False, help="Assume yes for installation")
   parser.add_option("-d", "--debug",       dest="debug",     action="store_true", default=False, help="Print more debug outputs")
   parser.add_option("-v", "--version",     dest="version",   action="store_true", default=False, help="Print version string")
-  parser.add_option("--dev",               dest="useDev",    action="store_true", default=False, help="Use development server instead of production")
+  parser.add_option("--use-dev",           dest="useDev",    action="store_true", default=False, help="Use development server instead of production")
   parser.add_option("-a", "--architecture",dest="architecture", default=None,          help="Architecture string")
   parser.add_option("-r", "--repository",  dest="repository",   default=None,          help="Repository name")
   parser.add_option("-p", "--path",        dest="install_prefix",default=None,  help="Install path.")
   parser.add_option("-j", "--jobs",        dest="jobs",         default=4, type="int", help="Max parallel downloads")
   parser.add_option("-s", "--server",      dest="server",       default=None,   help="Name of cmsrep server.")
+  parser.add_option("-S", "--server-path", dest="server_path",  default=None,   help="Path of repo on server.")
   parser.add_option("-c", "--dist-clean",  dest="dist_clean",   action="store_true",   default=False, help="Only used with 'remove' command to do the distribution cleanup after the package removal.")
 
   opts, args = parser.parse_args()
