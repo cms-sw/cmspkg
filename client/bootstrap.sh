@@ -1580,7 +1580,8 @@ cmspkg_debug=""
 [ -z $useDev ]          || cmspkg_opts="${cmspkg_opts} --use-dev"
 CMSPKG_SCRIPT="cmspkg.py ${cmspkg_debug} ${cmspkg_opts} --repository $repository --architecture $cmsplatf --server $server"
 cmspkg=$server/$server_main_dir/repos/cmspkg${useDev}.py
-download_${download_method} $cmspkg $tempdir/cmspkg.py
+#download_${download_method} $cmspkg $tempdir/cmspkg.py
+cp /afs/cern.ch/work/m/muzaffar/public/git/cmspkg/client/cmspkg.py $tempdir/cmspkg.py
 [ -f $tempdir/cmspkg.py ] || cleanup_and_exit 1 "FATAL: Unable to download cmsos: $cmspkg"
 chmod +x $tempdir/cmspkg.py
 echo "Downloading bootstrap core packages..."

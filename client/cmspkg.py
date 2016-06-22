@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from commands import getstatusoutput
 import sys, os, re, subprocess, urllib, threading
-from os import getpid
+from os import getpid, getcwd
 from time import sleep
 from os.path import join, exists, abspath, dirname, basename
 from glob import glob
@@ -760,7 +760,7 @@ class CmsPkg:
       outfile.write("\n".join(cmspkg_str))
       outfile.close()
     run_cmd("chmod +x %s-tmp" % common_cmspkg)
-    run_cmd("mv %s-tmp %s" % (common_cmspkg, common_cmspkg)
+    run_cmd("mv %s-tmp %s" % (common_cmspkg, common_cmspkg))
     return
 
   #cleanup the distributuion. delete RPMs which are not used by
@@ -925,10 +925,10 @@ if __name__ == '__main__':
   parser.add_option("-v", "--version",     dest="version",   action="store_true", default=False, help="Print version string")
   parser.add_option("--use-dev",           dest="useDev",    action="store_true", default=False, help="Use development server instead of production")
   parser.add_option("-a", "--architecture",dest="architecture", default=None,          help="Architecture string")
-  parser.add_option("-r", "--repository",  dest="repository",   default=None,          help="Repository name")
-  parser.add_option("-p", "--path",        dest="install_prefix",default=None,  help="Install path.")
+  parser.add_option("-r", "--repository",  dest="repository",   default="cms",          help="Repository name defalut is cms")
+  parser.add_option("-p", "--path",        dest="install_prefix",default=getcwd(),  help="Install path.")
   parser.add_option("-j", "--jobs",        dest="jobs",         default=4, type="int", help="Max parallel downloads")
-  parser.add_option("-s", "--server",      dest="server",       default=None,   help="Name of cmsrep server.")
+  parser.add_option("-s", "--server",      dest="server",       default="cmsrep.cern.ch",   help="Name of cmsrep server, default is cmsrep.cern.ch")
   parser.add_option("-S", "--server-path", dest="server_path",  default=None,   help="Path of repo on server.")
   parser.add_option("-c", "--dist-clean",  dest="dist_clean",   action="store_true",   default=False, help="Only used with 'remove' command to do the distribution cleanup after the package removal.")
 
