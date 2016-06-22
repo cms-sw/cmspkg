@@ -8,20 +8,16 @@ from glob import glob
 try: import json
 except:import simplejson as json
 
-cmspkg_tag = "V00-00-00"
-cmspkg_cgi = 'cgi-bin/cmspkg'
-debug     = False
-repo_name = None
-repo_arch = None
-repo_server = None
-install_path = None
-cache_dir = None
-pkgs_dir = None
+cmspkg_tag   = "V00-00-01"
+cmspkg_cgi   = 'cgi-bin/cmspkg'
+opts         = None
+cache_dir    = None
+pkgs_dir     = None
 rpm_download = None
-rpm_env = None
-rpm_partial = "partial"
-getcmd = None
-cmspkg_agent="CMSPKG/1.0"
+rpm_env      = None
+rpm_partial  = "partial"
+getcmd       = None
+cmspkg_agent = "CMSPKG/1.0"
 pkgs_to_keep = ["cms[+](local-cern-siteconf|afs-relocation-cern)[+]","external[+](apt|rpm)[+]","cms[+](cmspkg|cmssw|cmssw-patch|cms-common)[+]"]
 getcmds = [ 
             ['curl','--version','--connect-timeout 60 --max-time 600 -L -q -f -s -H "Cache-Control: max-age=0" --user-agent "%s"' % (cmspkg_agent),"-o %s"],
@@ -71,7 +67,7 @@ def package_removed(package):
   pkg_file = join(pkgs_dir, package)
   if exists (pkg_file):
     run_cmd("rm -f %s" % pkg_file)
-  pkg_file = join(install_path, repo_arch, ".cmsdistrc", "PKG_"+package)
+  pkg_file = join(opts.install_prefix, opts.architecture, ".cmsdistrc", "PKG_"+package)
   if exists (pkg_file):
     run_cmd("rm -f %s" % pkg_file)
 
@@ -83,12 +79,12 @@ def ask_user_to_continue(msg, exit=True):
 
 #Returns cmspkg url to access
 def cmspkg_url(params):
-  url = "http://%s/%s/%s?" % (repo_server, cmspkg_cgi, params['uri'])
-  if debug: url = url + "debug=1&"
+  url = "http://%s/%s/%s?" % (opts.server, cmspkg_cgi, params['uri'])
+  if opts.debug: url = url + "debug=1&"
   del params['uri']
   for p in params: url = url + p + "=" + str(params[p]) + "&"
   url=url[0:-1]
-  if debug: print "[DEBUG]: Accessing %s" % (url)
+  if opts.debug: print "[DEBUG]: Accessing %s" % (url)
   return url
 
 #Check server reply: print any debug/warning/error message
@@ -125,7 +121,7 @@ def fetch_url(data, outfile=None, debug=False):
 
 #Run a shell command
 def run_cmd (cmd,outdebug=False,exit=True):
-  if debug: print "[CMD]: ",cmd
+  if opts.debug: print "[CMD]: ",cmd
   err, out = getstatusoutput(cmd)
   if err:
     if exit:
@@ -159,7 +155,7 @@ def verify_download(ofile, size, md5sum):
 #After the successful download it puts the downlaod file in rpm_download directory
 def download_rpm(package, tries=3):
   if (package[2]=="") or (package[3]==""):
-    udata = {'uri':'RPMS/%s/%s/%s/%s' % (repo_name, repo_arch, package[0], urllib.quote(package[1])), 'ref_hash':package[-1]}
+    udata = {'uri':'RPMS/%s/%s/%s/%s' % (opts.repository, opts.architecture, package[0], urllib.quote(package[1])), 'ref_hash':package[-1]}
     if package[2]=="": udata["sha"]=1
     if package[3]=="": udata["size"]=1 
     err, out = fetch_url(udata)
@@ -180,7 +176,7 @@ def download_rpm(package, tries=3):
 
   ofile_tmp = join(rpm_download, rpm_partial, package[1])
   for i in range(tries):
-    err, out = fetch_url({'uri':'RPMS/%s/%s/%s/%s' % (repo_name, repo_arch, package[0], urllib.quote(package[1])), 'ref_hash':package[-1]}, outfile=ofile_tmp)
+    err, out = fetch_url({'uri':'RPMS/%s/%s/%s/%s' % (opts.repository, opts.architecture, package[0], urllib.quote(package[1])), 'ref_hash':package[-1]}, outfile=ofile_tmp)
     if not err: break
   if not exists(ofile_tmp):
     print "Error: Unable to download package: "+package[1]
@@ -335,7 +331,7 @@ class rpmDownloader:
         package = packages[index]
         index += 1
         self.counter = self.counter + 1
-        print "Get:%s http://%s cmssw/%s/%s %s" % (self.counter, repo_server, repo_name, repo_arch, package[1])
+        print "Get:%s http://%s cmssw/%s/%s %s" % (self.counter, opts.server, opts.repository, opts.architecture, package[1])
         try:
           t = threading.Thread(target=download_package, args=(package,))
           t.start()
@@ -385,7 +381,7 @@ class CmsPkg:
   def update(self, force=False, silent=False):
     if not silent: print "Updating cmspkg caches ..."
     #fetch list of all caches from cmspkg server
-    err, out = fetch_url({'uri':'caches/%s/%s' % (repo_name, repo_arch)})
+    err, out = fetch_url({'uri':'caches/%s/%s' % (opts.repository, opts.architecture)})
     caches = json.loads(out)
     check_server_reply(caches)
     if not 'caches' in caches:
@@ -404,8 +400,8 @@ class CmsPkg:
       new_caches.append(rfile)
       #if we have a cache then do not need to fetch unless forced
       if not force and exists (cfile): continue
-      if debug: print "Gettings cache %s/%s" % (c[0], c[1])
-      err, out = fetch_url({'uri':'cache/%s/%s/%s' % (c[0], repo_arch, c[1])},debug=False)
+      if opts.debug: print "Gettings cache %s/%s" % (c[0], c[1])
+      err, out = fetch_url({'uri':'cache/%s/%s/%s' % (c[0], opts.architecture, c[1])})
       cache = json.loads(out)
       check_server_reply(cache)
       if not 'hash' in cache:
@@ -427,7 +423,7 @@ class CmsPkg:
       local_caches += 1
       cname = cfile.replace(cache_dir+"/","")
       if not cname in new_caches:
-        if debug: print "[DEBUG]: Cleaning up unused cmspkg cache: %s" % cname
+        if opts.debug: print "[DEBUG]: Cleaning up unused cmspkg cache: %s" % cname
         err, out = run_cmd("rm -f %s" %(cfile))
         caches_removed += 1
     if not silent:
@@ -547,7 +543,7 @@ class CmsPkg:
     if reinstall and (package in self.rpm_cache): reinstall_opts = "--replacepkgs --replacefiles --nodeps"
     print "Downloaded %s of archives." % human_readable_size(size_compress)
     print "After unpacking %s of additional disk space will be used." % human_readable_size(size_uncompress)
-    rcmd = "%s; rpm -Uvh -r %s --force --prefix %s --ignoreos --ignorearch --oldpackage %s" %(rpm_env, install_path, install_path, reinstall_opts)
+    rcmd = "%s; rpm -Uvh -r %s --force --prefix %s --ignoreos --ignorearch --oldpackage %s" %(rpm_env, opts.install_prefix, opts.install_prefix, reinstall_opts)
     print "Executing RPM (%s)..." % rcmd
     cmd = "cd %s && %s %s" %(rpm_download, rcmd,  pkg_to_install)
 
@@ -605,7 +601,7 @@ class CmsPkg:
       print "Reading Package Lists..."
       self.cache = pkgCache()
     makedirs(join(rpm_download,rpm_partial),True)
-    if package.endswith('.rpm'): package = rpm2package (package, repo_arch)
+    if package.endswith('.rpm'): package = rpm2package (package, opts.architecture)
     if not package in self.cache.packs:
       print "error: unknown pakcage: ",package
       sys.exit(1)
@@ -619,25 +615,25 @@ class CmsPkg:
       print "Reading Package Lists..."
       self.cache = pkgCache()
     default_trans = "0000000000000000000000000000000000000000000000000000000000000000"
-    download_dir = join(clone_dir, repo_name, repo_arch, default_trans, "RPMS")
+    download_dir = join(clone_dir, opts.repository, opts.architecture, default_trans, "RPMS")
     if not exists (download_dir): makedirs(download_dir,True)
     makedirs(join(rpm_download,rpm_partial),True)
     #download system files: bootstrap.sh, cmsos, cmspkg
     for sfile in ["cmsos", "bootstrap.sh"]:
       ofile = join(clone_dir, sfile)
       if not exists (ofile):
-        err, out = fetch_url({'uri':'file/%s/%s/%s' % (repo_name, repo_arch, sfile)}, outfile=ofile+".tmp")
+        err, out = fetch_url({'uri':'file/%s/%s/%s' % (opts.repository, opts.architecture, sfile)}, outfile=ofile+".tmp")
         if err: sys.exit(1)
         run_cmd("mv %s.tmp %s" % (ofile, ofile))
-      ofile1 = join(clone_dir, repo_name, sfile)
+      ofile1 = join(clone_dir, opts.repository, sfile)
       if not exists (ofile1): run_cmd("cp %s %s" % (ofile, ofile1))
     ofile = join(clone_dir, "cmspkg.py")
     if not exists (ofile): run_cmd("cp %s %s" % (script_path, ofile))
     #download the driver file
-    ofile = join(clone_dir, repo_name, "drivers", repo_arch+"-driver.txt")
+    ofile = join(clone_dir, opts.repository, "drivers", opts.architecture+"-driver.txt")
     if not exists (ofile):
-      makedirs(join(clone_dir, repo_name, "drivers"))
-      err, out = fetch_url({'uri':'driver/%s/%s' % (repo_name, repo_arch)}, outfile=ofile+".tmp")
+      makedirs(join(clone_dir, opts.repository, "drivers"))
+      err, out = fetch_url({'uri':'driver/%s/%s' % (opts.repository, opts.architecture)}, outfile=ofile+".tmp")
       if err: sys.exit(1)
       run_cmd("mv %s.tmp %s" % (ofile, ofile))
     #Read existsing package cache
@@ -675,15 +671,15 @@ class CmsPkg:
         if exists (download_file):
           run_cmd ("mkdir -p %s && mv %s %s" % (subdir, download_file, clone_file))
         else:
-          print "Unable to download: %s/%s/%s/%s" % (repo_name, repo_arch, pk[0], pk[1])
+          print "Unable to download: %s/%s/%s/%s" % (opts.repository, opts.architecture, pk[0], pk[1])
           ok = False
       if not ok: sys.exit(1)
     #update hash if needed
     if update_hash:
       clone_cache['hash'] = get_cache_hash(clone_cache)
       save_cache(clone_cache, clone_cache_file)
-      if not exists (join(clone_dir, repo_name, repo_arch, "latest")):
-        run_cmd("ln -s %s %s/%s/%s/latest" % (default_trans, clone_dir, repo_name, repo_arch))
+      if not exists (join(clone_dir, opts.repository, opts.architecture, "latest")):
+        run_cmd("ln -s %s %s/%s/%s/latest" % (default_trans, clone_dir, opts.repository, opts.architecture))
     print "Repo successfully cloned"
     return
 
@@ -703,7 +699,7 @@ class CmsPkg:
   #upgrade cmspkg client
   def upgrade(self):
     print "Current cmspkg version:  ",cmspkg_tag
-    err, out = fetch_url({'uri':'upgrade','info':1}, debug=False)
+    err, out = fetch_url({'uri':'upgrade','info':1})
     reply = json.loads(out)
     check_server_reply(reply)
     print "Available cmspkg version:",reply['version']
@@ -711,7 +707,7 @@ class CmsPkg:
     cut_ver = int(cmspkg_tag[1:].replace("-",""))
     if remote_ver<=cut_ver: return
     ofile = join(rpm_download, rpm_partial, "cmspkg.py")
-    err, out = fetch_url({'uri':'upgrade'},outfile=ofile,debug=False)
+    err, out = fetch_url({'uri':'upgrade'},outfile=ofile)
     if not exists(ofile):
       print out
       sys.exit(1)
@@ -723,25 +719,27 @@ class CmsPkg:
 
   #setup cmspkg area 
   def setup(self, version, client_file):
-    pkg_dir = join(install_path, repo_arch, "cms", "cmspkg", version)
+    pkg_dir = join(opts.install_prefix, opts.architecture, "cms", "cmspkg", version)
     if not exists (pkg_dir):
       makedirs(pkg_dir, True)
       run_cmd("cp -f %s %s/cmspkg.py && chmod +x %s/cmspkg.py" % (client_file, pkg_dir, pkg_dir))
       outfile = open("%s/rpm_env.sh" % pkg_dir, 'w')
       if outfile:
-        outfile.write('source $(ls %s/$1/external/rpm/*/etc/profile.d/init.sh | tail -1)\n' % install_path)
-        outfile.write('[ -e %s/common/apt-site-env.sh ] && source %s/common/apt-site-env.sh\n' % (install_path, install_path))
+        outfile.write('source $(ls %s/$1/external/rpm/*/etc/profile.d/init.sh | tail -1)\n' % opts.install_prefix)
+        outfile.write('[ -e %s/common/apt-site-env.sh ] && source %s/common/apt-site-env.sh\n' % (opts.install_prefix, opts.install_prefix))
         outfile.close()
-    pkg_share_dir = join(install_path, "share", "cms", "cmspkg", version)
+    pkg_share_dir = join(opts.install_prefix, "share", "cms", "cmspkg", version)
     if not exists(pkg_share_dir):
       makedirs(pkg_share_dir, True)
       run_cmd("rsync -a %s/ %s/" % (pkg_dir, pkg_share_dir))
-    common_cmspkg = join(install_path, "common", "cmspkg")
+    common_cmspkg = join(opts.install_prefix, "common", "cmspkg")
     if not exists(common_cmspkg):
       makedirs(dirname(common_cmspkg))
+      useDev=""
+      if opts.useDev: useDev="--dev"
       outfile = open(common_cmspkg, 'w')
       if outfile:
-        outfile.write("#!/bin/bash\n$(/bin/ls %s/share/cms/cmspkg/V*/cmspkg.py | tail -1) --path %s --repository %s --server %s $@\n" % (install_path, install_path, repo_name, repo_server))
+        outfile.write("#!/bin/bash\n$(/bin/ls %s/share/cms/cmspkg/V*/cmspkg.py | tail -1) --path %s --repository %s --server %s %s $@\n" % (opts.install_prefix, opts.install_prefix, opts.repository, opts.server, useDev))
         outfile.close()
       run_cmd("chmod +x %s" % common_cmspkg)
     print "cmspkg setup done."
@@ -776,10 +774,10 @@ class CmsPkg:
     if exists(pkgs_dir):
       for pkg in glob(pkgs_dir+"/*+*+*"):
         explicit_pkgs[basename(pkg)]=1
-    cmsdistrc_dir = join(install_path, repo_arch, ".cmsdistrc")
+    cmsdistrc_dir = join(opts.install_prefix, opts.architecture, ".cmsdistrc")
     if exists (cmsdistrc_dir):
       for pkg in glob(cmsdistrc_dir+"/PKG_*+*+*"):
-        explicit_pkgs[basename(pkg[4:])]=1
+        explicit_pkgs[basename(pkg)[4:]]=1
     for pkg in explicit_pkgs:
       keep_regexp.append(re.compile("^"+re.escape(pkg)+"$"))
     self.update_rpm_cache(True)
@@ -829,7 +827,6 @@ class CmsPkg:
 #Process the input command/options
 #cmspkg always create a lock
 def process(args, opt, cache_dir):
-  global debug
   if args[0]=="rpm":
     cmd = rpm_env+" ; "+args[0]
     for a in args[1:]: cmd+=" '"+a+"'"
@@ -848,21 +845,21 @@ def process(args, opt, cache_dir):
     elif args[0] == "clean":
       repo.clean()
     elif args[0] in ["install","reinstall"]:
-      cDebug = debug
-      debug = False
+      cDebug = opts.debug
+      opts.debug = False
       updateForce=False
       if not exists (join(cache_dir , "active")): updateForce=True
       repo.update(force=updateForce, silent=True)
-      debug = cDebug
+      opts.debug = cDebug
       for pkg in args[1:]:
         repo.install(pkg, reinstall=opts.reinstall, force=opts.force)
     elif args[0] in ["download"]:
-      cDebug = debug
-      debug = False
+      cDebug = opts.debug
+      opts.debug = False
       updateForce=False
       if not exists (join(cache_dir , "active")): updateForce=True
       repo.update(force=updateForce, silent=True)
-      debug = cDebug
+      opts.debug = cDebug
       for pkg in args[1:]:
         repo.download(pkg)
     elif args[0] in ["remove"]:
@@ -872,7 +869,7 @@ def process(args, opt, cache_dir):
       repo.dist_clean(force=opts.force)
     elif args[0] in ["clone"]:
       repo.update(force=opts.force)
-      repo.clone(install_path)
+      repo.clone(opts.install_prefix)
     elif args[0] == "search":
       if not exists (join(cache_dir , "active")): repo.update(True)
       pkg = ""
@@ -897,6 +894,8 @@ if __name__ == '__main__':
   "              [-f|-y|--force]\n"
   "              [-d|--debug]\n"
   "              [-c|--dist-clean]\n"
+  "              [-v|--version]\n"
+  "              [--dev]\n"
   "              [--reinstall]\n"
   "              "+" | ".join(cmspkg_cmds)+" [package| -- rpm <args>]\n\n")
   parser.add_option("--reinstall",         dest="reinstall", action="store_true", default=False, help="Reinstall a package e.g. its latest revision")
@@ -904,9 +903,10 @@ if __name__ == '__main__':
   parser.add_option("-y",                  dest="force",     action="store_true", default=False, help="Assume yes for installation")
   parser.add_option("-d", "--debug",       dest="debug",     action="store_true", default=False, help="Print more debug outputs")
   parser.add_option("-v", "--version",     dest="version",   action="store_true", default=False, help="Print version string")
+  parser.add_option("--dev",               dest="useDev",    action="store_true", default=False, help="Use development server instead of production")
   parser.add_option("-a", "--architecture",dest="architecture", default=None,          help="Architecture string")
   parser.add_option("-r", "--repository",  dest="repository",   default=None,          help="Repository name")
-  parser.add_option("-p", "--path",        dest="path",         default=None,  help="Install path.")
+  parser.add_option("-p", "--path",        dest="install_prefix",default=None,  help="Install path.")
   parser.add_option("-j", "--jobs",        dest="jobs",         default=4, type="int", help="Max parallel downloads")
   parser.add_option("-s", "--server",      dest="server",       default=None,   help="Name of cmsrep server.")
   parser.add_option("-c", "--dist-clean",  dest="dist_clean",   action="store_true",   default=False, help="Only used with 'remove' command to do the distribution cleanup after the package removal.")
@@ -916,51 +916,35 @@ if __name__ == '__main__':
     print cmspkg_tag
     sys.exit(0)
   if len(args) == 0: parser.error("Too few arguments")
-  if not opts.architecture:
-    parser.error("Missing architecture string")
-  else:
-    repo_arch=opts.architecture
-  if not opts.server:
-    parser.error("Missing repository server name")
-  else:
-    repo_server=opts.server
-  if not opts.repository:
-    parser.error("Missing repository name")
-  else:
-    repo_name=opts.repository
-  if not opts.path:
-    parser.error("Missing install path string")
-  else:
-    install_path=opts.path
+  if not opts.architecture: parser.error("Missing architecture string")
+  if not opts.server: parser.error("Missing repository server name")
+  if not opts.repository: parser.error("Missing repository name")
+  if not opts.install_prefix: parser.error("Missing install path string")
+  if opts.useDev: cmspkg_cgi = cmspkg_cgi+'-dev'
 
-  cmspkg_local_dir = join(install_path, repo_arch, 'var/cmspkg')
+  cmspkg_local_dir = join(opts.install_prefix, opts.architecture, 'var/cmspkg')
   if not args[0] in ["clone", "download", "setup", "upgrade"]:
     rpm_env = join(dirname(script_path), "rpm_env.sh")
     if not exists (rpm_env):
       print "Error: Unable to find rpm installation. Are you sure you have a bootstrap area?"
       sys.exit(1)
-    rpm_env = "source %s %s" % (rpm_env, repo_arch)
+    rpm_env = "source %s %s" % (rpm_env, opts.architecture)
   elif args[0] == "clone":
     if len(args) > 1: parser.error("Too many arguments")
-    install_path = join(install_path, "repos")
-    cmspkg_local_dir = join(install_path, repo_name, repo_arch, 'cmspkg')
+    opts.install_prefix = join(opts.install_prefix, "repos")
+    cmspkg_local_dir = join(opts.install_prefix, opts.repository, opts.architecture, 'cmspkg')
 
   cache_dir    = join(cmspkg_local_dir, 'cache')
   pkgs_dir     = join(cmspkg_local_dir, 'pkgs')
   rpm_download = join(cmspkg_local_dir, 'rpms')
-  if opts.debug: debug = True
-  if not args[0] in cmspkg_cmds:
-    parser.error("Unknown command "+args[0])
+  if not args[0] in cmspkg_cmds: parser.error("Unknown command "+args[0])
+
   if args[0] in ["install","reinstall","download","remove"]: 
-    if len(args) < 2:
-      parser.error("Too few arguments")
+    if len(args) < 2: parser.error("Too few arguments")
   elif (args[0] in ["update","clean","dist-clean","setup","upgrade"]):
-    if len(args) != 1:
-      parser.error("Too many arguments")
+    if len(args) != 1: parser.error("Too many arguments")
   elif (args[0] in ["search"]):
-    if len(args) > 2:
-      parser.error("Too many arguments")
-  if args[0] == "reinstall":
-    opts.reinstall = True
+    if len(args) > 2: parser.error("Too many arguments")
+  if args[0] == "reinstall": opts.reinstall = True
 
   process(args, opts, cache_dir)
