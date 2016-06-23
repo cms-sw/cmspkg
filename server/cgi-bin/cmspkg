@@ -303,7 +303,7 @@ def upgrade():
         flag = 2
       if (flag==3) and line.startswith('###V'): break
       if line == nver: flag=3
-      changelog.append(line.replace("*","")
+      changelog.append(line.replace("*",""))
     infile.close()
     if changelog: info['changelog']=changelog
     return_json(info)

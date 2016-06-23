@@ -1,4 +1,4 @@
-#What is cmspkg:
+#What is cmspkg
 
 cmspkg is collection of helper script used by http://github.com/cms-sw/pkgtools for building and distribution http://github.com/cms-sw/cmssw RPMs. It is to replace the apt-get usage.
 
