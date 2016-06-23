@@ -623,7 +623,7 @@ class CmsPkg:
     if not exists (download_dir): makedirs(download_dir,True)
     makedirs(join(rpm_download,rpm_partial),True)
     #download system files: bootstrap.sh, cmsos, cmspkg
-    for sfile in ["cmsos", "bootstrap.sh"]:
+    for sfile in ["cmsos", "bootstrap.sh", "README.md"]:
       ofile = join(clone_dir, sfile)
       if not exists (ofile):
         err, out = fetch_url({'uri':'file/%s/%s/%s' % (opts.repository, opts.architecture, sfile)}, outfile=ofile+".tmp")
@@ -703,11 +703,15 @@ class CmsPkg:
   #upgrade cmspkg client
   def upgrade(self):
     print "Current cmspkg version:  ",cmspkg_tag
-    err, out = fetch_url({'uri':'upgrade','info':1})
+    err, out = fetch_url({'uri':'upgrade','info':1, 'version':cmspkg_tag})
     reply = json.loads(out)
     check_server_reply(reply)
     print "Available cmspkg version:",reply['version']
     if not newer_version(cmspkg_tag, reply['version']): return
+    if 'changelog' in reply:
+      print "---- Change logs ----"
+      print "\n".join(reply['changelog']),"\n"
+    if not opts.force: ask_user_to_continue("Are you sure to continue with upgrade (Y/n): ")
     ofile = join(rpm_download, rpm_partial, "cmspkg.py")
     err, out = fetch_url({'uri':'upgrade'},outfile=ofile)
     if not exists(ofile):
