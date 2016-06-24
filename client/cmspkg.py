@@ -105,19 +105,20 @@ def check_server_reply(reply, exit=True):
   return
 
 #Use available command (curl or wget) to download url
-def fetch_url(data, outfile=None, debug=False):
+def set_get_cmd():
   global getcmd
-  if not getcmd:
-    for cmd in getcmds:
-      err, out = run_cmd("%s %s 2>&1 >/dev/null" %(cmd[0],cmd[1]),False,False)
-      if not err:
-        getcmd = cmd
-        break
-    if not getcmd:
-      print "Error: Unable to find any of the following commands. Please make sure you have any one of these installed."
-      print " ","\n  ".join([x[0] for x in getcmds])
-      sys.exit(1)
+  if getcmd: return
+  for cmd in getcmds:
+    err, out = run_cmd("%s %s 2>&1 >/dev/null" %(cmd[0],cmd[1]),False,False)
+    if not err:
+      getcmd = cmd
+      return
+  print "Error: Unable to find any of the following commands. Please make sure you have any one of these installed."
+  print " ","\n  ".join([x[0] for x in getcmds])
+  sys.exit(1)
 
+def fetch_url(data, outfile=None, debug=False):
+  set_get_cmd ()
   url = cmspkg_url(data)
   cmd = [getcmd[0], getcmd[2]]
   if outfile: cmd.append(getcmd[3] % outfile)
@@ -136,6 +137,24 @@ def run_cmd (cmd,outdebug=False,exit=True):
   elif outdebug:
     print out
   return err, out
+
+#Get server cgi-path and repo path from url
+def get_server_paths(server_url):
+  items = server_url.strip("/").split("/")
+  if len(items)==1: return items[0], "cmssw"
+  set_get_cmd ()
+  cmd = [getcmd[0], getcmd[2]]
+  cgi_server = ""
+  for subdir in items:
+    if not subdir: continue
+    cgi_server=join(cgi_server, subdir)
+    url = "http://%s/%s?ping=1" % (cgi_server, cmspkg_cgi)
+    cmd_str = " ".join(cmd)+' "'+url+'"'
+    err, out = run_cmd(cmd_str, outdebug=opts.debug, exit=False)
+    if err: continue
+    if out == "CMSPKG OK": return cgi_server, join(*items[1:])
+  print "Error: Unable to find /cgi-bin/cmspkg on %s" % server_url
+  sys.exit(1)
 
 def makedirs(path, force=False):
   if exists(path): return
@@ -948,6 +967,7 @@ if __name__ == '__main__':
   if not opts.repository: parser.error("Missing repository name")
   if not opts.install_prefix: parser.error("Missing install path string")
   if opts.useDev: cmspkg_cgi = cmspkg_cgi+'-dev'
+  if not opts.server_path: opts.server, opts.server_path = get_server_paths (opts.server)
 
   cmspkg_local_dir = join(opts.install_prefix, opts.architecture, 'var/cmspkg')
   if not args[0] in ["clone", "download", "setup", "upgrade"]:

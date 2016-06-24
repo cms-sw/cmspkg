@@ -1265,7 +1265,8 @@ while [ $# -gt 0 ]; do
         -server )
           [ $# -gt 1 ] || cleanup_and_exit 1 "Option \`$1' requires an argument"
           server=$(echo $2 | cut -d/ -f1)
-          server_main_dir=$(echo $2/${server_main_dir} | cut -d/ -f2-100)
+          server_path=$(echo $2/${server_main_dir} | cut -d/ -f2-100)
+          [ "X$server_path" = "X" ] || server_main_dir=${server_path}
           testInstance=true
           shift; shift ;;
         -server-path )
