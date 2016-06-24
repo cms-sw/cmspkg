@@ -53,7 +53,7 @@ def return_json(data,err=False):
 def latest_client_version():
   version = "V00-00-00"
   try:
-    sys.path.insert(0,basedir)
+    sys.path.insert(0,join(basedir,"repos"))
     version = __import__('cmspkg%s' % useDev ,globals(), locals(), ["cmspkg_tag"]).cmspkg_tag
     sys.path.pop(0)
   except: pass
