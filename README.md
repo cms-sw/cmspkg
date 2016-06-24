@@ -11,3 +11,6 @@ cmspkg is collection of helper script used by http://github.com/cms-sw/pkgtools 
    - **setup**: It create wrapper script and RPM environment scripts.
    - **clone**: To clone an existsing repository on to a different server.
    - **upgrade**: Download and install new cmspkg client is available.
+
+###V00-00-02:
+ - @smuzaffar 2016-06-24: Correctly find the server cgi-bin path and repository directory from the server URL.
