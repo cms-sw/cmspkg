@@ -8,7 +8,7 @@ from glob import glob
 try: import json
 except:import simplejson as json
 
-cmspkg_tag   = "V00-00-00"
+cmspkg_tag   = "V00-00-02"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
