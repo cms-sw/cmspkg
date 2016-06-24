@@ -323,8 +323,7 @@ def upgrade():
         if not line.startswith('###V'): continue
         line=line[3:]
         flag = 2
-      if (flag==3) and line.startswith('###V'): break
-      if line == nver: flag=3
+      if line.startswith('###V'): line=line[3:]
       changelog.append(line.replace("*",""))
     infile.close()
     if changelog: info['changelog']=changelog
