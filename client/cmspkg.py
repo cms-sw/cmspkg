@@ -8,7 +8,7 @@ from glob import glob
 try: import json
 except:import simplejson as json
 
-cmspkg_tag   = "V00-00-01"
+cmspkg_tag   = "V00-00-02"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -82,12 +82,10 @@ def ask_user_to_continue(msg, exit=True):
 
 #Returns cmspkg url to access
 def cmspkg_url(params):
-  url = "http://%s/%s/%s?" % (opts.server, cmspkg_cgi, params['uri'])
-  if opts.debug: url = url + "debug=1&"
-  if opts.server_path: url = url + "repo_uri=%s&" % opts.server_path
+  url = "http://%s/%s/%s?version=%s&repo_uri=%s" % (opts.server, cmspkg_cgi, params['uri'],cmspkg_tag, opts.server_path)
+  if opts.debug: url = url + "&debug=1"
   del params['uri']
-  for p in params: url = url + p + "=" + str(params[p]) + "&"
-  url=url[0:-1]
+  for p in params: url = url + "&" + p + "=" + str(params[p])
   if opts.debug: print "[DEBUG]: Accessing %s" % (url)
   return url
 
