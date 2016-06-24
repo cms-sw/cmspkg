@@ -968,7 +968,7 @@ if __name__ == '__main__':
   if not opts.server_path: opts.server, opts.server_path = get_server_paths (opts.server)
 
   cmspkg_local_dir = join(opts.install_prefix, opts.architecture, 'var/cmspkg')
-  if not args[0] in ["clone", "download", "setup", "upgrade"]:
+  if not args[0] in ["clone", "download", "setup"]:
     rpm_env = join(dirname(script_path), "rpm_env.sh")
     if not exists (rpm_env):
       print "Error: Unable to find rpm installation. Are you sure you have a bootstrap area?"
