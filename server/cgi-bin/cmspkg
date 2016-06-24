@@ -237,8 +237,8 @@ def caches(repo, arch):
     ser_vesion = latest_client_version ()
     try:
       if newer_version(ser_vesion, req.getvalue('version')):
-        info_msg.append("A newer cmspkg client '%s' is available to download/install.\n" % ser_vesion)
-        info_msg.append("Please run 'cmspkg -a <arch> upgrade' command to see the changes and upgrade your local cmspkg client.\n")
+        info_msg.append("A newer cmspkg client '%s' is available to download/install." % ser_vesion)
+        info_msg.append("Please run 'cmspkg -a <arch> upgrade' command to see the changes and upgrade your local cmspkg client.")
     except: pass
   return_json(data)
 
