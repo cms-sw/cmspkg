@@ -14,3 +14,10 @@ cmspkg is collection of helper script used by http://github.com/cms-sw/pkgtools 
 
 ###V00-00-02:
  - @smuzaffar 2016-06-24: Correctly find the server cgi-bin path and repository directory from the server URL.
+
+###V00-00-03:
+ - @smuzaffar 2016-06-24:
+   - Correctly inform user is he/she does not have write permission to install
+   - For dist-clean options, force delete the package install directory install-prefix/arch/pkg-group/pkg-name/pkg-version
+   - Avoid sending duplicate paramters to server.
+

@@ -3,12 +3,12 @@ from commands import getstatusoutput
 import sys, os, re, subprocess, urllib, threading
 from os import getpid, getcwd
 from time import sleep
-from os.path import join, exists, abspath, dirname, basename
+from os.path import join, exists, abspath, dirname, basename, isdir
 from glob import glob
 try: import json
 except:import simplejson as json
 
-cmspkg_tag   = "V00-00-02"
+cmspkg_tag   = "V00-00-03"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -59,6 +59,10 @@ def save_cache(cache, cache_file):
 def newer_version(new_ver, prev_ver):
   return int(new_ver[1:].replace("-",""))>int(prev_ver[1:].replace("-",""))
 
+def cleanup_package_dir(package):
+  pkg_dir = join(opts.install_prefix, opts.architecture, *package.split("+",2))
+  if isdir (pkg_dir): err, out = run_cmd("rm -rf %s" % pkg_dir)
+
 #create package installation stamp file
 def package_installed(package):
   pkg_file = join(pkgs_dir, package)
@@ -85,6 +89,7 @@ def cmspkg_url(params):
   url = "http://%s/%s/%s?version=%s&repo_uri=%s" % (opts.server, cmspkg_cgi, params['uri'],cmspkg_tag, opts.server_path)
   if opts.debug: url = url + "&debug=1"
   del params['uri']
+  for dup_param in ["version","repo_uri","debug"]: params.pop(dup_param,None)
   for p in params: url = url + "&" + p + "=" + str(params[p])
   if opts.debug: print "[DEBUG]: Accessing %s" % (url)
   return url
@@ -442,7 +447,7 @@ class CmsPkg:
       caches_added += 1
     local_caches = 0
     #check for all available caches and delete those which are not on server any more
-    for cfile in glob(cache_dir+"/*-*"):
+    for cfile in glob(cache_dir+"/*-*-*"):
       local_caches += 1
       cname = cfile.replace(cache_dir+"/","")
       if not cname in new_caches:
@@ -715,6 +720,7 @@ class CmsPkg:
       err, out = run_cmd("%s; rpm -e %s" % (rpm_env, package))
       package_removed (package)
       print "Removed",package
+      if opts.dist_clean: cleanup_package_dir(package)
     else:
       print "Package %s not installed" % package
     return
@@ -722,7 +728,7 @@ class CmsPkg:
   #upgrade cmspkg client
   def upgrade(self):
     print "Current cmspkg version:  ",cmspkg_tag
-    err, out = fetch_url({'uri':'upgrade','info':1, 'version':cmspkg_tag})
+    err, out = fetch_url({'uri':'upgrade','info':1})
     reply = json.loads(out)
     check_server_reply(reply)
     print "Available cmspkg version:",reply['version']
@@ -858,11 +864,13 @@ class CmsPkg:
         pkgs = " ".join(rpms2del)
         print "Removing ",pkgs
         err, out = run_cmd("%s; rpm -e %s" % (rpm_env, pkgs))
+        for pkg in rpms2del: cleanup_package_dir(pkg)
         rpms2del =[]
     if rpms2del:
       pkgs = " ".join(rpms2del)
       print "Removing ",pkgs
       err, out = run_cmd("%s; rpm -e %s" % (rpm_env, pkgs))
+      for pkg in rpms2del: cleanup_package_dir(pkg)
     return
 
 #Process the input command/options
@@ -877,10 +885,14 @@ def process(args, opt, cache_dir):
     for a in args[1:]: cmd+=" '"+a+"'"
     sys.exit(subprocess.call(cmd , shell=True))
 
-  makedirs(cache_dir,True)
+  if not exists (cache_dir): makedirs(cache_dir,True)
+  err, out = run_cmd("touch %s/check.write.permission && rm -f %s/check.write.permission" % (cache_dir, cache_dir), exit=False)
+  if err:
+    print "Error: You do not have write permission for installation area %s" % opts.install_prefix
+    sys.exit(1)
   lock = cmsLock(cache_dir)
   if not lock:
-    print "Unable to obtain lock, there is already a process running"
+    print "Error: Unable to obtain lock, there is already a process running"
     return
 
   if True:
