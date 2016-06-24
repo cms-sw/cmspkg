@@ -8,7 +8,7 @@ from glob import glob
 try: import json
 except:import simplejson as json
 
-cmspkg_tag   = "V00-00-03"
+cmspkg_tag   = "V00-00-04"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -120,14 +120,14 @@ def set_get_cmd():
   print " ","\n  ".join([x[0] for x in getcmds])
   sys.exit(1)
 
-def fetch_url(data, outfile=None, debug=False):
+def fetch_url(data, outfile=None, debug=False, exit=True):
   set_get_cmd ()
   url = cmspkg_url(data)
   cmd = [getcmd[0], getcmd[2]]
   if outfile: cmd.append(getcmd[3] % outfile)
   cmd.append('"'+url+'"')
   cmd_str = " ".join(cmd)
-  return run_cmd(cmd_str, outdebug=debug)
+  return run_cmd(cmd_str, outdebug=debug, exit=exit)
 
 #Run a shell command
 def run_cmd (cmd,outdebug=False,exit=True):
@@ -174,7 +174,7 @@ def verify_download(ofile, size, md5sum):
     return False
   err, out = run_cmd("md5sum %s | sed 's| .*||'" % ofile)
   if out != md5sum:
-    print "Error: Download error: Checksum mismatch for %s (%s vs %s)." % (package[1], out, md5sum)
+    print "Error: Download error: Checksum mismatch for %s (%s vs %s)." % (ofile, out, md5sum)
     return False
   return True
 
@@ -203,15 +203,15 @@ def download_rpm(package, tries=3):
         package[3] = reply['size']
 
   ofile_tmp = join(rpm_download, rpm_partial, package[1])
+  first_try = True
   for i in range(tries):
-    err, out = fetch_url({'uri':'RPMS/%s/%s/%s/%s' % (opts.repository, opts.architecture, package[0], urllib.quote(package[1])), 'ref_hash':package[-1]}, outfile=ofile_tmp)
-    if not err: break
-  if not exists(ofile_tmp):
-    print "Error: Unable to download package: "+package[1]
-    return False
-  if not verify_download(ofile_tmp, package[3], package[2]): return False
-  err, out = run_cmd("mv %s %s" % (ofile_tmp, join(rpm_download, package[1])))
-  return not err
+    if not first_try: print "Retry downloading ",package[0]
+    first_try = False
+    err, out = fetch_url({'uri':'RPMS/%s/%s/%s/%s' % (opts.repository, opts.architecture, package[0], urllib.quote(package[1])), 'ref_hash':package[-1]}, outfile=ofile_tmp, exit=False)
+    if (not err) and exists(ofile_tmp) and verify_download(ofile_tmp, package[3], package[2]):
+      err, out = run_cmd("mv %s %s" % (ofile_tmp, join(rpm_download, package[1])))
+      return not err
+  return False
 
 #Returns rpm dependencies using rpm -qp --requires command
 def get_pkg_deps(rpm):
@@ -239,7 +239,7 @@ def human_readable_size(size):
 def download_package(package):
   if exists (join(rpm_download, package[1])): return
   try: download_rpm(package)
-  except Exception, e: print "Error: Downloading RPMS: " + str(e)
+  except Exception, e: print "Error: Downloading RPMS: ",str(e)
 
 ###############################################
 #End of Utility function

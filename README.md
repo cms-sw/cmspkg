@@ -21,3 +21,7 @@ cmspkg is collection of helper script used by http://github.com/cms-sw/pkgtools 
    - For dist-clean options, force delete the package install directory install-prefix/arch/pkg-group/pkg-name/pkg-version
    - Avoid sending duplicate paramters to server.
 
+###V00-00-04:
+ - @smuzaffar 2016-06-24: Bug fix
+   - Fixed re-try logic for downloading pakages.
+
