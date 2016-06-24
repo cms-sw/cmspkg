@@ -56,7 +56,7 @@ def save_cache(cache, cache_file):
     outfile.close()
   run_cmd("mv %s-tmp %s" %(cache_file, cache_file))
 
-def newer_version(prev_ver, new_ver):
+def newer_version(new_ver, prev_ver):
   return int(new_ver[1:].replace("-",""))>int(prev_ver[1:].replace("-",""))
 
 #create package installation stamp file
@@ -97,6 +97,8 @@ def check_server_reply(reply, exit=True):
     print_msg(reply.pop('debug'), "DEBUG")
   if 'warning'  in reply:
     print_msg(reply['warning'],"WARN")
+  if 'information'  in reply:
+    print_msg(reply['information'],"INFO")
   if 'error' in reply:
     print_msg(reply['error'],"ERROR")
     if exit: sys.exit(1)
@@ -707,7 +709,7 @@ class CmsPkg:
     reply = json.loads(out)
     check_server_reply(reply)
     print "Available cmspkg version:",reply['version']
-    if not newer_version(cmspkg_tag, reply['version']): return
+    if not newer_version(reply['version'], cmspkg_tag): return
     if 'changelog' in reply:
       print "---- Change logs ----"
       print "\n".join(reply['changelog']),"\n"
@@ -745,7 +747,7 @@ class CmsPkg:
     common_cmspkg = join(opts.install_prefix, "common", "cmspkg")
     if exists (common_cmspkg) and version==cmspkg_tag:
       err, prev_version = run_cmd("grep '^###CMSPKG_VERSION=' %s | sed 's|.*=V|V|'" % common_cmspkg, outdebug=False, exit=False)
-      if (prev_version=="") or newer_version(prev_version, cmspkg_tag): force=True
+      if (prev_version=="") or newer_version(cmspkg_tag, prev_version): force=True
     self.update_common_cmspkg(common_cmspkg, force)
     print "cmspkg setup done."
     return

@@ -13,6 +13,8 @@ basedir = None
 repo_uri = "cmssw"
 default_repo = '0000000000000000000000000000000000000000000000000000000000000000'
 debug_msg = []
+warn_msg = []
+info_msg = []
 debug = False
 search_depth = 0
 useDev = ""
@@ -43,8 +45,22 @@ def return_json(data,err=False):
   if err: print "Status: 404 Not Found\n"
   print "Content-type: application/json\n"
   if debug and debug_msg: data['debug']="\n".join(debug_msg)
+  if warn_msg: data['warning']="\n".join(warn_msg)
+  if info_msg: data['information']="\n".join(info_msg)
   print json.dumps(data,sort_keys=True,indent=2,separators=(',',': '))
   sys.exit(0)
+
+def latest_client_version():
+  version = "V00-00-00"
+  try:
+    sys.path.insert(0,basedir)
+    version = __import__('cmspkg%s' % useDev ,globals(), locals(), ["cmspkg_tag"]).cmspkg_tag
+    sys.path.pop(0)
+  except: pass
+  return version
+  
+def newer_version(new_ver, prev_ver):
+  return int(new_ver[1:].replace("-",""))>int(prev_ver[1:].replace("-",""))
 
 def get_apt_md5sums(md5dir):
   md5sums = {}
@@ -217,6 +233,13 @@ def caches(repo, arch):
     if exists (cdir):
       data['caches'].append([repo, "apt", str(int(getmtime(cdir)))])
       if debug: debug_msg.append("Found parent %s/%s" % (repo, 'apt'))
+  if ('version' in req):
+    ser_vesion = latest_client_version ()
+    try:
+      if newer_version(ser_vesion, req.getvalue('version')):
+        info_msg.append("A newer cmspkg client '%s' is available to download/install.\n" % ser_vesion)
+        info_msg.append("Please run 'cmspkg -a <arch> upgrade' command to see the changes and upgrade your local cmspkg client.\n")
+    except: pass
   return_json(data)
 
 def cache(repo, arch, uHash):
@@ -277,8 +300,7 @@ def file_search_result(rfile, name):
 def upgrade():
   cmspkg_client = join("repos", "cmspkg%s.py" % useDev)
   if ('info' in req):
-    err, ver =  getstatusoutput("python %s/%s --version" % (basedir,cmspkg_client))
-    if err: ver = "V00-00-00"
+    ver = latest_client_version()
     info = get_file_info (cmspkg_client,cmspkg_client)
     info['version'] = ver
     if not 'version' in req: return_json(info)

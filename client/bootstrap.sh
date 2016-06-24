@@ -1264,14 +1264,15 @@ while [ $# -gt 0 ]; do
           shift; shift ;;
         -server )
           [ $# -gt 1 ] || cleanup_and_exit 1 "Option \`$1' requires an argument"
-          server=$2
+          server=$(echo $2 | cut -d/ -f1)
+          server_main_dir=$(echo $2/${server_main_dir} | cut -d/ -f2-100)
           testInstance=true
           shift; shift ;;
         -server-path )
           [ $# -gt 1 ] || cleanup_and_exit 1 "Option \`$1' requires an argument"
           $hasRepository || cleanup_and_exit 1 "Cannot specify -repository and -server-path at the same time"
-          server_main_dir=`echo $2 | sed -e 's|/$||' | sed -e "s|\(.*\)/[^/]*$|\1|"`
-          repository=`echo $2 | sed -e 's|/$||' | sed -e "s|.*/\([^/]*\)$|\1|"`
+          server_main_dir=$(dirname $2)
+          repository=$(basename $2)
           echo "server_main_dir $server_main_dir"
           echo "repository $repository"
           testInstance=true
@@ -1353,12 +1354,12 @@ EOF_HELP
 done
 
 # Get cmsos from the web.
-xserver=
+cgi_server=
 found_server=no
-for x in $(echo $server | tr / ' ') ; do
-  [ "X$xserver" = "X" ] && xserver=$x || xserver=$xserver/$x
+for x in $(echo ${server}/${server_main_dir} | tr / ' ') ; do
+  [ "X$cgi_server" = "X" ] && cgi_server=$x || cgi_server=$cgi_server/$x
   rm -f $tempdir/ping
-  download_${download_method} "$xserver/cgi-bin/cmspkg${useDev}?ping=1" $tempdir/ping || true
+  download_${download_method} "$cgi_server/cgi-bin/cmspkg${useDev}?ping=1" $tempdir/ping || true
   if [ -f $tempdir/ping ] ; then
     if [ "X$(cat $tempdir/ping)" = "XCMSPKG OK" ] ; then
       found_server=yes
@@ -1367,14 +1368,8 @@ for x in $(echo $server | tr / ' ') ; do
   fi
 done
 [ "$found_server" = "yes" ] || cleanup_and_exit 1 "Unable to find /cgi-bin/cmspkg on $server"
-repo_uri=$(echo $server | cut -d/ -f2-100)
-repo_uri_opt=""
-if [ "X${repo_uri}" != "X${server}" ] ; then
-  repo_uri_opt="repo_uri=${repo_uri}"
-fi
-server=$xserver
 
-cmsos="$server/cgi-bin/cmspkg${useDev}/file/$repository/$cmsplatf/cmsos?${repo_uri_opt}"
+cmsos="$cgi_server/cgi-bin/cmspkg${useDev}/file/$repository/$cmsplatf/cmsos?repo_uri=${server_main_dir}"
 [ "X$verbose" = Xtrue ] && echo_n "Downloading cmsos file..."
 download_${download_method} "$cmsos" $tempdir/cmsos
 [ -f $tempdir/cmsos ] || cleanup_and_exit 1 "FATAL: Unable to download cmsos: $cmsos"
@@ -1566,7 +1561,7 @@ export DOWNLOAD_DIR=$rootdir/bootstraptmp/BOOTSTRAP
 mkdir -p $DOWNLOAD_DIR
 cd $DOWNLOAD_DIR
 # Get the architecture driver from the web
-driver="$server/cgi-bin/cmspkg${useDev}/driver/$repository/$cmsplatf?${repo_uri_opt}"
+driver="$cgi_server/cgi-bin/cmspkg${useDev}/driver/$repository/$cmsplatf?repo_uri=${server_main_dir}"
 echo_n "Downloading driver file..."
 download_${download_method} "$driver" $tempdir/$cmsplatf-driver.txt
 [ -f $tempdir/$cmsplatf-driver.txt ] || cleanup_and_exit 1 "Unable to download platform driver: $driver"
@@ -1576,10 +1571,9 @@ echo "Done."
 cmspkg_opts=""
 cmspkg_debug=""
 [ "X$debug" = "Xtrue" ] && cmspkg_debug="--debug"
-[ -z $repo_uri_opt ]    || cmspkg_opts="${cmspkg_opts} --server-path $repo_uri"
 [ -z $useDev ]          || cmspkg_opts="${cmspkg_opts} --use-dev"
-CMSPKG_SCRIPT="cmspkg.py ${cmspkg_debug} ${cmspkg_opts} --repository $repository --architecture $cmsplatf --server $server"
-cmspkg=$server/$server_main_dir/repos/cmspkg${useDev}.py
+CMSPKG_SCRIPT="cmspkg.py ${cmspkg_debug} ${cmspkg_opts} --server $cgi_server --server-path $server_main_dir --repository $repository --architecture $cmsplatf"
+cmspkg=$(echo $server | cut -d/ -f1)/${server_main_dir}/repos/cmspkg${useDev}.py
 download_${download_method} $cmspkg $tempdir/cmspkg.py
 [ -f $tempdir/cmspkg.py ] || cleanup_and_exit 1 "FATAL: Unable to download cmsos: $cmspkg"
 chmod +x $tempdir/cmspkg.py
