@@ -205,7 +205,7 @@ def download_rpm(package, tries=3):
   ofile_tmp = join(rpm_download, rpm_partial, package[1])
   first_try = True
   for i in range(tries):
-    if not first_try: print "Retry downloading ",package[0]
+    if not first_try: print "Retry downloading ",package[1]
     first_try = False
     err, out = fetch_url({'uri':'RPMS/%s/%s/%s/%s' % (opts.repository, opts.architecture, package[0], urllib.quote(package[1])), 'ref_hash':package[-1]}, outfile=ofile_tmp, exit=False)
     if (not err) and exists(ofile_tmp) and verify_download(ofile_tmp, package[3], package[2]):
