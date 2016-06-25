@@ -243,7 +243,6 @@ if [ "${SRC_REPO}" != "${DES_REPO}" -o ! -d ${CMSPKG_REPOS}/${DES_REPO} ] ; then
   mv ${TMPREPO_DES} ${CMSPKG_REPOS}/${DES_REPO}
   touch ${CMSPKG_REPOS}/${DES_REPO}/.cmspkg-auto-cleanup
   #Remove the old apt-style symlink as in case of upload every thing should fallback to partent repo
-  [ -e ${BASEREPO_DIR}/${DES_REPO} ] && rm -f ${BASEREPO_DIR}/${DES_REPO}
 else
   #sync back is requested
   if [ ! -d ${CMSPKG_REPOS}/${DES_REPO}/${ARCH} ] ; then
@@ -264,6 +263,9 @@ fi
 #We now mv is a atomic operation, so we create a temp next symlink and then use mv command
 ln -sf ${NEW_UPLOAD_HASH} ${CMSPKG_REPOS}/${DES_REPO}/${ARCH}/next-${NEW_UPLOAD_HASH}
 mv -T ${CMSPKG_REPOS}/${DES_REPO}/${ARCH}/next-${NEW_UPLOAD_HASH} ${CMSPKG_REPOS}/${DES_REPO}/${ARCH}/latest
+
+#Delete old apt style repo link if exists and it is upload request
+[ -e ${BASEREPO_DIR}/${DES_REPO} -a "${SRC_REPO}" != "${DES_REPO}" ] && rm -f ${BASEREPO_DIR}/${DES_REPO}
 
 #if new sources are upload then create a symlink
 if [ -d ${CMSPKG_REPOS}/${DES_REPO}/${ARCH}/${NEW_UPLOAD_HASH}/SOURCES ] ; then
