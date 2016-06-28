@@ -25,3 +25,6 @@ cmspkg is collection of helper script used by http://github.com/cms-sw/pkgtools 
  - @smuzaffar 2016-06-24: Bug fix
    - Fixed re-try logic for downloading pakages.
 
+###V00-00-05:
+ - @smuzaffar 2016-06-28: New -D|--delete-dir option to force deletion of package directory
+

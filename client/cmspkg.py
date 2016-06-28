@@ -8,7 +8,7 @@ from glob import glob
 try: import json
 except:import simplejson as json
 
-cmspkg_tag   = "V00-00-04"
+cmspkg_tag   = "V00-00-05"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -181,7 +181,7 @@ def verify_download(ofile, size, md5sum):
 #Download a packge from cmsrep. If package's size and mk5sums are not passed/available
 #then first get this information from cmsrep so that download package can be varified
 #After the successful download it puts the downlaod file in rpm_download directory
-def download_rpm(package, tries=3):
+def download_rpm(package, tries=5):
   if (package[2]=="") or (package[3]==""):
     udata = {'uri':'RPMS/%s/%s/%s/%s' % (opts.repository, opts.architecture, package[0], urllib.quote(package[1])), 'ref_hash':package[-1]}
     if package[2]=="": udata["sha"]=1
@@ -712,15 +712,15 @@ class CmsPkg:
     return
 
   #uninstall a package and remove its stamp file
-  def remove(self, package, force=False):
+  def remove(self, package):
     self.update_rpm_cache()
     if package in self.rpm_cache:
-      if not force: ask_user_to_continue("Are you sure to delete %s (Y/n): " % package)
+      if not opts.force: ask_user_to_continue("Are you sure to delete %s (Y/n): " % package)
       print "Removing package",package
       err, out = run_cmd("%s; rpm -e %s" % (rpm_env, package))
       package_removed (package)
       print "Removed",package
-      if opts.dist_clean: cleanup_package_dir(package)
+      if opts.delete_directory: cleanup_package_dir(package)
     else:
       print "Package %s not installed" % package
     return
@@ -794,7 +794,7 @@ class CmsPkg:
 
   #cleanup the distributuion. delete RPMs which are not used by
   #explicitly installed packages
-  def dist_clean(self, force=False):
+  def dist_clean(self):
     def keepPack(pkg, cache):
       if pkg in cache["KEPT"]: return
       cache["KEPT"][pkg]=1
@@ -846,7 +846,7 @@ class CmsPkg:
 
     print "Following packages will be removed from the installation:"
     print "  "+"\n  ".join(sorted(cache["RPMS"].keys()))
-    if not force: ask_user_to_continue("Are you sure to remove above packages (Y/n): ")
+    if not opts.force: ask_user_to_continue("Are you sure to remove above packages (Y/n): ")
     rpms2del = []
     while cache["RPMS"]:
       dels = []
@@ -864,13 +864,15 @@ class CmsPkg:
         pkgs = " ".join(rpms2del)
         print "Removing ",pkgs
         err, out = run_cmd("%s; rpm -e %s" % (rpm_env, pkgs))
-        for pkg in rpms2del: cleanup_package_dir(pkg)
+        if opts.delete_directory:
+          for pkg in rpms2del: cleanup_package_dir(pkg)
         rpms2del =[]
     if rpms2del:
       pkgs = " ".join(rpms2del)
       print "Removing ",pkgs
       err, out = run_cmd("%s; rpm -e %s" % (rpm_env, pkgs))
-      for pkg in rpms2del: cleanup_package_dir(pkg)
+      if opts.delete_directory:
+        for pkg in rpms2del: cleanup_package_dir(pkg)
     return
 
 #Process the input command/options
@@ -920,10 +922,10 @@ def process(args, opt, cache_dir):
       for pkg in args[1:]:
         repo.download(pkg)
     elif args[0] in ["remove"]:
-      for pkg in args[1:]: repo.remove(pkg, force=opts.force)
-      if opts.dist_clean:  repo.dist_clean(force=opts.force)
+      for pkg in args[1:]: repo.remove(pkg)
+      if opts.dist_clean:  repo.dist_clean()
     elif args[0] in ["dist-clean"]:
-      repo.dist_clean(force=opts.force)
+      repo.dist_clean()
     elif args[0] in ["clone"]:
       repo.update(force=opts.force)
       repo.clone(opts.install_prefix)
@@ -966,6 +968,7 @@ if __name__ == '__main__':
   parser.add_option("-s", "--server",      dest="server",       default="cmsrep.cern.ch",   help="Name of cmsrep server, default is cmsrep.cern.ch")
   parser.add_option("-S", "--server-path", dest="server_path",  default=None,   help="Path of repo on server.")
   parser.add_option("-c", "--dist-clean",  dest="dist_clean",   action="store_true",   default=False, help="Only used with 'remove' command to do the distribution cleanup after the package removal.")
+  parser.add_option("-D", "--delete-dir",  dest="delete_directory",   action="store_true",   default=False, help="Only used with 'remove/dist_clean' command to do cleanup the package install directory.")
 
   opts, args = parser.parse_args()
   if opts.version:
