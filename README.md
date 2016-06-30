@@ -1,6 +1,7 @@
 #What is cmspkg
 
 cmspkg is collection of helper script used by http://github.com/cms-sw/pkgtools for building and distributing http://github.com/cms-sw/cmssw RPMs. It is to replace the apt-get usage.
+cmspkg puppet package provider documentation is available [here](https://github.com/cms-sw/cmspkg/blob/master/cmspkg-puppet-provider.md)
 
 ##Releases
 ###V00-00-00:
