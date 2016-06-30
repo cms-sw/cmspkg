@@ -121,17 +121,15 @@ def set_get_cmd():
   sys.exit(1)
 
 def download_file_if_changed(uri, ofile):
-  data = {'uri':uri, 'info':1}
-  err, out = fetch_url(data)
+  err, out = fetch_url({'uri': uri, 'info':1})
   reply = json.loads(out)
   check_server_reply(reply)
   if (not 'size' in reply) or (not 'sha' in reply):
     print "Error: Server error: unable to find size/checksum of file: %s" % uri
     sys.exit(1)
   if exists (ofile) and verify_download(ofile, reply['size'], reply['sha'], debug=False): return True
-  data.pop('info')
   tmpfile = ofile+".tmp"
-  err, out = fetch_url(data, outfile=tmpfile)
+  err, out = fetch_url({'uri': uri}, outfile=tmpfile)
   if err: sys.exit(1)
   if not verify_download(tmpfile, reply['size'], reply['sha']): sys.exit(1)
   run_cmd("mv %s %s" % (tmpfile, ofile))
