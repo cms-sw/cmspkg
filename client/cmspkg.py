@@ -8,7 +8,7 @@ from glob import glob
 try: import json
 except:import simplejson as json
 
-cmspkg_tag   = "V00-00-05"
+cmspkg_tag   = "V00-00-06"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -120,6 +120,23 @@ def set_get_cmd():
   print " ","\n  ".join([x[0] for x in getcmds])
   sys.exit(1)
 
+def download_file_if_changed(uri, ofile):
+  data = {'uri':uri, 'info':1}
+  err, out = fetch_url(data)
+  reply = json.loads(out)
+  check_server_reply(reply)
+  if (not 'size' in reply) or (not 'sha' in reply):
+    print "Error: Server error: unable to find size/checksum of file: %s" % uri
+    sys.exit(1)
+  if exists (ofile) and verify_download(ofile, reply['size'], reply['sha'], debug=False): return True
+  data.pop('info')
+  tmpfile = ofile+".tmp"
+  err, out = fetch_url(data, outfile=tmpfile)
+  if err: sys.exit(1)
+  if not verify_download(tmpfile, reply['size'], reply['sha']): sys.exit(1)
+  run_cmd("mv %s %s" % (tmpfile, ofile))
+  return
+
 def fetch_url(data, outfile=None, debug=False, exit=True):
   set_get_cmd ()
   url = cmspkg_url(data)
@@ -167,14 +184,14 @@ def makedirs(path, force=False):
   return
 
 #Varifies a file size and md5sums
-def verify_download(ofile, size, md5sum):
+def verify_download(ofile, size, md5sum, debug=True):
   sinfo = os.stat(ofile)
   if sinfo[6] != size:
-    print "Error: Download error: Size mismatch for %s (%s vs %s)." % (ofile, str(sinfo[6]), str(size))
+    if debug: print "Error: Download error: Size mismatch for %s (%s vs %s)." % (ofile, str(sinfo[6]), str(size))
     return False
   err, out = run_cmd("md5sum %s | sed 's| .*||'" % ofile)
   if out != md5sum:
-    print "Error: Download error: Checksum mismatch for %s (%s vs %s)." % (ofile, out, md5sum)
+    if debug: print "Error: Download error: Checksum mismatch for %s (%s vs %s)." % (ofile, out, md5sum)
     return False
   return True
 
@@ -642,28 +659,19 @@ class CmsPkg:
     if not self.cache:
       print "Reading Package Lists..."
       self.cache = pkgCache()
-    default_trans = "0000000000000000000000000000000000000000000000000000000000000000"
-    download_dir = join(clone_dir, opts.repository, opts.architecture, default_trans, "RPMS")
-    if not exists (download_dir): makedirs(download_dir,True)
-    makedirs(join(rpm_download,rpm_partial),True)
-    #download system files: bootstrap.sh, cmsos, cmspkg
-    for sfile in ["cmsos", "bootstrap.sh", "README.md"]:
-      ofile = join(clone_dir, sfile)
-      if not exists (ofile):
-        err, out = fetch_url({'uri':'file/%s/%s/%s' % (opts.repository, opts.architecture, sfile)}, outfile=ofile+".tmp")
-        if err: sys.exit(1)
-        run_cmd("mv %s.tmp %s" % (ofile, ofile))
-      ofile1 = join(clone_dir, opts.repository, sfile)
-      if not exists (ofile1): run_cmd("cp %s %s" % (ofile, ofile1))
-    ofile = join(clone_dir, "cmspkg.py")
-    if not exists (ofile): run_cmd("cp %s %s" % (script_path, ofile))
+    default_trans    = "0000000000000000000000000000000000000000000000000000000000000000"
+    repo_dir         = join(clone_dir, opts.repository)
+    download_dir     = join(repo_dir, opts.architecture, default_trans, "RPMS")
+    driver_dir       = join(repo_dir, "drivers")
+    rpm_download_dir = join(rpm_download,rpm_partial)
+    for xdir in [download_dir, driver_dir, rpm_download_dir]:
+      if not exists (xdir): makedirs(xdir, True)
+
+    #download system files: cmsos
+    for sfile in ["cmsos"]:
+      download_file_if_changed('file/%s/%s/%s' % (opts.repository, opts.architecture, sfile), join(repo_dir, sfile))
     #download the driver file
-    ofile = join(clone_dir, opts.repository, "drivers", opts.architecture+"-driver.txt")
-    if not exists (ofile):
-      makedirs(join(clone_dir, opts.repository, "drivers"))
-      err, out = fetch_url({'uri':'driver/%s/%s' % (opts.repository, opts.architecture)}, outfile=ofile+".tmp")
-      if err: sys.exit(1)
-      run_cmd("mv %s.tmp %s" % (ofile, ofile))
+    download_file_if_changed('driver/%s/%s' % (opts.repository, opts.architecture), join(driver_dir, opts.architecture+"-driver.txt"))
     #Read existsing package cache
     clone_cache_file = download_dir+".json"
     clone_cache = {}

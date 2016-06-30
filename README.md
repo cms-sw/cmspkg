@@ -28,3 +28,5 @@ cmspkg is collection of helper script used by http://github.com/cms-sw/pkgtools 
 ###V00-00-05:
  - @smuzaffar 2016-06-28: New -D|--delete-dir option to force deletion of package directory
 
+###V00-00-06:
+ - @smuzaffar 2016-06-30: Always download and verify new cmsos amd drivers file for clone. 
