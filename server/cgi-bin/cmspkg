@@ -161,7 +161,9 @@ def get_package(repo, arch, hash, name, ref_hash):
 
 def get_file(repo, arch, name):
   global search_depth
-  if useDev and name=="bootstrap.sh": name="bootstrap-dev.sh"
+  if useDev:
+   if name=="bootstrap.sh": name="bootstrap%s.sh" % useDev
+   if name=="README.md": name="README%s.md" % useDev
   search_depth = 0
   return search_file (repo, arch, "latest", name, package=False)
 
@@ -306,7 +308,7 @@ def upgrade():
     if not 'version' in req: return_json(info)
     client_ver = req.getvalue('version')
     if client_ver == ver: return return_json(info)
-    readme = join(basedir, "repos", "README.md")
+    readme = join(basedir, "repos", "README%s.md" % useDev)
     if not exists (readme): return_json(info)
     infile = open(readme)
     if not infile: return_json(info)
