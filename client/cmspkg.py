@@ -8,7 +8,7 @@ from glob import glob
 try: import json
 except:import simplejson as json
 
-cmspkg_tag   = "V00-00-07"
+cmspkg_tag   = "V00-00-08"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -139,7 +139,10 @@ def fetch_url(data, outfile=None, debug=False, exit=True):
   set_get_cmd ()
   url = cmspkg_url(data)
   cmd = [getcmd[0], getcmd[2]]
-  if outfile: cmd.append(getcmd[3] % outfile)
+  if outfile:
+    outdir = dirname(outfile)
+    if not exists (outdir): makedirs(outdir,True)
+    cmd.append(getcmd[3] % outfile)
   cmd.append('"'+url+'"')
   cmd_str = " ".join(cmd)
   return run_cmd(cmd_str, outdebug=debug, exit=exit)

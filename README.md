@@ -34,3 +34,9 @@ cmspkg puppet package provider documentation is available [here](https://github.
 
 ###V00-00-07:
  - @smuzaffar 2016-07-01: Added showpkg command to show all revisions of a package.
+
+###V00-00-08:
+ - @smuzaffar 2016-07-01: Bug fix, make sure that download directory exists before fetching a file.
+
+
+
