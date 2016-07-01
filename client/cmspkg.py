@@ -616,16 +616,15 @@ class CmsPkg:
         print "%s - CMS Experiment package SpecChecksum:%s" % (pk, data[0])
     return
    
-  #print the packages name and all its revisions. 
+  #print the packages name and all its revisions.
   def showpkg(self, package):
     self.cache = pkgCache()
     print "%s - CMS Experiment package" % package
     print "Versions:"
-    for pk in self.cache.packs:
-      if pk==package:
-        for rev in sorted(self.cache.packs[pk], key=int, reverse=True):
-          print "1-"+str(rev)+"."+opts.architecture+"(available in remote repository)"
-        return
+    if package in self.cache.packs:
+      for rev in sorted(self.cache.packs[package], key=int, reverse=True):
+        print "1-"+str(rev)+"."+opts.architecture+"(available in remote repository)"
+      return
     print "W: Unable to locate package"
     return
    
