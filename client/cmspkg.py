@@ -8,7 +8,7 @@ from glob import glob
 try: import json
 except:import simplejson as json
 
-cmspkg_tag   = "V00-00-06"
+cmspkg_tag   = "V00-00-07"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -616,6 +616,19 @@ class CmsPkg:
         print "%s - CMS Experiment package SpecChecksum:%s" % (pk, data[0])
     return
    
+  #print the packages name and all its revisions. 
+  def showpkg(self, package):
+    self.cache = pkgCache()
+    print "%s - CMS Experiment package" % package
+    print "Versions:"
+    for pk in self.cache.packs:
+      if pk==package:
+        for rev in sorted(self.cache.packs[pk], key=int, reverse=True):
+          print "1-"+str(rev)+"."+opts.architecture+"(available in remote repository)"
+        return
+    print "W: Unable to locate package"
+    return
+   
   #Shows a package detail just like apt-cache showpkg
   def show(self, pkg):
     self.cache = pkgCache()
@@ -940,6 +953,9 @@ def process(args, opt, cache_dir):
       pkg = ""
       if len(args)==2: pkg =args[1]
       repo.search(pkg, exact=opts.force)
+    elif args[0] == "showpkg":
+      if not exists (join(cache_dir , "active")): repo.update(True)
+      repo.showpkg(args[1])
     elif args[0] == "show":
       if not exists (join(cache_dir , "active")): repo.update(True)
       repo.show(args[1])
@@ -948,7 +964,7 @@ def process(args, opt, cache_dir):
 
 if __name__ == '__main__':
   from optparse import OptionParser
-  cmspkg_cmds = ["update","search","install","reinstall","clean","remove","dist-clean","show","download", "rpm", "clone", "setup","upgrade"]
+  cmspkg_cmds = ["update","search","install","reinstall","clean","remove","dist-clean","show","download", "rpm", "clone", "setup","upgrade", "showpkg"]
   parser = OptionParser(usage=basename(sys.argv[0])+" -a|--architecture <arch>\n"
   "              -s|--server <server>\n"
   "              -r|--repository <repository>\n"
@@ -1011,6 +1027,8 @@ if __name__ == '__main__':
     if len(args) != 1: parser.error("Too many arguments")
   elif (args[0] in ["search"]):
     if len(args) > 2: parser.error("Too many arguments")
+  elif (args[0] in ["showpkg"]):
+    if len(args) != 2: parser.error("Too many/few arguments")
   if args[0] == "reinstall": opts.reinstall = True
 
   process(args, opts, cache_dir)

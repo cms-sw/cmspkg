@@ -31,3 +31,6 @@ cmspkg puppet package provider documentation is available [here](https://github.
 
 ###V00-00-06:
  - @smuzaffar 2016-06-30: Always download and verify new cmsos amd drivers file for clone. 
+
+###V00-00-07:
+ - @smuzaffar 2016-07-01: Added showpkg command to show all revisions of a package.
