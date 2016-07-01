@@ -307,7 +307,7 @@ def upgrade():
     info['version'] = ver
     if not 'version' in req: return_json(info)
     client_ver = req.getvalue('version')
-    if client_ver == ver: return return_json(info)
+    if newer_version(client_ver, ver): return return_json(info)
     readme = join(basedir, "repos", "README%s.md" % useDev)
     if not exists (readme): return_json(info)
     infile = open(readme)
@@ -319,7 +319,7 @@ def upgrade():
     for line in infile:
       line = line.strip("\n")
       if flag==0:
-        if line == cver: flag=1
+        if line.startswith(cver): flag=1
         continue
       if flag==1:
         if not line.startswith('###V'): continue
