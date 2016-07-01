@@ -23,8 +23,7 @@ cmspkg puppet package provider documentation is available [here](https://github.
    - Avoid sending duplicate paramters to server.
 
 ###V00-00-04:
- - @smuzaffar 2016-06-24: Bug fix
-   - Fixed re-try logic for downloading pakages.
+ - @smuzaffar 2016-06-24: Bug fix, Fixed re-try logic for downloading pakages.
 
 ###V00-00-05:
  - @smuzaffar 2016-06-28: New -D|--delete-dir option to force deletion of package directory
