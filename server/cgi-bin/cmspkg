@@ -342,7 +342,12 @@ def process(req):
   if debug: debug_msg.append("Name: %s" % rpath)
   items = rpath.split("/")
   ftype = items[0]
-  if (ftype == "api") or (ftype==""): redirect("cmspkg.html")
+  if (ftype == "api") or (ftype==""):
+   if exists(join(os.environ['DOCUMENT_ROOT'],"cmspkg.html")):
+     print "Location: /cmspkg.html\n\n"
+     sys.exit(0)
+   else:
+     redirect("cmspkg.html")
   if not ftype in REQUESTS: return error_msg("Invalid request: %s" % (rpath))
   ilen = len(items)
   xlen = len(REQUESTS[ftype])+1

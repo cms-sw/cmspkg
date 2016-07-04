@@ -242,7 +242,6 @@ if [ "${SRC_REPO}" != "${DES_REPO}" -o ! -d ${CMSPKG_REPOS}/${DES_REPO} ] ; then
   #Move the newly tmp repo back to repos
   mv ${TMPREPO_DES} ${CMSPKG_REPOS}/${DES_REPO}
   touch ${CMSPKG_REPOS}/${DES_REPO}/.cmspkg-auto-cleanup
-  #Remove the old apt-style symlink as in case of upload every thing should fallback to partent repo
 else
   #sync back is requested
   if [ ! -d ${CMSPKG_REPOS}/${DES_REPO}/${ARCH} ] ; then
