@@ -21,7 +21,7 @@ Show a readable record for the package | `apt-cache show package` | `cmspkg -a a
 
 `cmspkg` internally sources the latest available `rpm` env, so no need to source `apt/rpm init.[sh|csh]` script before running `cmspkg` commands.
 
-To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm commands and options>`
+To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and options>`
 
 ##Releases
 ###V00-00-00:
