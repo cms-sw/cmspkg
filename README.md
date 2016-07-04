@@ -14,7 +14,7 @@ Reinstalling an installed package | `apt-get --reinstall install package` | `cms
 Remove packages | `apt-get remove package` | `cmspkg -a arch remove package`
 Cleaup downloaded package files | `apt-get clean` | `cmspkg -a arch clean`
 Perform an upgrade | `apt-get upgrade` | `cmspkg -a arch upgrade`
-Remove unused not-explicitly installed package | `-` | `cmspkg -a arch dist-clean`
+Remove unused not-explicitly installed packages | `-` | `cmspkg -a arch dist-clean`
 Search a package | `apt-cache search package` | `cmspkg -a arch search package`
 Show some general information for a single package | `apt-cache showpkg package` | `cmspkg -a arch showpkg package`
 Show a readable record for the package | `apt-cache show package` | `cmspkg -a arch show package`
