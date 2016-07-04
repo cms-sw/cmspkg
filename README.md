@@ -8,7 +8,7 @@ Converting `apt`-speak to `cmspkg`-speak is mostly replacing `apt-*` commands wi
 Purpose | APT | CMSPKG
 --------|----------|-------------
 Retrieve/update new lists of packages | `apt-get update` | `cmspkg -a arch update`
-Install new packages | `apt-get -y install package` | `cmspkg -y -a arch install package`
+Install new packages | `apt-get -y install package` | `cmspkg -a arch -y install package`
 Reinstalling an installed package</td> | `apt-get reinstall package`</td> | `cmspkg -a arch reinstall package`</td>
 Reinstalling an installed package | `apt-get --reinstall install package` | `cmspkg -a arch --reinstall install package`
 Remove packages | `apt-get remove package` | `cmspkg -a arch remove package`
