@@ -19,7 +19,7 @@ Search a package | `apt-cache search package` | `cmspkg -a arch search package`
 Show some general information for a single package | `apt-cache showpkg package` | `cmspkg -a arch showpkg package`
 Show a readable record for the package | `apt-cache show package` | `cmspkg -a arch show package`
 
-cmspkg internally sources the latest available `rpm` env, so no need to source apt/rpm init.[sh|csh] script before running cmspkg commands.
+`cmspkg` internally sources the latest available `rpm` env, so no need to source `apt/rpm init.[sh|csh]` script before running `cmspkg` commands.
 
 ##Releases
 ###V00-00-00:
