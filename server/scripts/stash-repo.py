@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from sys import argv, exit
-from os import readlink, stat, utime
+from os import readlink, stat, utime, getpid
 from os.path import exists, join, basename, dirname, abspath
 from glob import glob
 from time import time
@@ -9,12 +9,13 @@ from hashlib import sha256
 from json import loads, dumps
 import traceback, re
 from cmspkg_utils import merge_meta
+from pwd import getpwuid
 
 #Format: Order list of repo where for each repo once should have a list with 3 items
 #[ RepoNameTo Match, Days-to-keep, max-transactions-to-keep]
 STASH_CONFIG = [
   ["^cms$",             30, 30],
-  ["^cms[.]week[0-9]$",  1, 10],
+  ["^cms[.]week[0-9]$",  7, 10],
   ["^cms[.].+$",         7, 10],
   ["^comp$",            30, 10],
   ["^comp[.]pre$",      30, 30],
@@ -25,8 +26,45 @@ STASH_CONFIG = [
 #Default upload transaction. This is available for all archs and can not be stashed/removed
 DEFAULT_HASH = "0000000000000000000000000000000000000000000000000000000000000000"
 
+#Repository owner
+REPO_OWNER = "cmsbuild"
+
 #Helper function to format a string
 def format(s, **kwds): return s % kwds
+
+#function to run system command under a user
+def run_command(cmd, user=None):
+  if user: cmd = "sudo -u %s /bin/bash -c '" % user + cmd.replace("'", "\'")+"'"
+  return getstatusoutput(cmd)
+
+#Cleanup in-active transactions
+def cleanup_transactions(repo_dir, tmp_dir, delme_dir, dryRun=False, keep_threshhold_hours=24):
+  for cfile in glob(join(repo_dir,"*","*","cleanup")):
+    age = int((time()-stat(cfile)[8])/3600)
+    tdir = dirname(cfile)
+    if age < keep_threshhold_hours:
+      print "Keep transaction %s: %s Hours" % (tdir, age)
+      continue
+    print "Deleting transaction %s: %s Hours" % (tdir, age)
+    items = tdir.split("/")
+    delme_trans = join(delme_dir, items[-3], items[-2])
+    if not dryRun:
+      err, out = run_command("mkdir -p %s" % delme_trans)
+      if err:
+        print "Error: Unable to create directory %s: %s" % (delme_trans, out)
+        continue
+      err, out = run_command("mv %s %s" % (tdir, delme_trans))
+      if err: print "Error: Unable to move transation: %s" % out
+  return
+
+#cleanup in-complete uploads in tmp directory
+def cleanup_tmp_uploads(tmp_dir, delme_dir, dryRun=False, keep_threshhold_hours=8):
+  for tdir in glob (join(tmp_dir,"tmp-*")):
+    age = int((time()-stat(tdir)[8])/3600)
+    if age < keep_threshhold_hours: continue
+    print "Deleting tmp %s: %s Hours" % (tdir, age)
+    if not dryRun: run_command("mv %s %s" % (tdir, delme_dir))
+  return
 
 #Starting from a upload transaction for an architecture, this function returns 
 #All the parents reachable but not including DEFAULT_HASH
@@ -61,7 +99,7 @@ def stashArch (repo_dir, arch, uHash, dryRun=False):
     cmd = cmd + " && %(rsync)s --link-dest %(hash_dir)s/WEB/ %(hash_dir)s/WEB/ %(repo_dir)s/WEB/"
   if exists (join(repoInfo["hash_dir"], "drivers")):
     cmd = cmd + " && mkdir -p %(repo_dir)s/drivers && cp -rf %(hash_dir)s/drivers/%{arch}-*.txt %(repo_dir)s/drivers/"
-  err, out = getstatusoutput("find %s -maxdepth 1 -mindepth 1 -type f" % (repoInfo["hash_dir"]))
+  err, out = run_command("find %s -maxdepth 1 -mindepth 1 -type f" % (repoInfo["hash_dir"]))
   if err:
     print out
     return False
@@ -77,16 +115,17 @@ def stashArch (repo_dir, arch, uHash, dryRun=False):
     return False
   cmd = format (cmd , **repoInfo)
   if not dryRun:
-    err, out = getstatusoutput (cmd)
+    err, out = run_command (cmd, REPO_OWNER)
     if err:
       print out
-      getstatusoutput("rm -f %s-%s" % (default_meta, uHash))
+      run_command("rm -f %s-%s" % (default_meta, uHash))
       return False
   else:
     print cmd
   cmd = "mv %s-%s %s" % (default_meta, uHash, default_meta)
+  cmd = cmd + " && chown %s: %s" % (REPO_OWNER, default_meta)
   if not dryRun:
-    err, out = getstatusoutput (cmd)
+    err, out = run_command (cmd)
     if err:
       print out
       return False
@@ -95,7 +134,7 @@ def stashArch (repo_dir, arch, uHash, dryRun=False):
   history_dir = join(arch_dir, "history", uHash[0:2])
   cmd = "mkdir -p %s && cp -f %s/%s/RPMS.json %s/%s.json" % (history_dir, arch_dir, uHash, history_dir, uHash)
   if not dryRun:
-    getstatusoutput(cmd)
+    run_command(cmd, REPO_OWNER)
   else:
     print cmd
   return True
@@ -143,7 +182,7 @@ def stashRepo(repo_dir, days=7, max_trans=10, dryRun=False):
         nextChild =  commits[-2][0]
         print "    Done %s" % firstChild
         if not dryRun:
-          getstatusoutput ("ln -nsf ../%s %s/%s/parent && touch %s/%s/cleanup" % (DEFAULT_HASH, arch_dir, nextChild, arch_dir, firstChild))
+          run_command ("ln -nsf ../%s %s/%s/parent && touch %s/%s/cleanup" % (DEFAULT_HASH, arch_dir, nextChild, arch_dir, firstChild), REPO_OWNER)
           utime(join(arch_dir, nextChild), (commits[-2][1], commits[-2][1]))
         del commits[-1]
         commits_count = len(commits)
@@ -171,13 +210,23 @@ if __name__ == "__main__" :
     elif o in ('-d','--dry-run',):
       dryRun = True
 
-  tmpDirs = {}
   basedir = "/data/cmssw/repos"
+  tmp_dir = join(basedir, "tmp")
+  delme_dir = join(tmp_dir, "delete", "delme-%s" % getpid())
+  if not dryRun:
+    err, out = run_command("rm -rf %s; mkdir -p %s" % (delme_dir, delme_dir))
+    if err:
+      print out
+      run_command("rm -rf %s/delete/*" % tmp_dir)
+      exit(1)
+  cleanup_tmp_uploads(tmp_dir, delme_dir, dryRun)
   for d in glob(join(basedir,"*", ".cmspkg-auto-cleanup")):
     repo_dir = dirname(d)
+    REPO_OWNER = getpwuid(stat(d).st_uid).pw_name
     repo_name = basename(repo_dir)
     for conf in STASH_CONFIG:
       if re.match(conf[0],repo_name):
-        tmpDirs[abspath(repo_dir+"/../tmp")]=1
         stashRepo(repo_dir, conf[1], conf[2], dryRun)
+        cleanup_transactions(repo_dir, tmp_dir, delme_dir, dryRun)
         break
+  if not dryRun: run_command("rm -rf %s/delete/*" % tmp_dir)
