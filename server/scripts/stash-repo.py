@@ -42,10 +42,9 @@ def cleanup_transactions(repo_dir, tmp_dir, delme_dir, dryRun=False, keep_thresh
   for cfile in glob(join(repo_dir,"*","*","cleanup")):
     age = int((time()-stat(cfile)[8])/3600)
     tdir = dirname(cfile)
-    if age < keep_threshhold_hours:
-      print "Keep transaction %s: %s Hours" % (tdir, age)
-      continue
-    print "Deleting transaction %s: %s Hours" % (tdir, age)
+    print "Inactive Transaction %s: %s Hours (max: %s)" % (tdir, age, keep_threshhold_hours)
+    if age < keep_threshhold_hours: continue
+    print "  Deleting"
     items = tdir.split("/")
     delme_trans = join(delme_dir, items[-3], items[-2])
     if not dryRun:
@@ -62,7 +61,7 @@ def cleanup_tmp_uploads(tmp_dir, delme_dir, dryRun=False, keep_threshhold_hours=
   for tdir in glob (join(tmp_dir,"tmp-*")):
     age = int((time()-stat(tdir)[8])/3600)
     if age < keep_threshhold_hours: continue
-    print "Deleting tmp %s: %s Hours" % (tdir, age)
+    print "Deleting tmp %s: %s(%s) Hours" % (tdir, age, keep_threshhold_hours)
     if not dryRun: run_command("mv %s %s" % (tdir, delme_dir))
   return
 
