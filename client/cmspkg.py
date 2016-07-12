@@ -19,7 +19,7 @@ except:
     if output[-1:] == '\n': output = output[:-1]
     return (cmd.returncode, output)
 
-cmspkg_tag   = "V00-00-10"
+cmspkg_tag   = "V00-00-11"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -106,7 +106,7 @@ def cmspkg_url(params):
   return url
 
 #Check server reply: print any debug/warning/error message
-def check_server_reply(reply, exit=True):
+def check_server_reply(reply, exit_on_error=True):
   if 'debug'  in reply:
     print_msg(reply.pop('debug'), "DEBUG")
   if 'warning'  in reply:
@@ -115,7 +115,7 @@ def check_server_reply(reply, exit=True):
     print_msg(reply['information'],"INFO")
   if 'error' in reply:
     print_msg(reply['error'],"ERROR")
-    if exit: exit(1)
+    if exit_on_error: exit(1)
   return
 
 #Use available command (curl or wget) to download url
@@ -146,7 +146,7 @@ def download_file_if_changed(uri, ofile):
   run_cmd("mv %s %s" % (tmpfile, ofile))
   return
 
-def fetch_url(data, outfile=None, debug=False, exit=True):
+def fetch_url(data, outfile=None, debug=False, exit_on_error=True):
   set_get_cmd ()
   url = cmspkg_url(data)
   cmd = [getcmd[0], getcmd[2]]
@@ -156,14 +156,14 @@ def fetch_url(data, outfile=None, debug=False, exit=True):
     cmd.append(getcmd[3] % outfile)
   cmd.append('"'+url+'"')
   cmd_str = " ".join(cmd)
-  return run_cmd(cmd_str, outdebug=debug, exit=exit)
+  return run_cmd(cmd_str, outdebug=debug, exit_on_error=exit_on_error)
 
 #Run a shell command
-def run_cmd (cmd,outdebug=False,exit=True):
+def run_cmd (cmd,outdebug=False,exit_on_error=True):
   if opts.debug: print "[CMD]: ",cmd
   err, out = getstatusoutput(cmd)
   if err:
-    if exit:
+    if exit_on_error:
       print out
       exit(1)
   elif outdebug:
@@ -182,7 +182,7 @@ def get_server_paths(server_url):
     cgi_server=join(cgi_server, subdir)
     url = "http://%s/%s?ping=1" % (cgi_server, cmspkg_cgi)
     cmd_str = " ".join(cmd)+' "'+url+'"'
-    err, out = run_cmd(cmd_str, outdebug=opts.debug, exit=False)
+    err, out = run_cmd(cmd_str, outdebug=opts.debug, exit_on_error=False)
     if err: continue
     if out == "CMSPKG OK": return cgi_server, join(*items[1:])
   print "Error: Unable to find /cgi-bin/cmspkg on %s" % server_url
@@ -236,7 +236,7 @@ def download_rpm(package, tries=5):
   for i in range(tries):
     if not first_try: print "Retry downloading ",package[1]
     first_try = False
-    err, out = fetch_url({'uri':'RPMS/%s/%s/%s/%s' % (opts.repository, opts.architecture, package[0], quote(package[1])), 'ref_hash':package[-1]}, outfile=ofile_tmp, exit=False)
+    err, out = fetch_url({'uri':'RPMS/%s/%s/%s/%s' % (opts.repository, opts.architecture, package[0], quote(package[1])), 'ref_hash':package[-1]}, outfile=ofile_tmp, exit_on_error=False)
     if (not err) and exists(ofile_tmp) and verify_download(ofile_tmp, package[3], package[2]):
       err, out = run_cmd("mv %s %s" % (ofile_tmp, join(rpm_download, package[1])))
       return not err
@@ -801,7 +801,7 @@ class CmsPkg:
     force = False
     common_cmspkg = join(opts.install_prefix, "common", "cmspkg")
     if exists (common_cmspkg) and version==cmspkg_tag:
-      err, prev_version = run_cmd("grep '^###CMSPKG_VERSION=V' %s | sed 's|.*=V|V|'" % common_cmspkg, outdebug=False, exit=False)
+      err, prev_version = run_cmd("grep '^###CMSPKG_VERSION=V' %s | sed 's|.*=V|V|'" % common_cmspkg, outdebug=False, exit_on_error=False)
       if (prev_version=="") or newer_version(cmspkg_tag, prev_version): force=True
     self.update_common_cmspkg(common_cmspkg, force)
     print "cmspkg setup done."
@@ -920,7 +920,7 @@ def process(args, opt, cache_dir):
     exit(call(cmd , shell=True))
 
   if not exists (cache_dir): makedirs(cache_dir,True)
-  err, out = run_cmd("touch %s/check.write.permission && rm -f %s/check.write.permission" % (cache_dir, cache_dir), exit=False)
+  err, out = run_cmd("touch %s/check.write.permission && rm -f %s/check.write.permission" % (cache_dir, cache_dir), exit_on_error=False)
   if err:
     print "Error: You do not have write permission for installation area %s" % opts.install_prefix
     exit(1)

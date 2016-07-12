@@ -64,3 +64,6 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 
 ###V00-00-10:
  - @smuzaffar 2016-07-12: Bug fix, avoid override of exit function call
+
+###V00-00-11:
+ - @smuzaffar 2016-07-12: Bug fix, avoid override of exit function call
