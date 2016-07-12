@@ -43,7 +43,7 @@ Available options for `install_options` property are:
  - **prefix**: Install path where CMSSW releases shouldbe installed. Default is `/opt/cms`
  - **user**:   Linux user which should be the owner of the installation. Default is `cmsbuild`
  - **architecture**: Architecture for which the package should be installed. Note that it will be overridden if package name contains `/architecture` in it. Default is `slc6_amd64_gcc530`
- - **server**: `cmspkg` server name. If package are not available in `server.domain:DOCUMENT_ROOT/some/path/cmssw` then set this value to `server.domain/some/path`. Note that last `cmssw` is not part of it. Default value is `cmsrep.cern.ch`
+ - **server**: `cmspkg` server name. If package are available in `server.domain:DOCUMENT_ROOT/some/path/cmssw` then set this value to `server.domain/some/path`. Note that last `cmssw` is not part of it. Default value is `cmsrep.cern.ch`
  - **repository**: `cmspkg` repository from which RPMs are downloaded. Default is `cms`.
  - **dist_clean**: If set (any value) then `cmspkg` will also cleanup/remove any unused package. Default is to not remove the packages not used by any other package.
  - **package_clean**: If set (any value) then `cmspkg` will force delete the package directory i.e. `prefix/architecture/group/name/version` after the package removal. Defaultis to not remove package directory.
