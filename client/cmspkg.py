@@ -19,7 +19,7 @@ except:
     if output[-1:] == '\n': output = output[:-1]
     return (cmd.returncode, output)
 
-cmspkg_tag   = "V00-00-09"
+cmspkg_tag   = "V00-00-10"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -90,7 +90,7 @@ def package_removed(package):
     run_cmd("rm -f %s" % pkg_file)
 
 #get user response
-def ask_user_to_continue(msg, exit=True):
+def ask_user_to_continue(msg):
   res = raw_input(msg)
   res = res.strip()
   if not res in ["y", "Y"]: exit(0)

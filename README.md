@@ -61,3 +61,6 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
  - @smuzaffar 2016-07-11:
    - Code cleanup: Import only what is needed
    - Use subprocess.Popen if commands.getstatusoutput  is not available (e.g. in python 3.0)
+
+###V00-00-10:
+ - @smuzaffar 2016-07-12: Bug fix, avoid override of exit function call
