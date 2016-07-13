@@ -799,7 +799,7 @@ class CmsPkg:
 
   #upgrade cmspkg client
   def upgrade(self):
-    cmspkg_print("Current cmspkg version:   %s" %scmspkg_tag)
+    cmspkg_print("Current cmspkg version:   %s" % cmspkg_tag)
     err, out = fetch_url({'uri':'upgrade','info':1})
     reply = json.loads(out)
     check_server_reply(reply)

@@ -72,4 +72,7 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
  - @smuzaffar 2016-07-12: updates to make the cmspkg client work with python3.x
 
 ###V00-00-13:
- - @smuzaffar 2016-07-13: Fixes to make it work with python 2.4 and aboev
+ - @smuzaffar 2016-07-13: Fixes to make it work with python 2.4 and above
+
+###V00-00-14:
+ - @smuzaffar 2016-07-13: Typo
