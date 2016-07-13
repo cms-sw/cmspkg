@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 from re import compile, match, escape
-from subprocess import call
 from threading import Lock, Thread
 from sys import exit, argv
 from sys import version_info,stdout
+from sys import exc_info
+from os import system as syscall
 from os import getpid, getcwd, mkdir, stat, kill
 from os.path import join, exists, abspath, dirname, basename, isdir
 from time import sleep
@@ -14,10 +15,15 @@ except:import simplejson as json
 #to work with python 2 and 3
 def cmspkg_print(msg): stdout.write(msg+"\n")
 
-if version_info[0] < 3:
+if version_info < (3,):
   get_user_input=raw_input
 else:
   get_user_input=input
+
+if version_info < (2,6):
+  def get_alive_threads(threads): return [t for t in threads if t.isAlive()]
+else:
+  def get_alive_threads(threads): return [t for t in threads if t.is_alive()]
 
 try: from urllib import quote
 except: from urllib.parse import quote
@@ -34,7 +40,27 @@ except:
       if output[-1:] == '\n': output = output[:-1]
       return (cmd.returncode, output)
 
-cmspkg_tag   = "V00-00-12"
+try:
+  from hashlib import sha256
+  def cmspkg_sha256(data, tmpdir=None): return sha256(data).hexdigest()
+except:
+  from tempfile import mkstemp
+  def cmspkg_sha256(data, tmpdir=None):
+    fd, tmpfile = mkstemp(prefix="tmp_sha256",dir=tmpdir)
+    sha = ""
+    try:
+      fref = open(tmpfile, "w")
+      fref.write(data)
+      fref.close()
+      err, out = getstatusoutput("sha256sum %s" % tmpfile)
+      if not err: sha = out.split()[0]
+      else: cmspkg_print("Error: Unable to get sha256. %s" % out)
+    except Exception: 
+      cmspkg_print("Error: Unable to get sha256. %s" % str(exc_info()[1]))
+    getstatusoutput("rm -f %s" % tmpfile)
+    return sha
+
+cmspkg_tag   = "V00-00-13"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -51,7 +77,7 @@ getcmds = [
           ]
 try:
   script_path = __file__
-except Exception as e :
+except:
   script_path = argv[0]
 script_path = abspath(script_path)
 #####################################
@@ -71,9 +97,8 @@ def rpm2package(rpm, arch):
 def print_msg(msg, type):
   for m in msg.split("\n"): cmspkg_print("[%s]: %s" % (type, m))
 
-def get_cache_hash(cache):
-  from hashlib import sha256
-  return sha256(json.dumps(cache, sort_keys=True, separators=(',',': ')).encode('utf-8')).hexdigest()
+def get_cache_hash(cache, tmpdir=None):
+  return cmspkg_sha256(json.dumps(cache, sort_keys=True, separators=(',',': ')).encode('utf-8'),tmpdir)
 
 def save_cache(cache, cache_file):
   outfile = open(cache_file+"-tmp", 'w')
@@ -283,7 +308,7 @@ def human_readable_size(size):
 def download_package(package):
   if exists (join(rpm_download, package[1])): return
   try: download_rpm(package)
-  except Exception as e: cmspkg_print("Error: Downloading RPMS: %s" % str(e))
+  except Exception: cmspkg_print("Error: Downloading RPMS: %s" % str(exc_info()[1]))
 
 ###############################################
 #End of Utility function
@@ -396,7 +421,7 @@ class rpmDownloader:
     index = 0
     threads = []
     while(index < total):
-      threads = [t for t in threads if t.is_alive()]
+      threads = get_alive_threads(threads)
       if(len(threads) < self.parallel):
         package = packages[index]
         index += 1
@@ -406,8 +431,8 @@ class rpmDownloader:
           t = Thread(target=download_package, args=(package,))
           t.start()
           threads.append(t)
-        except Exception as e:
-          cmspkg_print("Error: Downloading RPMS: %s" % str(e))
+        except Exception:
+          cmspkg_print("Error: Downloading RPMS: %s" % str(exc_info()[1]))
           break
       else:
         sleep(0.1)
@@ -481,7 +506,7 @@ class CmsPkg:
         exit(1)
       sr_sha = cache.pop('hash')
       #Varify the newly download cache by checking its checksum
-      cl_sha = get_cache_hash(cache)
+      cl_sha = get_cache_hash(cache, dirname(cfile))
       if cl_sha != sr_sha:
         cmspkg_print("Error: Communication error: Cache size mismatch %s vs %s" % (cl_sha , sr_sha))
         exit(1)
@@ -620,7 +645,7 @@ class CmsPkg:
     cmd = "cd %s && %s %s" %(rpm_download, rcmd,  pkg_to_install)
 
     #Install the nwly downloaded packages(s)
-    err = call(cmd, shell=True)
+    err = syscall(cmd)
     if not err:
       self.update_rpm_cache(True)
       if package in self.rpm_cache:
@@ -751,7 +776,7 @@ class CmsPkg:
       if not ok: exit(1)
     #update hash if needed
     if update_hash:
-      clone_cache['hash'] = get_cache_hash(clone_cache)
+      clone_cache['hash'] = get_cache_hash(clone_cache, dirname(clone_cache_file))
       save_cache(clone_cache, clone_cache_file)
       if not exists (join(clone_dir, opts.repository, opts.architecture, "latest")):
         run_cmd("ln -s %s %s/%s/%s/latest" % (default_trans, clone_dir, opts.repository, opts.architecture))
@@ -932,7 +957,7 @@ def process(args, opt, cache_dir):
   if args[0]=="rpm":
     cmd = rpm_env+" ; "+args[0]
     for a in args[1:]: cmd+=" '"+a+"'"
-    exit(call(cmd , shell=True))
+    exit(syscall(cmd))
 
   if not exists (cache_dir): makedirs(cache_dir,True)
   err, out = run_cmd("touch %s/check.write.permission && rm -f %s/check.write.permission" % (cache_dir, cache_dir), exit_on_error=False)
