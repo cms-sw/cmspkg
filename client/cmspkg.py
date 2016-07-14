@@ -760,7 +760,7 @@ class CmsPkg:
         if not exists (clone_file): files2download.append(data)
         else: on_clone +=1
     cmspkg_print("Packages on Server: %s" % on_server)
-    cmspkg_print("Packages on clone:  %s" %on_clone)
+    cmspkg_print("Packages on clone:  %s" % on_clone)
     #download any package which are only available on server
     if files2download:
       ok = self.downloader.run(files2download)
@@ -788,7 +788,7 @@ class CmsPkg:
     self.update_rpm_cache()
     if package in self.rpm_cache:
       if not opts.force: ask_user_to_continue("Are you sure to delete %s (Y/n): " % package)
-      cmspkg_print("Removing package %s" %package)
+      cmspkg_print("Removing package %s" % package)
       err, out = run_cmd("%s; rpm -e %s" % (rpm_env, package))
       package_removed (package)
       cmspkg_print("Removed %s" % package)
