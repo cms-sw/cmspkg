@@ -3,7 +3,7 @@ from re import compile, match, escape
 from threading import Lock, Thread
 from sys import exit, argv
 from sys import version_info,stdout
-from sys import exc_info
+from sys import exc_info, platform
 from os import system as syscall
 from os import getpid, getcwd, mkdir, stat, kill
 from os.path import join, exists, abspath, dirname, basename, isdir
@@ -14,6 +14,12 @@ except:import simplejson as json
 
 #to work with python 2 and 3
 def cmspkg_print(msg): stdout.write(msg+"\n")
+
+cmd_md5sum="md5sum"
+cmd_sha256sum="sha256sum"
+if platform.startswith("darwin"):
+  cmd_md5sum="md5"
+  cmd_sha256sum="shasum -a 256"
 
 if version_info < (3,):
   get_user_input=raw_input
@@ -52,7 +58,7 @@ except:
       fref = open(tmpfile, "w")
       fref.write(data)
       fref.close()
-      err, out = getstatusoutput("sha256sum %s" % tmpfile)
+      err, out = getstatusoutput("%s %s" % (cmd_sha256sum, tmpfile))
       if not err: sha = out.split()[0]
       else: cmspkg_print("Error: Unable to get sha256. %s" % out)
     except Exception: 
@@ -241,7 +247,7 @@ def verify_download(ofile, size, md5sum, debug=True):
   if sinfo[6] != size:
     if debug: cmspkg_print("Error: Download error: Size mismatch for %s (%s vs %s)." % (ofile, str(sinfo[6]), str(size)))
     return False
-  err, out = run_cmd("md5sum %s | sed 's| .*||'" % ofile)
+  err, out = run_cmd("%s %s | sed 's| .*||'" % (cmd_md5sum, ofile))
   if out != md5sum:
     if debug: cmspkg_print("Error: Download error: Checksum mismatch for %s (%s vs %s)." % (ofile, out, md5sum))
     return False

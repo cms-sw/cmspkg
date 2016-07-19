@@ -11,7 +11,7 @@ import traceback, re
 from cmspkg_utils import merge_meta
 from pwd import getpwuid
 
-#Format: Order list of repo where for each repo once should have a list with 3 items
+#Format: Order list of repo where for each repo one should have a list with 3 items
 #[ RepoNameTo Match, Days-to-keep, max-transactions-to-keep]
 STASH_CONFIG = [
   ["^cms$",             30, 30],
