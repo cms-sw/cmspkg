@@ -76,3 +76,8 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 
 ###V00-00-14:
  - @smuzaffar 2016-07-13: Typo
+
+###V00-00-15:
+ - @smuzaffar 2016-07-20: Fixes for OSX
+   - Use md5 -q
+   - Use shasum -a 256
