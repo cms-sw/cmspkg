@@ -18,7 +18,7 @@ def cmspkg_print(msg): stdout.write(msg+"\n")
 cmd_md5sum="md5sum"
 cmd_sha256sum="sha256sum"
 if platform.startswith("darwin"):
-  cmd_md5sum="md5"
+  cmd_md5sum="md5 -q"
   cmd_sha256sum="shasum -a 256"
 
 if version_info < (3,):
