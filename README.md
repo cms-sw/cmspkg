@@ -83,5 +83,5 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
    - Use shasum -a 256
 
 ###V00-00-16:
- - @smuzaffar 2016-07-20: Make sure that cmspkg.py exit with non-zero code if failed to install RPMs.
+ - @smuzaffar 2016-07-22: Make sure that cmspkg.py exit with non-zero code if failed to install RPMs.
 
