@@ -81,3 +81,7 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
  - @smuzaffar 2016-07-20: Fixes for OSX
    - Use md5 -q
    - Use shasum -a 256
+
+###V00-00-16:
+ - @smuzaffar 2016-07-20: Make sure that cmspkg.py exit with non-zero code if failed to install RPMs.
+

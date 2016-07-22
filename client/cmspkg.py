@@ -66,7 +66,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-00-15"
+cmspkg_tag   = "V00-00-16"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -651,12 +651,11 @@ class CmsPkg:
     cmd = "cd %s && %s %s" %(rpm_download, rcmd,  pkg_to_install)
 
     #Install the nwly downloaded packages(s)
-    err = syscall(cmd)
-    if not err:
-      self.update_rpm_cache(True)
-      if package in self.rpm_cache:
-        package_installed(package)
-        self.clean()
+    if syscall(cmd)>0: exit(1)
+    self.update_rpm_cache(True)
+    if package in self.rpm_cache:
+      package_installed(package)
+      self.clean()
     return
 
   #print the packages name which matched the pkg_search pattren. 
@@ -963,7 +962,7 @@ def process(args, opt, cache_dir):
   if args[0]=="rpm":
     cmd = rpm_env+" ; "+args[0]
     for a in args[1:]: cmd+=" '"+a+"'"
-    exit(syscall(cmd))
+    if syscall(cmd)>0: exit(1)
 
   if not exists (cache_dir): makedirs(cache_dir,True)
   err, out = run_cmd("touch %s/check.write.permission && rm -f %s/check.write.permission" % (cache_dir, cache_dir), exit_on_error=False)
