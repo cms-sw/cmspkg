@@ -18,6 +18,7 @@ Remove unused not-explicitly installed packages | `-` | `cmspkg -a arch dist-cle
 Search a package | `apt-cache search package` | `cmspkg -a arch search package`
 Show some general information for a single package | `apt-cache showpkg package` | `cmspkg -a arch showpkg package`
 Show a readable record for the package | `apt-cache show package` | `cmspkg -a arch show package`
+Shows listing of dependency of a package | `apt-cache depends package` | `cmspkg -a arch depends package`
 
 `cmspkg` internally sources the latest available `rpm` env, so no need to source `apt/rpm init.[sh|csh]` script before running `cmspkg` commands.
 
