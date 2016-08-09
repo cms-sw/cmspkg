@@ -3,7 +3,7 @@
 `cmspkg` is collection of helper script used by http://github.com/cms-sw/pkgtools for building and distributing http://github.com/cms-sw/cmssw RPMs. It is to replace the `apt` usage.
 `cmspkg` puppet package provider documentation is available [here](https://github.com/cms-sw/cmspkg/blob/master/cmspkg-puppet-provider.md)
 
-Converting `apt`-speak to `cmspkg`-speak is mostly replacing `apt-*` commands with `cmspkg -a arch`. Not all apt-See the table below for details
+Converting `apt`-speak to `cmspkg`-speak is mostly replacing `apt-*` commands with `cmspkg -a arch`. Not all apt-* commands are available in cmspkg. See the table below for details
 
 Purpose | APT | CMSPKG
 --------|----------|-------------
