@@ -40,7 +40,7 @@ resource. The above is equivalent to:
     }
 
 Available options for `install_options` property are:
- - **prefix**: Install path where CMSSW releases shouldbe installed. Default is `/opt/cms`
+ - **prefix**: Install path where CMSSW releases should be installed. Default is `/opt/cms`
  - **user**:   Linux user which should be the owner of the installation. Default is `cmsbuild`
  - **architecture**: Architecture for which the package should be installed. Note that it will be overridden if package name contains `/architecture` in it. Default is `slc6_amd64_gcc530`
  - **server**: `cmspkg` server name. If package are available in `server.domain:DOCUMENT_ROOT/some/path/cmssw` then set this value to `server.domain/some/path`. Note that last `cmssw` is not part of it. Default value is `cmsrep.cern.ch`
