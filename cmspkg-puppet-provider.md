@@ -80,7 +80,7 @@ The above assume that you have a machine which already has all the system
 dependencies to install CMSSW. This is not the case if you are running off a
 vanilla SLC6 installation, since it's lacking a few packages and directories.
 
-An complete example of a puppet manifest which works is:
+A complete example of a puppet manifest which works is:
 
     # An example puppet file which installs CMSSW into
     # /opt/cms.
