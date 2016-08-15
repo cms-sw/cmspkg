@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 from re import compile, match, escape
+from re import search as research
+from re import IGNORECASE as reIGNORECASE
 from threading import Lock, Thread
 from sys import exit, argv
 from sys import version_info,stdout
@@ -66,7 +68,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-00-17"
+cmspkg_tag   = "V00-00-18"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -81,6 +83,11 @@ getcmds = [
             ['curl','--version','--connect-timeout 60 --max-time 600 -L -q -f -s -H "Cache-Control: max-age=0" --user-agent "%s"' % (cmspkg_agent),"-o %s"],
             ['wget','--version','--timeout=600 -q --header="Cache-Control: max-age=0" --user-agent="%s" -O -' % (cmspkg_agent),"-O %s"],
           ]
+
+knowledge_based_errors = {}
+knowledge_based_errors['unable to allocate memory for mutex|resize mutex region'] = \
+"Add/update the following line in @INSTALL_PREFIX@/@ARCH@/var/lib/rpm/DB_CONFIG file and rebuild rpm databse.\nmutex_set_max 10000000"
+
 try:
   script_path = __file__
 except:
@@ -99,6 +106,15 @@ def rpm2package(rpm, arch):
   v = m.group(1)
   r = m.group(3)
   return "+".join([g,p,v])
+
+def check_kbe(error_msg):
+  for err in knowledge_based_errors:
+    if research(err, error_msg, flags=reIGNORECASE):
+      sol = knowledge_based_errors[err].replace("@INSTALL_PREFIX@",opts.install_prefix).replace("@ARCH@", opts.architecture)
+      cmspkg_print("ERROR: Following error found.\n  %s" % error_msg)
+      cmspkg_print("Solution:\n  %s" % sol)
+      exit(1)
+  return
 
 def print_msg(msg, type):
   for m in msg.split("\n"): cmspkg_print("[%s]: %s" % (type, m))
@@ -296,6 +312,7 @@ def get_pkg_deps(rpm):
   ReReq = compile('^(cms|external|lcg)[+][^+]+[+].+')
   for line in out.split("\n"):
     line = line.strip()
+    check_kbe(line)
     if ReReq.match(line):
       deps.append(line)
   return deps
@@ -465,6 +482,7 @@ class CmsPkg:
     err, out = run_cmd("%s; rpm -qa --queryformat '%%{NAME} %%{RELEASE}\n'" % rpm_env)
     for r in out.split("\n"):
       r = r.strip()
+      check_kbe(r)
       if not r: continue
       n, rv = r.split(" ")
       self.rpm_cache[n]=rv
