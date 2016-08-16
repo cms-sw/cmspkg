@@ -90,5 +90,5 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
  - @smuzaffar 2016-08-08: New command 'depends' to show the dependencies of a package.
 
 ###V00-00-18:
- - @smuzaffar 2016-08-15: Check output of 'rpm' command as it does not always exist with non-zero exit code on errors.
+ - @smuzaffar 2016-08-15: Check output of 'rpm' command as it does not always exit with non-zero code on errors.
 
