@@ -68,7 +68,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-00-18"
+cmspkg_tag   = "V00-00-19"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -995,6 +995,10 @@ def process(args, opt, cache_dir):
     cmd = rpm_env+" ; "+args[0]
     for a in args[1:]: cmd+=" '"+a+"'"
     if syscall(cmd)>0: exit(1)
+  if args[0]=="rpmenv":
+    cmd = rpm_env+" ; "+args[1]
+    for a in args[2:]: cmd+=" '"+a+"'"
+    if syscall(cmd)>0: exit(1)
 
   if not exists (cache_dir): makedirs(cache_dir,True)
   err, out = run_cmd("touch %s/check.write.permission && rm -f %s/check.write.permission" % (cache_dir, cache_dir), exit_on_error=False)
@@ -1057,7 +1061,7 @@ def process(args, opt, cache_dir):
 
 if __name__ == '__main__':
   from optparse import OptionParser
-  cmspkg_cmds = ["update","search","install","reinstall","clean","remove","dist-clean","show","download", "rpm", "clone", "setup","upgrade", "showpkg", "depends"]
+  cmspkg_cmds = ["update","search","install","reinstall","clean","remove","dist-clean","show","download", "rpm", "rpmenv", "clone", "setup","upgrade", "showpkg", "depends"]
   parser = OptionParser(usage=basename(argv[0])+" -a|--architecture <arch>\n"
   "              -s|--server <server>\n"
   "              -r|--repository <repository>\n"
@@ -1069,7 +1073,7 @@ if __name__ == '__main__':
   "              [-v|--version]\n"
   "              [--dev]\n"
   "              [--reinstall]\n"
-  "              "+" | ".join(cmspkg_cmds)+" [package| -- rpm <args>]\n\n")
+  "              "+" | ".join(cmspkg_cmds)+" [package| -- <rpm-args>]\n\n")
   parser.add_option("--reinstall",         dest="reinstall", action="store_true", default=False, help="Reinstall a package e.g. its latest revision")
   parser.add_option("-f", "--force",       dest="force",     action="store_true", default=False, help="Force an update or installation")
   parser.add_option("-y",                  dest="force",     action="store_true", default=False, help="Assume yes for installation")

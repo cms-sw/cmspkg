@@ -92,3 +92,6 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 ###V00-00-18:
  - @smuzaffar 2016-08-15: Check output of 'rpm' command as it does not always exit with non-zero code on errors.
 
+###V00-00-19:
+ - @smuzaffar 2016-08-19: new command rpmenv to run any command under rpm env e.g. cmspkg -a arch rpmenv -- rpmdb --rebuild
+
