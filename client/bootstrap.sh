@@ -30,8 +30,8 @@ cleanup_and_exit () {
 }
 
 download_method=
-download_curl () { curl -L -f -H "Cache-Control: max-age=0" --connect-timeout 60 --max-time 600 -q -s "$1" -o "$2.tmp" && mv "$2.tmp" "$2"; }
-download_wget () { wget --no-check-certificate --header="Cache-Control: max-age=0" --timeout=600 -q -O "$2.tmp" "$1" 2>/dev/null && mv "$2.tmp" "$2"; }
+download_curl () { curl -L -f -H "Cache-Control: max-age=0" --user-agent "CMSPKG/1.0" --connect-timeout 60 --max-time 600 -q -s "$1" -o "$2.tmp" && mv "$2.tmp" "$2"; }
+download_wget () { wget --no-check-certificate --header="Cache-Control: max-age=0" --user-agent="CMSPKG/1.0" --timeout=600 -q -O "$2.tmp" "$1" 2>/dev/null && mv "$2.tmp" "$2"; }
 download_none () { cleanup_and_exit 1 "No curl or wget, cannot fetch $1" 
 }
 
