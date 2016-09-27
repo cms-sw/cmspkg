@@ -34,8 +34,6 @@ resource. The above is equivalent to:
         "architecture"  => "slc6_amd64_gcc530",
         "server"        => "cmsrep.cern.ch",
         "repository"    => "cms",
-        "dist_clean"    => "yes",
-        "package_clean" => "yes",
       }]
     }
 
