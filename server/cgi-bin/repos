@@ -1,0 +1,100 @@
+#!/usr/bin/env python
+from commands import getstatusoutput as cmd
+from os import environ
+from os.path import exists,dirname,basename
+base_dir = "/data/cmssw"
+uri = environ['SCRIPT_NAME']
+
+def show_repos():
+  repos = {}
+  rdir = base_dir+"/repos"
+  if exists (rdir):
+    e,o = cmd("ls -d %s/*/.cmspkg-auto-cleanup 2>/dev/null" % rdir)
+    for r in o.split("\n"):repos [basename(dirname(r))] = 1
+
+  e, o = cmd ("ls -d %s/*/RPMS/cache 2>/dev/null" % base_dir)
+  for r in o.split("\n"): repos [basename(dirname(dirname(r)))] =1
+
+  for r in sorted(repos.keys()):
+    print "<a href='%s/%s'>%s</a><br>\n" % (uri,r,r)
+
+def show_archs(repo, archs={}, xrepo=None):
+  if not xrepo: xrepo=repo
+  rdir = "%s/repos/%s" % (base_dir, repo)
+  if exists (rdir):
+    e,o = cmd("ls -d %s/*/latest 2>/dev/null" % rdir)
+    for r in o.split("\n"):
+      archs [basename(dirname(r))] = 1
+    prepo = '.'.join(repo.split(".")[:-1])
+    if prepo:
+      show_archs(prepo, archs, xrepo)
+      return
+  e, o = cmd ("ls -d %s/%s/apt/*/base 2>/dev/null" % (base_dir, repo))
+  for r in o.split("\n"):
+    archs [basename(dirname(r))] =1
+
+  for r in sorted(archs.keys()):
+    print "<a href='%s/%s/%s'>%s</a><br>\n" % (uri, xrepo, r, r)
+
+def show_rpms(repo, arch, rpms={}):
+  prepo = repo
+  rdir = ""
+  found = False
+  while not found:
+    rdir = "%s/repos/%s/%s" % (base_dir, prepo, arch)
+    if not exists (rdir):
+      prepo = '.'.join(prepo.split(".")[:-1])
+      if prepo=="":break
+    else:
+      found = True
+
+  if found:
+    e,o = cmd("find %s -maxdepth 2 -mindepth 2 -path '*/RPMS.json' 2>/dev/null" % rdir)
+    from json import load
+    for r in o.split("\n"):
+      with open(r) as json_data:
+        d = load(json_data)
+        json_data.close()
+        for p in d:
+          if p == "hash": continue
+          for rv in d[p]: rpms[d[p][rv][1]] = 1
+  else:
+    prepo = repo
+    while not found:
+      rdir = "%s/%s/apt/%s" % (base_dir, prepo, arch)
+      if not exists (rdir):
+        prepo = '.'.join(prepo.split(".")[:-1])
+        if prepo=="":break
+      else:
+        found = True
+    if found:
+      e,o = cmd("find %s -maxdepth 2 -mindepth 2 -name '*.rpm' 2>/dev/null" % rdir)
+      for r in o.split("\n"):
+        rpms[basename(r)]=1
+
+  for r in sorted(rpms.keys()):
+    #print "<a href='%s/%s'>%s</a><br>\n" % (uri,r,r)
+    print "%s<br>\n" % r
+
+print "Content-type: text/html\n\n<html><head></head><body>\n"
+rpath = ""
+try: rpath = environ['PATH_INFO'].strip("/")
+except: pass
+
+if (rpath==""):
+  show_repos()
+else:
+  from re import match
+  items = rpath.split("/")
+  ReRepo = '^[a-zA-Z0-9_-]+((\.[a-zA-Z0-9_-]+)+|)$'
+  if not match(ReRepo,items[0]):
+    show_repos()
+  elif len(items)==1:
+    show_archs(items[0])
+  elif len(items)==2:
+    ReArch = '^[a-zA-Z0-9]+_[a-zA-Z0-9]+_[a-zA-Z0-9]+$'
+    if not match(ReArch,items[1]): show_archs(items[0])
+    else: show_rpms (items[0], items[1])
+
+print "</body></html>\n"
+
