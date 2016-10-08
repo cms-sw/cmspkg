@@ -95,6 +95,7 @@ else:
     ReArch = '^[a-zA-Z0-9]+_[a-zA-Z0-9]+_[a-zA-Z0-9]+$'
     if not match(ReArch,items[1]): show_archs(items[0])
     else: show_rpms (items[0], items[1])
+  else: show_repos()
 
 print "</body></html>\n"
 
