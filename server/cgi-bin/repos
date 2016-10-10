@@ -36,7 +36,34 @@ def show_archs(repo, archs={}, xrepo=None):
   for r in sorted(archs.keys()):
     print "<a href='%s/%s/%s'>%s</a><br>\n" % (uri, xrepo, r, r)
 
-def show_rpms(repo, arch, rpms={}):
+def show_rpms(repo, arch):
+  sort  = ""
+  order = ""
+  try:
+    query = environ['QUERY_STRING'].split(";")
+    for item in query:
+      idx = item.split("=",1)
+      if idx[0]=="C" and idx[1] in ["N","M","S"]: sort=item
+      if idx[0]=="O" and idx[1] in ["A", "D"]:    order=item
+  except: pass
+  if sort=="": sort  = "C=N"
+  if order=="":order = "O=A"
+
+  next_opt = ["C=N;O=A" , "C=M;O=A", "C=S;O=A"]
+  ldopt = "-lh"
+  if sort == "C=M":
+    if order == "O=A":
+      ldopt = "-lrth"
+      next_opt[1] = "C=M;O=D"
+    else: ldopt = "-lth"
+  elif sort == "C=S":
+    if order == "O=A":
+      ldopt = "-lrSh"
+      next_opt[2] = "C=S;O=D"
+    else: ldopt = "-lSh"
+  elif order == "O=A":
+    next_opt[0] = "C=N;O=D"
+
   prepo = repo
   rdir = ""
   found = False
@@ -47,17 +74,16 @@ def show_rpms(repo, arch, rpms={}):
       if prepo=="":break
     else:
       found = True
-
+  rpms={}
+  orpms = []
   if found:
-    e,o = cmd("find %s -maxdepth 2 -mindepth 2 -path '*/RPMS.json' 2>/dev/null" % rdir)
-    from json import load
+    e,o = cmd("ls %s --time-style='+%%d-%%b-%%Y %%H:%%M' %s/[0-f]*/RPMS/*/*/*.rpm 2>/dev/null" % (ldopt, rdir))
     for r in o.split("\n"):
-      with open(r) as json_data:
-        d = load(json_data)
-        json_data.close()
-        for p in d:
-          if p == "hash": continue
-          for rv in d[p]: rpms[d[p][rv][1]] = 1
+      xx = r.split(" ")
+      rpm = xx[-1].replace(base_dir+"/","")
+      nrpm = basename(rpm)
+      orpms.append(nrpm)
+      rpms[nrpm] = ["<a href='/cmssw/%s'>%s</a>" % (rpm,nrpm),"%s %s" % (xx[-3],xx[-2]), xx[-4]]
   else:
     prepo = repo
     while not found:
@@ -68,15 +94,30 @@ def show_rpms(repo, arch, rpms={}):
       else:
         found = True
     if found:
-      e,o = cmd("find %s -maxdepth 2 -mindepth 2 -name '*.rpm' 2>/dev/null" % rdir)
+      e,o = cmd("ls %s --time-style='+%%d-%%b-%%Y %%H:%%M' %s/%s/RPMS/cache/*/%s/*.rpm 2>/dev/null" % (ldopt, base_dir, prepo, arch))
       for r in o.split("\n"):
-        rpms[basename(r)]=1
+        xx = r.split(" ")
+        link = xx[-1] 
+        rpm = xx[-1].replace(base_dir+"/","")
+        nrpm = basename(rpm)
+        orpms.append(nrpm)
+        rpms[nrpm] = ["<a href='/cmssw/%s'>%s</a>" % (rpm,nrpm),"%s %s" % (xx[-3],xx[-2]), xx[-4]]
 
-  for r in sorted(rpms.keys()):
-    #print "<a href='%s/%s'>%s</a><br>\n" % (uri,r,r)
-    print "%s<br>\n" % r
+  if "C=N" == sort:
+    orpms = sorted(orpms)
+    if "O=D" == order:
+      orpms = reversed(orpms)
+
+  print "<table>\n"
+  print '<tr><th><a href="?%s">Name</a></th><th><a href="?%s">Last modified</a></th><th><a href="?%s">Size</a></th></tr>' % (next_opt[0], next_opt[1], next_opt[2])
+  for r in orpms:
+    print "<tr>",
+    for x in rpms[r]: print "<td>%s</td>" % x,
+    print "</tr>\n"
+  print "</table>\n";
 
 print "Content-type: text/html\n\n<html><head></head><body>\n"
+
 rpath = ""
 try: rpath = environ['PATH_INFO'].strip("/")
 except: pass
