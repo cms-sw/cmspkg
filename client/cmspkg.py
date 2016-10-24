@@ -68,7 +68,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-00-19"
+cmspkg_tag   = "V00-00-20"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -762,11 +762,15 @@ class CmsPkg:
       self.cache = pkgCache()
     default_trans    = "0000000000000000000000000000000000000000000000000000000000000000"
     repo_dir         = join(clone_dir, opts.repository)
-    download_dir     = join(repo_dir, opts.architecture, default_trans, "RPMS")
+    trans_dir        = join(repo_dir, opts.architecture, default_trans, "RPMS")
     driver_dir       = join(repo_dir, "drivers")
     rpm_download_dir = join(rpm_download,rpm_partial)
-    for xdir in [download_dir, driver_dir, rpm_download_dir]:
+    for xdir in [trans_dir, driver_dir, rpm_download_dir]:
       if not exists (xdir): makedirs(xdir, True)
+
+    #Creat Object store shared b/w all repos if requested
+    obj_store        = join(clone_dir, ".obj_store", "RPMS", opts.architecture)
+    if opts.useStore and not exists(obj_store):  makedirs(obj_store, True)
 
     #download system files: cmsos
     for sfile in ["cmsos"]:
@@ -774,7 +778,7 @@ class CmsPkg:
     #download the driver file
     download_file_if_changed('driver/%s/%s' % (opts.repository, opts.architecture), join(driver_dir, opts.architecture+"-driver.txt"))
     #Read existsing package cache
-    clone_cache_file = download_dir+".json"
+    clone_cache_file = trans_dir+".json"
     clone_cache = {}
     if exists (clone_cache_file):
       clone_cache = json.loads(open(clone_cache_file).read())
@@ -783,34 +787,53 @@ class CmsPkg:
     update_hash = False
     on_server = 0 
     on_clone = 0
+    valid_clone_files = []
     for pkg in self.cache.packs:
       for r in self.cache.packs[pkg]:
         on_server += 1
-        if (pkg in clone_cache) and (r in clone_cache[pkg]):
-          on_clone +=1
+        pk = self.cache.packs[pkg][r]
+        rcfile = join(pk[0][:2], pk[0], pk[1])
+        valid_clone_files.append(rcfile)
+        if (pkg in clone_cache) and (r in clone_cache[pkg]) and (clone_cache[pkg][r][0]==pk[0]):
+          on_clone += 1
           continue
         if not pkg in clone_cache: clone_cache[pkg]={}
         update_hash = True
-        data = self.cache.packs[pkg][r]
-        clone_cache[pkg][r]=data[:-1]
-        clone_file = join(download_dir, data[0][:2], data[0], data[1])
-        if not exists (clone_file): files2download.append(data)
-        else: on_clone +=1
+        clone_cache[pkg][r]=pk[:-1]
+        clone_file = join(trans_dir, rcfile)
+        if exists (clone_file): on_clone += 1
+        elif opts.useStore:
+          obj_store_file = join(obj_store, rcfile)
+          if not exists (obj_store_file): files2download.append(pk)
+          else:
+            run_cmd ("mkdir -p %s && ln %s %s" % (dirname(clone_file), obj_store_file, clone_file))
+            on_clone += 1
+        else: files2download.append(pk)
+
     cmspkg_print("Packages on Server: %s" % on_server)
     cmspkg_print("Packages on clone:  %s" % on_clone)
     #download any package which are only available on server
     if files2download:
       ok = self.downloader.run(files2download)
       for pk in files2download:
-        subdir = join(download_dir, pk[0][:2], pk[0])
-        clone_file = join(subdir, pk[1])
         download_file = join (rpm_download, pk[1])
         if exists (download_file):
-          run_cmd ("mkdir -p %s && mv %s %s" % (subdir, download_file, clone_file))
+          clone_file = join(trans_dir, pk[0][:2], pk[0], pk[1])
+          if opts.useStore:
+            obj_store_file = join(obj_store, pk[0][:2], pk[0], pk[1])
+            if not exists (obj_store_file): run_cmd ("mkdir -p %s && mv %s %s" % (dirname(obj_store_file), download_file, obj_store_file))
+            run_cmd ("mkdir -p %s && ln %s %s" % (dirname(clone_file), obj_store_file, clone_file))
+          else:
+            run_cmd ("mkdir -p %s && mv %s %s" % (dirname(clone_file), download_file, clone_file))
         else:
           cmspkg_print("Unable to download: %s/%s/%s/%s" % (opts.repository, opts.architecture, pk[0], pk[1]))
           ok = False
       if not ok: exit(1)
+    err, all_pakages = run_cmd ("find %s -mindepth 3 -maxdepth 3 -type f -name '*.rpm' | sed 's|^%s/||'" % (trans_dir,trans_dir))
+    for rcfile in all_pakages.split("\n"):
+      if rcfile in valid_clone_files: continue
+      run_cmd ("rm -f %s/%s" % (trans_dir,rcfile))
+      cmspkg_print ("Deleted unused file: %s" % rcfile)
     #update hash if needed
     if update_hash:
       clone_cache['hash'] = get_cache_hash(clone_cache, dirname(clone_cache_file))
@@ -1080,14 +1103,15 @@ if __name__ == '__main__':
   parser.add_option("-d", "--debug",       dest="debug",     action="store_true", default=False, help="Print more debug outputs")
   parser.add_option("-v", "--version",     dest="version",   action="store_true", default=False, help="Print version string")
   parser.add_option("--use-dev",           dest="useDev",    action="store_true", default=False, help="Use development server instead of production")
-  parser.add_option("-a", "--architecture",dest="architecture", default=None,          help="Architecture string")
-  parser.add_option("-r", "--repository",  dest="repository",   default="cms",          help="Repository name defalut is cms")
-  parser.add_option("-p", "--path",        dest="install_prefix",default=getcwd(),  help="Install path.")
-  parser.add_option("-j", "--jobs",        dest="jobs",         default=4, type="int", help="Max parallel downloads")
-  parser.add_option("-s", "--server",      dest="server",       default="cmsrep.cern.ch",   help="Name of cmsrep server, default is cmsrep.cern.ch")
-  parser.add_option("-S", "--server-path", dest="server_path",  default=None,   help="Path of repo on server.")
-  parser.add_option("-c", "--dist-clean",  dest="dist_clean",   action="store_true",   default=False, help="Only used with 'remove' command to do the distribution cleanup after the package removal.")
-  parser.add_option("-D", "--delete-dir",  dest="delete_directory",   action="store_true",   default=False, help="Only used with 'remove/dist_clean' command to do cleanup the package install directory.")
+  parser.add_option("--use-store",         dest="useStore",  action="store_true", default=False, help="Use object store when running clone. This avoids downloading same file if exists in multiple repositories.")
+  parser.add_option("-a", "--architecture",dest="architecture", default=None,                    help="Architecture string")
+  parser.add_option("-r", "--repository",  dest="repository",   default="cms",                   help="Repository name defalut is cms")
+  parser.add_option("-p", "--path",        dest="install_prefix",default=getcwd(),               help="Install path.")
+  parser.add_option("-j", "--jobs",        dest="jobs",         default=4, type="int",           help="Max parallel downloads")
+  parser.add_option("-s", "--server",      dest="server",       default="cmsrep.cern.ch",        help="Name of cmsrep server, default is cmsrep.cern.ch")
+  parser.add_option("-S", "--server-path", dest="server_path",  default=None,                    help="Path of repo on server.")
+  parser.add_option("-c", "--dist-clean",  dest="dist_clean",   action="store_true", default=False,   help="Only used with 'remove' command to do the distribution cleanup after the package removal.")
+  parser.add_option("-D", "--delete-dir",  dest="delete_directory",action="store_true",default=False, help="Only used with 'remove/dist_clean' command to do cleanup the package install directory.")
 
   opts, args = parser.parse_args()
   if opts.version:

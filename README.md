@@ -95,3 +95,8 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 ###V00-00-19:
  - @smuzaffar 2016-08-19: new command rpmenv to run any command under rpm env e.g. cmspkg -a arch rpmenv -- rpmdb --rebuild
 
+###V00-00-20:
+ - @smuzaffar 2016-10-24: New option --use-store for clone command
+   - To create a common store for all cloned repositories
+   - Avoid downloading same RPM is available in multiple repos.
+
