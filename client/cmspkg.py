@@ -9,7 +9,7 @@ from sys import exc_info, platform
 from os import system as syscall
 from os import getpid, getcwd, mkdir, stat, kill
 from os.path import join, exists, abspath, dirname, basename, isdir
-from time import sleep
+from time import sleep, time
 from glob import glob
 try: import json
 except:import simplejson as json
@@ -68,7 +68,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-00-20"
+cmspkg_tag   = "V00-00-21"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -502,7 +502,7 @@ class CmsPkg:
   def update(self, force=False, silent=False):
     if not silent: cmspkg_print("Updating cmspkg caches ...")
     #fetch list of all caches from cmspkg server
-    err, out = fetch_url({'uri':'caches/%s/%s' % (opts.repository, opts.architecture)})
+    err, out = fetch_url({'uri':'caches/%s/%s' % (opts.repository, opts.architecture), "stamp": int(time())})
     caches = json.loads(out)
     check_server_reply(caches)
     if not 'caches' in caches:
@@ -522,7 +522,7 @@ class CmsPkg:
       #if we have a cache then do not need to fetch unless forced
       if not force and exists (cfile): continue
       if opts.debug: cmspkg_print("Gettings cache %s/%s" % (c[0], c[1]))
-      err, out = fetch_url({'uri':'cache/%s/%s/%s' % (c[0], opts.architecture, c[1])})
+      err, out = fetch_url({'uri':'cache/%s/%s/%s' % (c[0], opts.architecture, c[1]), "stamp": int(time())})
       cache = json.loads(out)
       check_server_reply(cache)
       if not 'hash' in cache:

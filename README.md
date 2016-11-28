@@ -100,3 +100,6 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
    - To create a common store for all cloned repositories
    - Avoid downloading same RPM is available in multiple repos.
 
+###V00-00-21:
+ - @smuzaffar 2016-11-28: Send timestamp to get cache files to always get the latest caches.
+
