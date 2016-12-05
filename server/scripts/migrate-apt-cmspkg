@@ -1,0 +1,33 @@
+#!/bin/bash -e
+DEFAULT_HASH="0000000000000000000000000000000000000000000000000000000000000000"
+REPO=$1
+if [ "${REPO}" = "X" ] ; then
+  echo "Error: Missing repo name to migrated"
+  exit 1
+fi
+BASE_DIR="/data/cmssw"
+CMSPKG_REPO="${BASE_DIR}/repos"
+
+if [ ! -d "${BASE_DIR}/${REPO}/apt" ] ; then
+  echo "Error: Unable to find ${BASE_DIR}/${REPO}/apt."
+  exit 1
+fi
+
+for ARCH_DIR in $(find ${BASE_DIR}/${REPO}/apt -mindepth 1 -maxdepth 1 -name '*' -type d) ; do
+  [ -d "${ARCH_DIR}/RPMS.cms" ] || continue
+  ARCH=$(basename $ARCH_DIR)
+  echo "Working on $REPO $ARCH"
+  if [ -d "${CMSPKG_REPO}/${REPO}/${ARCH}/${DEFAULT_HASH}" ] ; then
+    echo "  Already migrated"
+    continue
+  fi
+  TMPDIR=$($(dirname $0)/upload.sh INIT $ARCH $REPO | grep "^NEW_TEMP_REPOSITORY:" | sed 's|^NEW_TEMP_REPOSITORY:||')
+  if [ ! -d $TMPDIR ] ; then
+    echo "Unable to get the tp upload directory"
+    exit 1
+  fi
+  mkdir -p ${TMPDIR}/upload/${DEFAULT_HASH}/RPMS
+  TMPDIR_NAME=$(basename $TMPDIR)
+  $(dirname $0)/upload.sh CLONE $ARCH $REPO "" ${TMPDIR_NAME}
+done
+
