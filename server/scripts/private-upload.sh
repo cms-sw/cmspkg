@@ -222,7 +222,9 @@ $(dirname $0)/genpkg.py ${TMPREPO_BASE}/upload/${NEW_UPLOAD_HASH}
 rm -f ${TMPREPO_BASE}/upload/${NEW_UPLOAD_HASH}/rpms.md5cache
 
 #Move the new uploaded files in to the initialized dest repo
-mv ${TMPREPO_BASE}/upload/${NEW_UPLOAD_HASH} ${TMPREPO_ARCH}
+if [ ! -d ${TMPREPO_ARCH}/${NEW_UPLOAD_HASH} ] ; then
+  mv ${TMPREPO_BASE}/upload/${NEW_UPLOAD_HASH} ${TMPREPO_ARCH}
+fi
 
 #We do not need upload directory any more, so delete it
 rm -rf ${TMPREPO_BASE}/upload
