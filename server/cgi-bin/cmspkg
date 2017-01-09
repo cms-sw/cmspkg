@@ -108,28 +108,6 @@ def get_parent(repo, arch, uHash):
   if exists (join(arch_dir, default_repo)): return repo, default_repo
   return None, None
 
-def search_parent_repo(repo, name):
-  global search_depth
-  xrepo = repo
-  while xrepo:
-    search_depth+=1
-    pFile =  join("repos", xrepo, name)
-    if debug: debug_msg.append("Searching %s" % (pFile))
-    if exists (join(basedir, pFile)): return pFile
-    xrepo = get_parent_repo(xrepo)
-  search_depth+=1
-  rfile = join("repos", name)
-  if debug: debug_msg.append("Searching %s" % (rfile))
-  if exists (join(basedir, rfile)): return rfile
-  if name.startswith("drivers/"): name = name[8:]
-  if not repo: return None
-  repo = apt_repo(repo)
-  search_depth+=1
-  rfile = join(repo, name)
-  if debug: debug_msg.append("Searching %s" % (rfile))
-  if exists (join(basedir, rfile)): return rfile
-  return None
-
 def search_file(repo, arch, uHash, name, package=True):
   global search_depth
   if debug: debug_msg.append("Searching %s" % (name))
