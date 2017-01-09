@@ -254,6 +254,10 @@ else
       mkdir -p ${CMSPKG_REPOS}/${DES_REPO}/SOURCES/links
       rsync -a --chmod=a+rX --include "${ARCH}-*" --exclude '*' ${TMPREPO_DES}/SOURCES/links/ ${CMSPKG_REPOS}/${DES_REPO}/SOURCES/links/  
     fi
+    if [ -d ${TMPREPO_DES}/drivers ] ; then
+      mkdir -p ${CMSPKG_REPOS}/${DES_REPO}/drivers
+      rsync -a --ignore-existing --chmod=a+rX ${TMPREPO_DES}/drivers/ ${CMSPKG_REPOS}/${DES_REPO}/drivers/
+    fi
   else
     #Syncback is requested
     mv ${TMPREPO_ARCH}/${NEW_UPLOAD_HASH} ${CMSPKG_REPOS}/${DES_REPO}/${ARCH}/
