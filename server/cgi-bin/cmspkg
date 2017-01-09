@@ -126,6 +126,9 @@ def search_file(repo, arch, uHash, name, package=True):
       pFile = join("repos", repo, name)
       if debug: debug_msg.append("Searching %s" % (pFile))
       if exists (join(basedir, pFile)): return pFile
+      if not prepo:
+        prepo = get_parent_repo(repo)
+        if prepo: uHash = "latest"
     repo = prepo
   if not package:
     search_depth+=1
