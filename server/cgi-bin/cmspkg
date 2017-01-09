@@ -136,15 +136,24 @@ def search_file(repo, arch, uHash, name, package=True):
   while repo:
     cache = join(basedir, "repos", repo, arch, uHash)
     search_depth+=1
-    if debug: debug_msg.append("Searching %s/%s/%s/%s" % (repo, arch, uHash, name))
+    if debug: debug_msg.append("Searching repos/%s/%s/%s/%s" % (repo, arch, uHash, name))
     if exists (cache):
       if uHash == "latest": uHash = os.readlink(cache)
       pFile =  join("repos", repo, arch, uHash, name)
       if exists (join(basedir,pFile)): return pFile
     prepo, uHash  = get_parent(repo, arch, uHash)
     if repo == prepo: continue
-    if not package: return search_parent_repo(repo, name)
+    if not package:
+      search_depth+=1
+      pFile = join("repos", repo, name)
+      if debug: debug_msg.append("Searching %s" % (pFile))
+      if exists (join(basedir, pFile)): return pFile
     repo = prepo
+  if not package:
+    search_depth+=1
+    pFile = join("repos", name)
+    if debug: debug_msg.append("Searching %s" % (pFile))
+    if exists (join(basedir, pFile)): return pFile
   return None
 
 def get_package(repo, arch, hash, name, ref_hash):
