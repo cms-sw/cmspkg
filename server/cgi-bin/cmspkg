@@ -111,6 +111,7 @@ def get_parent(repo, arch, uHash):
 def search_file(repo, arch, uHash, name, package=True):
   global search_depth
   if debug: debug_msg.append("Searching %s" % (name))
+  orepo = repo
   while repo:
     cache = join(basedir, "repos", repo, arch, uHash)
     search_depth+=1
@@ -135,6 +136,13 @@ def search_file(repo, arch, uHash, name, package=True):
     pFile = join("repos", name)
     if debug: debug_msg.append("Searching %s" % (pFile))
     if exists (join(basedir, pFile)): return pFile
+    if name.startswith("drivers/"): name = name[8:]
+    if not orepo: return None
+    repo = apt_repo(orepo)
+    search_depth+=1
+    pFile = join(repo, name)
+    if debug: debug_msg.append("Searching %s" % (pFile))
+    if exists (join(basedir, pFile)): return pFile    
   return None
 
 def get_package(repo, arch, hash, name, ref_hash):
