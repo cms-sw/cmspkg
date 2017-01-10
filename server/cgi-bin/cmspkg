@@ -142,7 +142,7 @@ def search_file(repo, arch, uHash, name, package=True):
     search_depth+=1
     pFile = join(repo, name)
     if debug: debug_msg.append("Searching %s" % (pFile))
-    if exists (join(basedir, pFile)): return pFile    
+    if exists (join(basedir, pFile)): return pFile
   return None
 
 def get_package(repo, arch, hash, name, ref_hash):

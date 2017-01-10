@@ -32,7 +32,7 @@ if [ "${SRC_REPO}" = "${DES_REPO}" -a "${CREATE_REPO}" = "NO" ] ; then
 fi
 
 #We use ORIG_PARENT_HASH as the hash to initialize new repo. For sync-back
-#both are identical anyway and for upload only we do not care if PARENT_HASH
+#both are identical anyway and for upload-only we do not care if PARENT_HASH
 #is changed
 PARENT_HASH="${ORIG_PARENT_HASH}"
 
@@ -268,7 +268,7 @@ else
 fi
 
 #create latest symlink pointing to new upload hash
-#We now mv is a atomic operation, so we create a temp next symlink and then use mv command
+#We know mv is a atomic operation, so we create a temp next symlink and then use mv command
 ln -sf ${NEW_UPLOAD_HASH} ${CMSPKG_REPOS}/${DES_REPO}/${ARCH}/next-${NEW_UPLOAD_HASH}
 mv -T ${CMSPKG_REPOS}/${DES_REPO}/${ARCH}/next-${NEW_UPLOAD_HASH} ${CMSPKG_REPOS}/${DES_REPO}/${ARCH}/latest
 
