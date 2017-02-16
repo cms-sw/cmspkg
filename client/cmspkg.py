@@ -68,7 +68,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-00-21"
+cmspkg_tag   = "V00-00-22"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -890,7 +890,7 @@ class CmsPkg:
       run_cmd("cp -f %s %s/cmspkg.py && chmod +x %s/cmspkg.py" % (client_file, pkg_dir, pkg_dir))
       outfile = open("%s/rpm_env.sh" % pkg_dir, 'w')
       if outfile:
-        outfile.write('source $(ls %s/$1/external/rpm/*/etc/profile.d/init.sh | tail -1)\n' % opts.install_prefix)
+        outfile.write('source $(ls %s/$1/external/rpm/*/etc/profile.d/init.sh | sed "s|/etc/profile.d/init.sh||" | sort | tail -1)/etc/profile.d/init.sh\n' % opts.install_prefix)
         outfile.write('[ -e %s/common/apt-site-env.sh ] && source %s/common/apt-site-env.sh\n' % (opts.install_prefix, opts.install_prefix))
         outfile.close()
     pkg_share_dir = join(opts.install_prefix, "share", "cms", "cmspkg")

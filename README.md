@@ -103,3 +103,6 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 ###V00-00-21:
  - @smuzaffar 2016-11-28: Send timestamp with caches/cache requests to always get the latest results.
 
+###V00-00-22:
+ - @smuzaffar 2017-02-16: Fix rpm version sort login.
+
