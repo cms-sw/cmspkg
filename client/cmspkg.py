@@ -1018,7 +1018,7 @@ def process(args, opt, cache_dir):
     cmd = rpm_env+" ; "+args[0]
     for a in args[1:]: cmd+=" '"+a+"'"
     if syscall(cmd)>0: exit(1)
-  if args[0]=="rpmenv":
+  if args[0] in ["rpmenv", "env"]:
     cmd = rpm_env+" ; "+args[1]
     for a in args[2:]: cmd+=" '"+a+"'"
     if syscall(cmd)>0: exit(1)
@@ -1084,7 +1084,7 @@ def process(args, opt, cache_dir):
 
 if __name__ == '__main__':
   from optparse import OptionParser
-  cmspkg_cmds = ["update","search","install","reinstall","clean","remove","dist-clean","show","download", "rpm", "rpmenv", "clone", "setup","upgrade", "showpkg", "depends"]
+  cmspkg_cmds = ["update","search","install","reinstall","clean","remove","dist-clean","show","download", "rpm", "rpmenv", "env", "clone", "setup","upgrade", "showpkg", "depends"]
   parser = OptionParser(usage=basename(argv[0])+" -a|--architecture <arch>\n"
   "              -s|--server <server>\n"
   "              -r|--repository <repository>\n"

@@ -105,4 +105,5 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 
 ###V00-00-22:
  - @smuzaffar 2017-02-16: Fix rpm version sort login.
+   - New command "env" same as "rpmenv"
 
