@@ -1,11 +1,19 @@
 #!/usr/bin/env python
+from sys import exit
 from commands import getstatusoutput as cmd
 from os import environ
 from os.path import exists,dirname,basename
 base_dir = "/data/cmssw"
 uri = environ['SCRIPT_NAME']
 
+def redirect(path):
+  print "Location: /%s\n\n" % (path)
+  exit(0)
+
+def doc_head(): print "Content-type: text/html\n\n<html><head></head><body>\n"
+
 def show_repos():
+  doc_head()
   repos = {}
   rdir = base_dir+"/repos"
   if exists (rdir):
@@ -19,6 +27,7 @@ def show_repos():
     print "<a href='%s/%s'>%s</a><br>\n" % (uri,r,r)
 
 def show_archs(repo, archs={}, xrepo=None):
+  doc_head()
   if not xrepo: xrepo=repo
   rdir = "%s/repos/%s" % (base_dir, repo)
   if exists (rdir):
@@ -36,7 +45,7 @@ def show_archs(repo, archs={}, xrepo=None):
   for r in sorted(archs.keys()):
     print "<a href='%s/%s/%s'>%s</a><br>\n" % (uri, xrepo, r, r)
 
-def show_rpms(repo, arch):
+def show_rpms(repo, arch, rpm_to_get=None):
   sort  = ""
   order = ""
   try:
@@ -82,6 +91,9 @@ def show_rpms(repo, arch):
       xx = r.split(" ")
       rpm = xx[-1].replace(base_dir+"/","")
       nrpm = basename(rpm)
+      if rpm_to_get:
+        if rpm_to_get==nrpm: redirect("/cmssw/%s" % rpm)
+        continue
       orpms.append(nrpm)
       rpms[nrpm] = ["<a href='/cmssw/%s'>%s</a>" % (rpm,nrpm),"%s %s" % (xx[-3],xx[-2]), xx[-4]]
   else:
@@ -100,14 +112,17 @@ def show_rpms(repo, arch):
         link = xx[-1] 
         rpm = xx[-1].replace(base_dir+"/","")
         nrpm = basename(rpm)
+        if rpm_to_get:
+          if rpm_to_get==nrpm: redirect("/cmssw/%s" % rpm)
+          continue
         orpms.append(nrpm)
         rpms[nrpm] = ["<a href='/cmssw/%s'>%s</a>" % (rpm,nrpm),"%s %s" % (xx[-3],xx[-2]), xx[-4]]
-
+  if rpm_to_get: exit(1)
   if "C=N" == sort:
     orpms = sorted(orpms)
     if "O=D" == order:
       orpms = reversed(orpms)
-
+  doc_head()
   print "<table>\n"
   print '<tr><th><a href="?%s">Name</a></th><th><a href="?%s">Last modified</a></th><th><a href="?%s">Size</a></th></tr>' % (next_opt[0], next_opt[1], next_opt[2])
   for r in orpms:
@@ -115,8 +130,6 @@ def show_rpms(repo, arch):
     for x in rpms[r]: print "<td>%s</td>" % x,
     print "</tr>\n"
   print "</table>\n";
-
-print "Content-type: text/html\n\n<html><head></head><body>\n"
 
 rpath = ""
 try: rpath = environ['PATH_INFO'].strip("/")
@@ -128,14 +141,17 @@ else:
   from re import match
   items = rpath.split("/")
   ReRepo = '^[a-zA-Z0-9_-]+((\.[a-zA-Z0-9_-]+)+|)$'
+  ReArch = '^[a-zA-Z0-9]+_[a-zA-Z0-9]+_[a-zA-Z0-9]+$'
   if not match(ReRepo,items[0]):
     show_repos()
   elif len(items)==1:
     show_archs(items[0])
   elif len(items)==2:
-    ReArch = '^[a-zA-Z0-9]+_[a-zA-Z0-9]+_[a-zA-Z0-9]+$'
     if not match(ReArch,items[1]): show_archs(items[0])
     else: show_rpms (items[0], items[1])
+  elif len(items)==3:
+    if not match(ReArch,items[1]): show_archs(items[0])
+    else: show_rpms (items[0], items[1], items[2])
   else: show_repos()
 
 print "</body></html>\n"
