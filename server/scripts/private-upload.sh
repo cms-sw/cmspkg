@@ -78,16 +78,13 @@ elif [ "${NEW_STYLE_SRC_REPO}" = "YES" ] ; then
     if [ $(echo " ${ALL_HASHES} " | grep " ${REPO_HASH} " | wc -l) -gt 0 ] ; then
       echo "Error: Looks like repository ${SRC_REPO} was man handled. Cyclic dependency found:"
       echo "${REPO_HASH}"
-      echo "${ALL_HASHES}" | sed "s|^.*${REPO_HASH} ||" | tr ' ' '\n'
+      echo "${ALL_HASHES}" | sed "s| *${REPO_HASH} .*$||" | tr ' ' '\n'
+      echo "${REPO_HASH}"
       exit 19
     fi
     
     #First create hard-links for every thing except meta data files (RPMS.json)
-    TEST_ARGS=""
-    case ${ARCH} in
-      slc7_ppc* ) TEST_ARGS="--ignore-existing" ;;
-    esac
-    rsync -a --chmod=a+rX ${TEST_ARGS} --link-dest ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/RPMS/ ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/RPMS/ ${TMPREPO_ARCH}/${DEFAULT_HASH}/RPMS/
+    rsync -a --chmod=a+rX --link-dest ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/RPMS/ ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/RPMS/ ${TMPREPO_ARCH}/${DEFAULT_HASH}/RPMS/
 
     #Hard links for WEB and SOURCES/cache
     for subdir in WEB SOURCES/cache ; do
