@@ -68,7 +68,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-00-22"
+cmspkg_tag   = "V00-00-23"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -680,17 +680,20 @@ class CmsPkg:
   #If -f option is used the exact package name is matched
   def search(self, pkg_search="", exact=False):
     self.cache = pkgCache()
-    for pk in self.cache.packs:
-      found = False
-      if pkg_search=="":
-        found = True
-      elif exact:
-        found = (pk==pkg_search)
-      else:
-        found = (pkg_search in pk)
-      if found:
-        data = self.cache.packs[pk][sorted(self.cache.packs[pk],key=int)[-1]]
-        cmspkg_print("%s - CMS Experiment package SpecChecksum:%s" % (pk, data[0]))
+    pkgs = []
+    if pkg_search=="": pkgs=self.cache.packs.keys()
+    elif exact:
+      if pkg_search in self.cache.packs: pkgs.append(pkg_search)
+    else:
+      for pk in self.cache.packs:
+        if pkg_search in pk: pkgs.append(pk)
+    pkgs = sorted(pkgs)
+    for pk in pkgs:
+      rev = sorted(self.cache.packs[pk],key=int)[-1]
+      data = self.cache.packs[pk][rev]
+      srev=""
+      if opts.show_revision: srev=" %s" % rev
+      cmspkg_print("%s - CMS Experiment package SpecChecksum:%s%s" % (pk, data[0],srev))
     return
    
   #print the packages name and all its revisions.
@@ -1094,7 +1097,8 @@ if __name__ == '__main__':
   "              [-d|--debug]\n"
   "              [-c|--dist-clean]\n"
   "              [-v|--version]\n"
-  "              [--dev]\n"
+  "              [--show-revision]\n"
+  "              [--use-dev]\n"
   "              [--reinstall]\n"
   "              "+" | ".join(cmspkg_cmds)+" [package| -- <rpm-args>]\n\n")
   parser.add_option("--reinstall",         dest="reinstall", action="store_true", default=False, help="Reinstall a package e.g. its latest revision")
@@ -1102,6 +1106,7 @@ if __name__ == '__main__':
   parser.add_option("-y",                  dest="force",     action="store_true", default=False, help="Assume yes for installation")
   parser.add_option("-d", "--debug",       dest="debug",     action="store_true", default=False, help="Print more debug outputs")
   parser.add_option("-v", "--version",     dest="version",   action="store_true", default=False, help="Print version string")
+  parser.add_option("--show-revision",     dest="show_revision", action="store_true", default=False, help="Used with search command to show also the revision of the package(s)")
   parser.add_option("--use-dev",           dest="useDev",    action="store_true", default=False, help="Use development server instead of production")
   parser.add_option("--use-store",         dest="useStore",  action="store_true", default=False, help="Use object store when running clone. This avoids downloading same file if exists in multiple repositories.")
   parser.add_option("-a", "--architecture",dest="architecture", default=None,                    help="Architecture string")
