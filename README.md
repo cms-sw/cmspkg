@@ -23,9 +23,7 @@ Shows listing of dependency of a package | `apt-cache depends package` | `cmspkg
 `cmspkg` internally sources the latest available `rpm` env, so no need to source `apt/rpm init.[sh|csh]` script before running `cmspkg` commands.
 
 To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and options>`
-<!--
-comment, do not show
--->
+
 ##Releases
 ###V00-00-00:
  - @smuzaffar 2016-05-24: Initial version with basic commands working
