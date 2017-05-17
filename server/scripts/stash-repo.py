@@ -97,7 +97,7 @@ def stashArch (repo_dir, arch, uHash, dryRun=False):
   if exists (join(repoInfo["hash_dir"], "WEB")):
     cmd = cmd + " && %(rsync)s --link-dest %(hash_dir)s/WEB/ %(hash_dir)s/WEB/ %(repo_dir)s/WEB/"
   if exists (join(repoInfo["hash_dir"], "drivers")):
-    cmd = cmd + " && mkdir -p %(repo_dir)s/drivers && cp -rf %(hash_dir)s/drivers/%{arch}-*.txt %(repo_dir)s/drivers/"
+    cmd = cmd + " && mkdir -p %(repo_dir)s/drivers && cp -rf %(hash_dir)s/drivers/%(arch)s-*.txt %(repo_dir)s/drivers/"
   err, out = run_command("find %s -maxdepth 1 -mindepth 1 -type f" % (repoInfo["hash_dir"]))
   if err:
     print out
