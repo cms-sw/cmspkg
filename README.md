@@ -26,17 +26,20 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 
 # Usage
 ## Bootstrap
-  - ARCH=slc6_amd64_gcc530
-  - INSTALL_DIR=/path/to/install
-  - wget http://cmsrep.cern.ch/cmssw/repos/bootstrap.sh
-  - sh -ex ./bootstrap.sh -r cms -a $ARCH -p $INSTALL_DIR setup
-  
+```
+  ARCH=slc6_amd64_gcc530
+  INSTALL_DIR=/path/to/install
+  wget http://cmsrep.cern.ch/cmssw/repos/bootstrap.sh
+  sh -ex ./bootstrap.sh -r cms -a $ARCH -p $INSTALL_DIR setup
+```  
 ## Search Packages
-  - $INSTALL_DIR/common/cmspkg -a $ARCH search cmssw
-  
+```
+  $INSTALL_DIR/common/cmspkg -a $ARCH search cmssw
+```
 ## Install Package
-  - $INSTALL_DIR/common/cmspkg -a $ARCH -y installed cms+cmssw+CMSSW_9_2_0
-
+```
+  $INSTALL_DIR/common/cmspkg -a $ARCH -y installed cms+cmssw+CMSSW_9_2_0
+```
 ## Releases Notes
 
 ###V00-00-00:
