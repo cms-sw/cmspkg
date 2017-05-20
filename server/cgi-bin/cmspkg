@@ -312,8 +312,8 @@ def upgrade():
     infile = open(readme)
     if not infile: return_json(info)
     flag = 0
-    cver = "###"+client_ver+":"
-    nver = "###"+ver+":"
+    cver = "### "+client_ver+":"
+    nver = "### "+ver+":"
     changelog=[]
     for line in infile:
       line = line.strip("\n")
@@ -321,10 +321,10 @@ def upgrade():
         if line.startswith(cver): flag=1
         continue
       if flag==1:
-        if not line.startswith('###V'): continue
+        if not line.startswith('### V'): continue
         line=line[3:]
         flag = 2
-      if line.startswith('###V'): line=line[3:]
+      if line.startswith('### V'): line=line[3:]
       changelog.append(line.replace("*",""))
     infile.close()
     if changelog: info['changelog']=changelog
