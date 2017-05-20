@@ -39,6 +39,7 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
   - $INSTALL_DIR/common/cmspkg -a $ARCH -y installed cms+cmssw+CMSSW_9_2_0
 
 ##Releases
+
 ###V00-00-00:
  - @smuzaffar 2016-05-24: Initial version with basic commands working
 
