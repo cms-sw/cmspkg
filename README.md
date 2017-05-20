@@ -1,4 +1,4 @@
-#What is cmspkg
+# CMSPKG
 
 `cmspkg` is collection of helper script used by http://github.com/cms-sw/pkgtools for building and distributing http://github.com/cms-sw/cmssw RPMs. It is to replace the `apt` usage.
 `cmspkg` puppet package provider documentation is available [here](https://github.com/cms-sw/cmspkg/blob/master/cmspkg-puppet-provider.md)
@@ -24,21 +24,20 @@ Shows listing of dependency of a package | `apt-cache depends package` | `cmspkg
 
 To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and options>`
 
-#Usage:
-
-##Bootstrap:
+# Usage
+## Bootstrap
   - ARCH=slc6_amd64_gcc530
   - INSTALL_DIR=/path/to/install
   - wget http://cmsrep.cern.ch/cmssw/repos/bootstrap.sh
   - sh -ex ./bootstrap.sh -r cms -a $ARCH -p $INSTALL_DIR setup
   
-##Search Packages:
+## Search Packages
   - $INSTALL_DIR/common/cmspkg -a $ARCH search cmssw
   
-##Install Package:
+## Install Package
   - $INSTALL_DIR/common/cmspkg -a $ARCH -y installed cms+cmssw+CMSSW_9_2_0
 
-##Releases
+## Releases Notes
 
 ###V00-00-00:
  - @smuzaffar 2016-05-24: Initial version with basic commands working
