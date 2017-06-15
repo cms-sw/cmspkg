@@ -374,7 +374,9 @@ def process(req):
   elif ftype == "file":
     return file_search_result(get_file (*items[1:]), "%s" % (rpath))
   elif ftype == "driver":
-    items.append("drivers/"+items[2]+"-driver.txt")
+    drive_ext = "-driver.txt"
+    if items[1]=="comp" or items[1].startswith("comp."): drive_ext = "-driver-comp.txt"
+    items.append("drivers/"+items[2]+drive_ext)
     return file_search_result(get_file (*items[1:]), "%s" % (rpath))
   return error_msg("Unable to find the file: %s" % (rpath))
 
