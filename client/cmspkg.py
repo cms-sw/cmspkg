@@ -608,6 +608,12 @@ class CmsPkg:
       run_cmd ("touch %s/tmp.rpm && rm -f %s/*.*" % (rpm_download, rpm_download))
     return
 
+  # Split list in chunks of N
+  def split_list(self, a, n):
+    n = min(n, len(a))  # do not create empty buckets
+    k, m = divmod(len(a), n)
+    return (a[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in xrange(n))
+
   #Installs a package.
   def install(self, package, reinstall=False, force=False):
     if not self.cache:
@@ -653,23 +659,24 @@ class CmsPkg:
 
     #download all the dependencies of the package
     self.download_deps (sorted(deps), deps)
-    pkg_to_install = pk[1]
+    pkg_to_install = [pk[1]]
     size_compress, size_uncompress = self.package_size (pk[1])
     for d in [p[1] for p in deps.values() if p]:
       s1, s2 = self.package_size(d)
       size_compress += s1
       size_uncompress += s2
-      pkg_to_install += "  "+d
+      pkg_to_install.append(d)
     reinstall_opts = ""
     if reinstall and (package in self.rpm_cache): reinstall_opts = "--replacepkgs --replacefiles --nodeps"
     cmspkg_print("Downloaded %s of archives." % human_readable_size(size_compress))
     cmspkg_print( "After unpacking %s of additional disk space will be used." % human_readable_size(size_uncompress))
-    rcmd = "%s; rpm -Uvh -r %s --force --prefix %s --ignoreos --ignorearch --oldpackage %s" %(rpm_env, opts.install_prefix, opts.install_prefix, reinstall_opts)
+    rcmd = "%s; rpm -Uvh -r %s --force --prefix %s --ignoreos --ignorearch --oldpackage --nodeps %s" %(rpm_env, opts.install_prefix, opts.install_prefix, reinstall_opts)
     cmspkg_print("Executing RPM (%s)..." % rcmd)
-    cmd = "cd %s && %s %s" %(rpm_download, rcmd,  pkg_to_install)
-
-    #Install the nwly downloaded packages(s)
-    if syscall(cmd)>0: exit(1)
+    for pkg_chunk_to_install in self.split_list(pkg_to_install, 50):
+      cmd = "cd %s && %s %s" %(rpm_download, rcmd,  " ".join(pkg_chunk_to_install))
+      print cmd
+      #Install the nwly downloaded packages(s)
+      if syscall(cmd)>0: exit(1)
     self.update_rpm_cache(True)
     if package in self.rpm_cache:
       package_installed(package)
