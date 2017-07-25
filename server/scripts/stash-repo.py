@@ -221,7 +221,11 @@ if __name__ == "__main__" :
   cleanup_tmp_uploads(tmp_dir, delme_dir, dryRun)
   for d in glob(join(basedir,"*", ".cmspkg-auto-cleanup")):
     repo_dir = dirname(d)
-    REPO_OWNER = getpwuid(stat(d).st_uid).pw_name
+    try:
+      REPO_OWNER = getpwuid(stat(d).st_uid).pw_name
+    except KeyError, e:
+      print "ERROR: Skip checking %s due to %s" % (repo_dir, str(e))
+      continue
     repo_name = basename(repo_dir)
     for conf in STASH_CONFIG:
       if re.match(conf[0],repo_name):
