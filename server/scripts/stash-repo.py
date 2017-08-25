@@ -27,7 +27,8 @@ STASH_CONFIG = [
 DEFAULT_HASH = "0000000000000000000000000000000000000000000000000000000000000000"
 
 #Repository owner
-REPO_OWNER = "cmsbuild"
+DEFAULT_REPO_OWNER = "cmsbuild"
+REPO_OWNER = DEFAULT_REPO_OWNER
 
 #Helper function to format a string
 def format(s, **kwds): return s % kwds
@@ -224,8 +225,14 @@ if __name__ == "__main__" :
     try:
       REPO_OWNER = getpwuid(stat(d).st_uid).pw_name
     except KeyError, e:
-      print "ERROR: Skip checking %s due to %s" % (repo_dir, str(e))
-      continue
+      REPO_OWNER = DEFAULT_REPO_OWNER
+      print "ERROR: Looks like owner does not exists any more: %s" %s str(e)
+      print "       Changing default owner to :", REPO_OWNER
+      err, out = run_command ("chown -R %s: %s" % (REPO_OWNER, repo_dir))
+      if err:
+        print "ERROR: Unable to change owner"
+        print out
+        continue
     repo_name = basename(repo_dir)
     for conf in STASH_CONFIG:
       if re.match(conf[0],repo_name):
