@@ -227,7 +227,7 @@ if __name__ == "__main__" :
     except KeyError, e:
       REPO_OWNER = DEFAULT_REPO_OWNER
       print "ERROR: Looks like owner does not exists any more:", str(e)
-      print "       Changing default owner to :", REPO_OWNER
+      print "       Changing to default owner:", REPO_OWNER
       err, out = run_command ("chown -R %s: %s" % (REPO_OWNER, repo_dir))
       if err:
         print "ERROR: Unable to change owner"
