@@ -127,3 +127,6 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 ### V00-00-23:
  - @smuzaffar 2017-04-12: Make search command also show revision if --show-revision is set.
 
+### V00-00-24:
+ - @smuzaffar 2017-10-04: Added -o|--download-options 'download options' to be passed to curl|wget.
+

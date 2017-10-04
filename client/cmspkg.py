@@ -68,7 +68,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-00-23"
+cmspkg_tag   = "V00-00-24"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -187,6 +187,7 @@ def set_get_cmd():
   for cmd in getcmds:
     err, out = run_cmd("%s %s 2>&1 >/dev/null" %(cmd[0],cmd[1]),False,False)
     if not err:
+      if opts.download_options: cmd[2] = cmd[2]+" "+opts.download_options
       getcmd = cmd
       return
   cmspkg_print("Error: Unable to find any of the following commands. Please make sure you have any one of these installed.")
@@ -1117,6 +1118,7 @@ if __name__ == '__main__':
   parser.add_option("-S", "--server-path", dest="server_path",  default=None,                    help="Path of repo on server.")
   parser.add_option("-c", "--dist-clean",  dest="dist_clean",   action="store_true", default=False,   help="Only used with 'remove' command to do the distribution cleanup after the package removal.")
   parser.add_option("-D", "--delete-dir",  dest="delete_directory",action="store_true",default=False, help="Only used with 'remove/dist_clean' command to do cleanup the package install directory.")
+  parser.add_option("-o", "--download-options",  dest="download_options", default=None,          help="Extra options to pass to wget/curl.")
 
   opts, args = parser.parse_args()
   if opts.version:
