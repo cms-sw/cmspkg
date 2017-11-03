@@ -68,7 +68,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-00-24"
+cmspkg_tag   = "V00-00-25"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -1088,7 +1088,7 @@ def process(args, opt, cache_dir):
 
 if __name__ == '__main__':
   from optparse import OptionParser
-  cmspkg_cmds = ["update","search","install","reinstall","clean","remove","dist-clean","show","download", "rpm", "rpmenv", "env", "clone", "setup","upgrade", "showpkg", "depends"]
+  cmspkg_cmds = ["update","search","install","reinstall","clean","remove","dist-clean","show","download", "rpm", "rpmenv", "env", "clone", "setup","upgrade", "showpkg", "depends", "repository"]
   parser = OptionParser(usage=basename(argv[0])+" -a|--architecture <arch>\n"
   "              -s|--server <server>\n"
   "              -r|--repository <repository>\n"
@@ -1132,6 +1132,11 @@ if __name__ == '__main__':
   if opts.useDev: cmspkg_cgi = cmspkg_cgi+'-dev'
   if not opts.server_path: opts.server, opts.server_path = get_server_paths (opts.server)
 
+  if args[0]=="repository":
+    print "Server:",opts.server
+    print "Repository:",opts.repository
+    print "ServerPath:",opts.server_path
+    exit (0)
   cmspkg_local_dir = join(opts.install_prefix, opts.architecture, 'var/cmspkg')
   if not args[0] in ["clone", "download", "setup"]:
     rpm_env = join(dirname(script_path), "rpm_env.sh")

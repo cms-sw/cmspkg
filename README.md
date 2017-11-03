@@ -130,3 +130,6 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 ### V00-00-24:
  - @smuzaffar 2017-10-04: Added -o|--download-options 'download options' to be passed to curl|wget.
 
+### V00-00-25:
+ - @smuzaffar 2017-11-03: Added repository command to get the repository/server details.
+
