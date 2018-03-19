@@ -133,3 +133,6 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 ### V00-00-25:
  - @smuzaffar 2017-11-03: Added repository command to get the repository/server details.
 
+### V00-00-26:
+ - @smuzaffar 2018-03-19: Do not remove cms+cmsswdata+ packages as they are shared between architectures.
+
