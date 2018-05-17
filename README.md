@@ -136,3 +136,5 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 ### V00-00-26:
  - @smuzaffar 2018-03-19: Do not remove cms+cmsswdata+ packages as they are shared between architectures.
 
+### V00-00-27:
+ - @smuzaffar 2018-05-17: New option added to Ignore known RPM errors.
