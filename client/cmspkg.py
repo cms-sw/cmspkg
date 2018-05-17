@@ -87,7 +87,7 @@ getcmds = [
 knowledge_based_errors = {}
 knowledge_based_errors['unable to allocate memory for mutex|resize mutex region'] = \
 "Add/update the following line in @INSTALL_PREFIX@/@ARCH@/var/lib/rpm/DB_CONFIG file and rebuild rpm databse.\nmutex_set_max 10000000"
-
+knowledge_based_found = {}
 try:
   script_path = __file__
 except:
@@ -111,10 +111,13 @@ def check_kbe(error_msg):
   for err in knowledge_based_errors:
     if research(err, error_msg, flags=reIGNORECASE):
       sol = knowledge_based_errors[err].replace("@INSTALL_PREFIX@",opts.install_prefix).replace("@ARCH@", opts.architecture)
-      cmspkg_print("ERROR: Following error found.\n  %s" % error_msg)
-      cmspkg_print("Solution:\n  %s" % sol)
+      if not err in knowledge_based_found:
+        cmspkg_print("ERROR: Following error found.\n  %s" % error_msg)
+        cmspkg_print("Solution:\n  %s" % sol)
+        knowledge_based_found[err]=1
+      if opts.IgnoreKbe: return True
       exit(1)
-  return
+  return False
 
 def print_msg(msg, type):
   for m in msg.split("\n"): cmspkg_print("[%s]: %s" % (type, m))
@@ -313,7 +316,7 @@ def get_pkg_deps(rpm):
   ReReq = compile('^(cms|external|lcg)[+][^+]+[+].+')
   for line in out.split("\n"):
     line = line.strip()
-    check_kbe(line)
+    if check_kbe(line): continue
     if ReReq.match(line):
       deps.append(line)
   return deps
@@ -483,7 +486,7 @@ class CmsPkg:
     err, out = run_cmd("%s; rpm -qa --queryformat '%%{NAME} %%{RELEASE}\n'" % rpm_env)
     for r in out.split("\n"):
       r = r.strip()
-      check_kbe(r)
+      if check_kbe(r): continue
       if not r: continue
       n, rv = r.split(" ")
       self.rpm_cache[n]=rv
@@ -1109,6 +1112,7 @@ if __name__ == '__main__':
   parser.add_option("-v", "--version",     dest="version",   action="store_true", default=False, help="Print version string")
   parser.add_option("--show-revision",     dest="show_revision", action="store_true", default=False, help="Used with search command to show also the revision of the package(s)")
   parser.add_option("--use-dev",           dest="useDev",    action="store_true", default=False, help="Use development server instead of production")
+  parser.add_option("--ignore-known",      dest="IgnoreKbe", action="store_true", default=False, help="Ignore known errors")
   parser.add_option("--use-store",         dest="useStore",  action="store_true", default=False, help="Use object store when running clone. This avoids downloading same file if exists in multiple repositories.")
   parser.add_option("-a", "--architecture",dest="architecture", default=None,                    help="Architecture string")
   parser.add_option("-r", "--repository",  dest="repository",   default="cms",                   help="Repository name defalut is cms")
