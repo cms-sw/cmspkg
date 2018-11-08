@@ -17,7 +17,7 @@ for line in $(cat ${hooks}); do
      if [ "X${packages}" = "X" ] ; then packages=$(grep '\.rpm' ${rpms_json}  | tr '\n' ' ' | sed 's|.${arch}.rpm||;s| ||g;s|,$||') ; fi
      DATA="{\"architecture\":\"${arch}\",\"repository\":\"${repo}\",\"packages\":[$packages]}"
      echo "=========================="
-     echo "URL=${url}",
+     echo "URL=${url}"
      echo "DATA=${DATA}"
      echo "RESPONSE="
      curl $CURL_OPTS -d "${DATA}" --header 'Content-Type: application/json' "${url}" || true
