@@ -1,4 +1,4 @@
-cms.muzaffar:.*=https://cmssdt.cern.ch/SDT/cgi-bin/cmsrep_webhooks?repo=cms.muzaffar
-cms.week[0-9]:.*=https://cmssdt.cern.ch/SDT/cgi-bin/cmsrep_webhooks?repo=cms.week
-cms:.*=https://cmssdt.cern.ch/SDT/cgi-bin/cmsrep_webhooks?repo=cms
-comp:.*=https://cmssdt.cern.ch/SDT/cgi-bin/cmsrep_webhooks?repo=comp
+cms.muzaffar:.*=https://cmssdt.cern.ch/SDT/cgi-bin/cmsrep_webhook?repo=cms.muzaffar
+cms.week[0-9]:.*=https://cmssdt.cern.ch/SDT/cgi-bin/cmsrep_webhook?repo=cms.week
+cms:.*=https://cmssdt.cern.ch/SDT/cgi-bin/cmsrep_webhook?repo=cms
+comp:.*=https://cmssdt.cern.ch/SDT/cgi-bin/cmsrep_webhook?repo=comp
