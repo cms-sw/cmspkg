@@ -13,8 +13,13 @@ packages=""
 for line in $(cat ${hooks}); do
   reg=$(echo "${line}" | sed 's|=.*$||')
   if [ $(echo "${repo}:${arch}" | grep "^$reg\$" | wc -l) -eq 1 ] ; then
-     url=$(echo "${line}" | sed 's|.*=||')
+     url=$(echo "${line}" | sed 's|^[^=]*=||')
      if [ "X${packages}" = "X" ] ; then packages=$(grep '\.rpm' ${rpms_json}  | tr '\n' ' ' | sed 's|.${arch}.rpm||;s| ||g;s|,$||') ; fi
-     curl $CURL_OPTS -d "{\"architecture\":\"${arch}\",\"repository\":\"${repo}\",\"packages\":[$packages]}" --header 'Content-Type: application/json' "${url}" >/dev/null 2>&1
+     DATA="{\"architecture\":\"${arch}\",\"repository\":\"${repo}\",\"packages\":[$packages]}"
+     echo "=========================="
+     echo "URL=${url}",
+     echo "DATA=${DATA}"
+     echo "RESPONSE="
+     curl $CURL_OPTS -d "${DATA}" --header 'Content-Type: application/json' "${url}" || true
   fi
 done

@@ -223,7 +223,7 @@ while true ; do
   #Check for webhooks and call is available repo/arch.
   if [ ${XCODE} -eq 0 ] ; then
     WEBHOOK=$(dirname $0)/webhooks.sh
-    if [ -x ${WEBHOOK} ] ; then ${WEBHOOK} ${CMSPKG_REPOS}/${DES_REPO}/${ARCH}/latest/RPMS.json || true; fi
+    if [ -x ${WEBHOOK} ] ; then ${WEBHOOK} "${CMSPKG_REPOS}/${DES_REPO}/${ARCH}/latest/RPMS.json" > ${CMSPKG_REPOS}/${DES_REPO}/${ARCH}/latest/webhook.out 2>&1 || true; fi
   fi
   exit $XCODE
 done
