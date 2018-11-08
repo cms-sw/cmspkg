@@ -219,6 +219,12 @@ while true ; do
   #OK, we are done here. Just cleanup the tmp directory and exit with the exit code of
   #private-upload script
   rm -rf ${TMPREPO_BASE}
+
+  #Check for webhooks and call is available repo/arch.
+  if [ ${XCODE} -eq 0 ] ; then
+    WEBHOOK=$(dirname $0)/webhooks.sh
+    if [ -x ${WEBHOOK} ] ; then ${WEBHOOK} ${CMSPKG_REPOS}/${DES_REPO}/${ARCH}/latest/RPMS.json || true; fi
+  fi
   exit $XCODE
 done
 

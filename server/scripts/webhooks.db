@@ -1,0 +1,3 @@
+cms.week[0-9]:.*=https://cmssdt.cern.ch/SDT/cgi-bin/cmsrep_webhooks.py?repo=cms.week
+cms:.*=https://cmssdt.cern.ch/SDT/cgi-bin/cmsrep_webhooks.py?repo=cms
+comp:.*=https://cmssdt.cern.ch/SDT/cgi-bin/cmsrep_webhooks.py?repo=comp
