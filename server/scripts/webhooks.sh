@@ -17,7 +17,7 @@ for line in $(cat ${hooks}); do
   if [ $(echo "${repo}:${arch}" | grep "^$reg\$" | wc -l) -eq 1 ] ; then
      url=$(echo "${line}" | sed 's|^[^=]*=||')
      if [ "X${packages}" = "X" ] ; then packages=$(grep '\.rpm' ${rpms_json}  | tr '\n' ' ' | sed "s|.${arch}.rpm||" | sed 's| ||g;s|,$||') ; fi
-     DATA="{\"package_url\":\"${CMSREP_URL}\":\"architecture\":\"${arch}\",\"repository\":\"${repo}\",\"packages\":[$packages]}"
+     DATA="{\"package_url\":\"${CMSREP_URL}\",\"architecture\":\"${arch}\",\"repository\":\"${repo}\",\"packages\":[$packages]}"
      echo "=========================="
      echo "URL=${url}"
      echo "DATA=${DATA}"
