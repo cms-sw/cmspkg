@@ -138,3 +138,6 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 
 ### V00-00-27:
  - @smuzaffar 2018-05-17: New option added to Ignore known RPM errors.
+
+### V00-00-28:
+ - @smuzaffar 2018-11-26: New options added to be passed to underlying RPM commands.

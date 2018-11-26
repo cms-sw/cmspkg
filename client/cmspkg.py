@@ -68,7 +68,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-00-27"
+cmspkg_tag   = "V00-00-28"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -336,6 +336,16 @@ def download_package(package):
   if exists (join(rpm_download, package[1])): return
   try: download_rpm(package)
   except Exception: cmspkg_print("Error: Downloading RPMS: %s" % str(exc_info()[1]))
+
+#get RPM Command-line Options
+def getRPMOptions(rpm_options, opts):
+  for xopt in opts.Add_Options:
+    for opt in [ o.strip() for o in xopt.split(',')]:
+      if not opt in rpm_options: rpm_options.append(opt)
+  for xopt in opts.Remove_Options:
+    for opt in [ o.strip() for o in xopt.split(',')]:
+      if opt in rpm_options: rpm_options.remove(opt)
+  return ' '.join(rpm_options)
 
 ###############################################
 #End of Utility function
@@ -664,11 +674,12 @@ class CmsPkg:
       size_compress += s1
       size_uncompress += s2
       pkg_to_install += "  "+d
-    reinstall_opts = ""
-    if reinstall and (package in self.rpm_cache): reinstall_opts = "--replacepkgs --replacefiles --nodeps"
     cmspkg_print("Downloaded %s of archives." % human_readable_size(size_compress))
     cmspkg_print( "After unpacking %s of additional disk space will be used." % human_readable_size(size_uncompress))
-    rcmd = "%s; rpm -Uvh -r %s --force --prefix %s --ignoreos --ignorearch --oldpackage %s" %(rpm_env, opts.install_prefix, opts.install_prefix, reinstall_opts)
+    ex_opts  = ['-U', '-v', '-h', '-r %s' % opts.install_prefix, '--prefix %s' % opts.install_prefix, '--force', '--ignoreos', '--ignorearch', '--oldpackage']
+    if reinstall and (package in self.rpm_cache): ex_opts += ['--replacepkgs', '--replacefiles', '--nodeps']
+    if opts.IgnoreSize: ex_opts.append('--ignoresize')
+    rcmd = "%s; rpm %s" % (rpm_env, getRPMOptions(ex_opts, opts))
     cmspkg_print("Executing RPM (%s)..." % rcmd)
     cmd = "cd %s && %s %s" %(rpm_download, rcmd,  pkg_to_install)
 
@@ -856,7 +867,7 @@ class CmsPkg:
     if package in self.rpm_cache:
       if not opts.force: ask_user_to_continue("Are you sure to delete %s (Y/n): " % package)
       cmspkg_print("Removing package %s" % package)
-      err, out = run_cmd("%s; rpm -e %s" % (rpm_env, package))
+      err, out = run_cmd("%s; rpm %s %s" % (rpm_env, getRPMOptions(['-e'], opts), package))
       package_removed (package)
       cmspkg_print("Removed %s" % package)
       if opts.delete_directory: cleanup_package_dir(package)
@@ -1114,6 +1125,9 @@ if __name__ == '__main__':
   parser.add_option("--use-dev",           dest="useDev",    action="store_true", default=False, help="Use development server instead of production")
   parser.add_option("--ignore-known",      dest="IgnoreKbe", action="store_true", default=False, help="Ignore known errors")
   parser.add_option("--use-store",         dest="useStore",  action="store_true", default=False, help="Use object store when running clone. This avoids downloading same file if exists in multiple repositories.")
+  parser.add_option("--ignore-size",       dest="IgnoreSize",     action="store_true", default=False, help="Ignore RPM size checks")
+  parser.add_option("--add-options",       dest="Add_Options",    action='append',     default=[], help="Add extra RPM install options. You can use it multiple time or CSV to add more than one options")
+  parser.add_option("--remove-options",    dest="Remove_Options", action='append',     default=[], help="Remove default RPM install options. You can use it multiple time or CSV to remove more than one options")
   parser.add_option("-a", "--architecture",dest="architecture", default=None,                    help="Architecture string")
   parser.add_option("-r", "--repository",  dest="repository",   default="cms",                   help="Repository name defalut is cms")
   parser.add_option("-p", "--path",        dest="install_prefix",default=getcwd(),               help="Install path.")
