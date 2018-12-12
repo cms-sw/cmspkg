@@ -1245,6 +1245,8 @@ useDev=
 
 rootdir=$(pwd)
 testInstance=false
+xSeeds=""
+xProvides=""
 
 while [ $# -gt 0 ]; do
   case $1 in
@@ -1321,6 +1323,16 @@ while [ $# -gt 0 ]; do
           ;;
         -only-once )
           onlyOnce=true; shift
+          ;;
+        -additional-seed )
+          [ $# -gt 1 ] || cleanup_and_exit 1 "Option \`$1' requires at lease one argument"
+          shift
+          xSeeds="${xSeeds} $(echo $1 | tr ',' ' ')" ; shift
+          ;;
+        -additional-provides )
+          [ $# -gt 1 ] || cleanup_and_exit 1 "Option \`$1' requires at lease one argument"
+          shift
+          xProvides="${xProvides} $(echo $1 | tr ',' ' ')" ; shift
           ;;
         -additional-pkgs )
           while [ $# -gt 0 ]
@@ -1404,6 +1416,10 @@ perlHarvester () {
     done | sort | uniq
 }
 
+provide2package () {
+  rpm -q --whatprovides --queryformat '%{NAME}\n' "$1"
+}
+
 generateSeedSpec () {
     # Seed system info
     # GL asound odbc java libtcl libtk
@@ -1426,7 +1442,12 @@ generateSeedSpec () {
       seed="$requiredSeeds"
       unsupportedDistribution=false
     fi
-    
+    if [ "X${packagesWithProvides}" = "X" ] ; then packagesWithProvides=libGL ; fi
+    for p in ${packagesWithProvides} ${xProvides}; do
+      for x in $(provide2package "$p") ; do xSeeds="${xSeeds} ${x}" ; done
+    done
+    seed="$(echo ${seed} ${xSeeds} | tr ' ' '\n' | grep -v '^$' | sort | uniq | tr '\n' ' ')"
+
     if $unsupportedDistribution
     then
         echo "WARNING: you are running on an unsupported distribution."
@@ -1509,7 +1530,7 @@ generateSeedSpec () {
                 for p in $missingSeeds; do echo $p; done 1>&2
                 exit 1
           }
-    	  for p in $seed; do
+          for p in $seed; do
               rpm -q $p --provides | sed 's!<*=.*!!; s!^!Provides: !' || true
               rpm -q $p --list | fgrep .so | fgrep -v -e /lib/. -e /lib64/. | sed 's!^.*/!Provides: !' || true
               rpm -q $p --list | fgrep /bin/ | sed 's!^!Provides: !' || true
