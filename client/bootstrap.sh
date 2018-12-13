@@ -1442,8 +1442,7 @@ generateSeedSpec () {
       seed="$requiredSeeds"
       unsupportedDistribution=false
     fi
-    if [ "X${packagesWithProvides}" = "X" ] ; then packagesWithProvides=libGL ; fi
-    for p in ${packagesWithProvides} ${xProvides}; do
+    for p in $(eval echo $`cmsos`_packagesWithProvides) ${xProvides}; do
       for x in $(provide2package "$p") ; do xSeeds="${xSeeds} ${x}" ; done
     done
     seed="$(echo ${seed} ${xSeeds} | tr ' ' '\n' | grep -v '^$' | sort | uniq | tr '\n' ' ')"
