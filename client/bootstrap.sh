@@ -1584,11 +1584,20 @@ mkdir -p $DOWNLOAD_DIR
 cd $DOWNLOAD_DIR
 # Get the architecture driver from the web
 driver="$cgi_server/cgi-bin/cmspkg${useDev}/driver/$repository/$cmsplatf?repo_uri=${server_main_dir}"
-echo_n "Downloading driver file..."
+echo_n "Downloading driver file $cmsplatf..."
 download_${download_method} "$driver" $tempdir/$cmsplatf-driver.txt
 [ -f $tempdir/$cmsplatf-driver.txt ] || cleanup_and_exit 1 "Unable to download platform driver: $driver"
 eval `cat $tempdir/$cmsplatf-driver.txt`
-echo "Done."
+echo "Done driver $cmsplatf."
+#Setting up optional drivers
+for arch in $(echo $cmsplatf | sed 's|_[^_]*$||')_common common_$(echo $cmsplatf | sed 's|^[^_]*_||;s|_[^_]*$||')_common ; do
+  driver="$cgi_server/cgi-bin/cmspkg${useDev}/driver/$repository/$arch?repo_uri=${server_main_dir}"
+  echo_n "Downloading driver file $arch ..."
+  download_${download_method} "$driver" $tempdir/$arch-driver.txt || continue
+  [ -f $tempdir/$arch-driver.txt ]
+  eval `cat $tempdir/$arch-driver.txt`
+  echo "Done driver $arch."
+done
 
 cmspkg_opts=""
 cmspkg_debug=""
