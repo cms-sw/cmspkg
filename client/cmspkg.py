@@ -68,7 +68,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-00-28"
+cmspkg_tag   = "V00-00-29"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -505,7 +505,7 @@ class CmsPkg:
   #Read RPM database to get a package size
   def package_size(self, pkg):
     pkg_file = join(rpm_download, pkg)
-    err, out = run_cmd("%s; rpm -qp --queryformat '%%{SIZE}' %s" % (rpm_env, pkg_file))
+    err, out = run_cmd("%s; rpm -qip  %s | grep '^Size\s*:' | awk '{print $3}'"  % (rpm_env, pkg_file))
     st = stat(pkg_file)
     return st.st_size, int(out)
 
