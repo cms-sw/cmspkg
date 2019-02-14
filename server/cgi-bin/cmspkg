@@ -24,7 +24,7 @@ ReArch      = '[a-zA-Z0-9]+_[a-zA-Z0-9]+_[a-zA-Z0-9]+'
 ReRepo      = '[a-zA-Z0-9_-]+((\.[a-zA-Z0-9_-]+)+|)'
 ReHash      = '[0-9a-f]{32}'
 ReRepoHash  = '(apt|[0-9a-f]{64})'
-ReSrcName   = '[a-zA-Z0-9._-]+'
+ReSrcName   = '[+a-zA-Z0-9._-]+'
 RePkgName   = '(cms|lcg|external)[+][a-zA-Z0-9_-]+[+][a-zA-Z0-9._-]+[.]rpm'
 ReOtherName = '(cmsos|bootstrap.sh|README.md|WEB/[0-9a-zA-Z._/-]+)'
 
