@@ -34,6 +34,7 @@ resource. The above is equivalent to:
         "architecture"  => "slc6_amd64_gcc530",
         "server"        => "cmsrep.cern.ch",
         "repository"    => "cms",
+        "bootstrap_opts"=> "-additional-provides libGL",
       }]
     }
 
@@ -45,6 +46,7 @@ Available options for `install_options` property are:
  - **repository**: `cmspkg` repository from which RPMs are downloaded. Default is `cms`.
  - **dist_clean**: If set (any value) then `cmspkg` will also cleanup/remove any unused package. Default is to not remove the packages not used by any other package.
  - **package_clean**: If set (any value) then `cmspkg` will force delete the package directory i.e. `prefix/architecture/group/name/version` after the package removal. Defaultis to not remove package directory.
+ - **bootstrap_opts**: If set (any value) then these will be passed to bootstrap script.
 
 ### Installing multiple packages
 
@@ -107,5 +109,6 @@ A complete example of a puppet manifest which works is:
         "user"           => "someuser",
         "architecture"   => "slc6_amd64_gcc530",
         "server"         => "cmsrep.cern.ch",
+        "bootstrap_opts" => "-additional-provides libGL,libaio",
       }]
     }

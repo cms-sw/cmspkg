@@ -43,6 +43,10 @@ Puppet::Type.type(:package).provide :cmspkg, :parent => Puppet::Provider::Packag
     return "false"
   end
 
+  def self.default_bootstrap_opts
+    return ""
+  end
+
   def get_install_options
     opts = {}
     if @resource[:install_options].is_a?(Array)
@@ -57,6 +61,7 @@ Puppet::Type.type(:package).provide :cmspkg, :parent => Puppet::Provider::Packag
     opts["repository"]     = (opts["repository"]   or self.class.default_repository)
     opts["server"]         = (opts["server"]       or self.class.default_server)
     opts["architecture"]   = (opts["architecture"] or self.class.default_architecture)
+    opts["bootstrap_opts"] = (opts["bootstrap_opts"] or self.class.default_bootstrap_opts)
     opts["name"], overwrite_architecture = @resource[:name].split "/"
     opts["architecture"] = (overwrite_architecture and overwrite_architecture or opts["architecture"])
     return opts
@@ -91,7 +96,7 @@ Puppet::Type.type(:package).provide :cmspkg, :parent => Puppet::Provider::Packag
     Puppet.debug("cmspkg setup completed")
   end
 
-  def bootstrap(architecture, prefix, user, repository, server)
+  def bootstrap(architecture, prefix, user, repository, server, bootstrap_opts)
     begin
       if self.class.bootstrapped?(architecture, prefix)
         execute ["chown","-R", user, File.join([prefix, architecture , "var/lib/rpm"])]
@@ -120,7 +125,8 @@ Puppet::Type.type(:package).provide :cmspkg, :parent => Puppet::Provider::Packag
                "-arch", architecture,
                "-server", server,
                "-repository", repository,
-               "-assume-yes"]
+               "-assume-yes",
+               bootstrap_opts]
       Puppet.debug("Bootstrap completed")
     rescue Exception => e
       Puppet.warning "Unable to create / find installation area. Please check your install_options."
@@ -130,7 +136,7 @@ Puppet::Type.type(:package).provide :cmspkg, :parent => Puppet::Provider::Packag
 
   def install
     opts = self.get_install_options
-    bootstrap(opts["architecture"], opts["prefix"], opts["user"], opts["repository"], opts["server"])
+    bootstrap(opts["architecture"], opts["prefix"], opts["user"], opts["repository"], opts["server"], opts["bootstrap_opts"])
     cmspkg_cmd = opts["prefix"]+"/common/cmspkg -a "+opts["architecture"]
     cmd = "sudo -u "+opts["user"]+" bash -c '#{cmspkg_cmd} -y upgrade && #{cmspkg_cmd} update && #{cmspkg_cmd} -y install "+opts["name"]+" 2>&1'"
     Puppet.debug("Installing "+opts["name"]+" for "+opts["architecture"])
@@ -144,7 +150,7 @@ Puppet::Type.type(:package).provide :cmspkg, :parent => Puppet::Provider::Packag
 
   def uninstall
     opts = self.get_install_options
-    bootstrap(opts["architecture"], opts["prefix"], opts["user"], opts["repository"], opts["server"])
+    bootstrap(opts["architecture"], opts["prefix"], opts["user"], opts["repository"], opts["server"], opts["bootstrap_opts"])
     dist_clean = ""
     pack_clean = ""
     if opts.key?("dist_clean")
@@ -169,7 +175,7 @@ Puppet::Type.type(:package).provide :cmspkg, :parent => Puppet::Provider::Packag
     opts = self.get_install_options
     Puppet.debug "Query invoked with "+opts["prefix"]+" "+opts["architecture"]+" "+opts["user"]+" "+opts["name"]
     group, package, version = opts["name"].split "+"
-    bootstrap(opts["architecture"], opts["prefix"], opts["user"], opts["repository"], opts["server"])
+    bootstrap(opts["architecture"], opts["prefix"], opts["user"], opts["repository"], opts["server"], opts["bootstrap_opts"])
     existance = File.exists? File.join([opts["prefix"], opts["architecture"], group, package,
                     version, "etc", "profile.d", "init.sh"])
     if not existance
