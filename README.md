@@ -144,3 +144,6 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 
 ### V00-00-29:
  - @mrodozov 2019-01-25: Use RPM query info package to get size of the package. Using --queryformat %SIZE fails for size over 4GB
+
+### V00-00-30:
+ - @smuzaffar 2019-03-18: Do not create lock for download command.

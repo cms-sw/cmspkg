@@ -68,7 +68,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-00-29"
+cmspkg_tag   = "V00-00-30"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -1046,10 +1046,12 @@ def process(args, opt, cache_dir):
   if err:
     cmspkg_print("Error: You do not have write permission for installation area %s" % opts.install_prefix)
     exit(1)
-  lock = cmsLock(cache_dir)
-  if not lock:
-    cmspkg_print("Error: Unable to obtain lock, there is already a process running")
-    return
+  lock = None
+  if args[0] not in ["download"]:
+    lock = cmsLock(cache_dir)
+    if not lock:
+      cmspkg_print("Error: Unable to obtain lock, there is already a process running")
+      return
 
   if True:
     repo = CmsPkg(opt.jobs)
