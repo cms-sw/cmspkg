@@ -1550,13 +1550,36 @@ generateSeedSpec () {
 seed ()
 {
     rcfile=$1
-    cd $importTmp
-    (source $rootdir/bootstraptmp/BOOTSTRAP/inst/$cmsplatf/external/rpm/$rpm_version/etc/profile.d/init.sh
+    pushd $importTmp
+    init_file=$rootdir/bootstraptmp/BOOTSTRAP/inst/$cmsplatf/external/rpm/$rpm_version/etc/profile.d/init.sh
+    if [ "$command" = "reseed" ] ; then
+      init_file=$rootdir/$cmsplatf/external/rpm/$rpm_version/etc/profile.d/init.sh
+    fi
+    (source $init_file
      rpmbuild -ba --define "_topdir $PWD" --rcfile $rcfile system-base-import.spec >/dev/null 2>&1
      [ "X$verbose" = Xtrue ] && echo && echo "...Seeding database in in $rootdir/$rpmdb"
      rpm --define "_rpmlock_path $rpmlock" -U -r $rootdir --rcfile $rcfile --dbpath $rootdir/$rpmdb RPMS/system-base-import.rpm
     ) || cleanup_and_exit $? "Error while seeding rpm database with system packages."
-    cd $was
+    popd
+}
+
+get_driver() {
+# Get the architecture driver from the web
+driver="$cgi_server/cgi-bin/cmspkg${useDev}/driver/$repository/$cmsplatf?repo_uri=${server_main_dir}"
+echo_n "Downloading driver file $cmsplatf..."
+download_${download_method} "$driver" $tempdir/$cmsplatf-driver.txt
+[ -f $tempdir/$cmsplatf-driver.txt ] || cleanup_and_exit 1 "Unable to download platform driver: $driver"
+eval `cat $tempdir/$cmsplatf-driver.txt`
+echo "Done driver $cmsplatf."
+#Setting up optional drivers
+for arch in $(echo $cmsplatf | sed 's|_[^_]*$||')_common common_$(echo $cmsplatf | sed 's|^[^_]*_||;s|_[^_]*$||')_common ; do
+  driver="$cgi_server/cgi-bin/cmspkg${useDev}/driver/$repository/$arch?repo_uri=${server_main_dir}"
+  echo_n "Downloading driver file $arch ..."
+  download_${download_method} "$driver" $tempdir/$arch-driver.txt || continue
+  [ -f $tempdir/$arch-driver.txt ]
+  eval `cat $tempdir/$arch-driver.txt`
+  echo "Done driver $arch."
+done
 }
 
 setup() {
@@ -1581,22 +1604,7 @@ fi
 export DOWNLOAD_DIR=$rootdir/bootstraptmp/BOOTSTRAP
 mkdir -p $DOWNLOAD_DIR
 cd $DOWNLOAD_DIR
-# Get the architecture driver from the web
-driver="$cgi_server/cgi-bin/cmspkg${useDev}/driver/$repository/$cmsplatf?repo_uri=${server_main_dir}"
-echo_n "Downloading driver file $cmsplatf..."
-download_${download_method} "$driver" $tempdir/$cmsplatf-driver.txt
-[ -f $tempdir/$cmsplatf-driver.txt ] || cleanup_and_exit 1 "Unable to download platform driver: $driver"
-eval `cat $tempdir/$cmsplatf-driver.txt`
-echo "Done driver $cmsplatf."
-#Setting up optional drivers
-for arch in $(echo $cmsplatf | sed 's|_[^_]*$||')_common common_$(echo $cmsplatf | sed 's|^[^_]*_||;s|_[^_]*$||')_common ; do
-  driver="$cgi_server/cgi-bin/cmspkg${useDev}/driver/$repository/$arch?repo_uri=${server_main_dir}"
-  echo_n "Downloading driver file $arch ..."
-  download_${download_method} "$driver" $tempdir/$arch-driver.txt || continue
-  [ -f $tempdir/$arch-driver.txt ]
-  eval `cat $tempdir/$arch-driver.txt`
-  echo "Done driver $arch."
-done
+get_driver
 
 cmspkg_opts=""
 cmspkg_debug=""
@@ -1785,6 +1793,7 @@ case $command in
         setup 
         ;;
     reseed )
+        get_driver
         generateSeedSpec
         seed $rootdir/$cmsplatf/external/rpm/$rpm_version/lib/rpm/rpmrc 
         ;;
