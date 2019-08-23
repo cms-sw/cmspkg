@@ -153,3 +153,6 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 
 ### V00-00-32:
  - @smuzaffar 2019-08-23: Do not fail if optional files not found.
+
+### V00-00-33:
+ - @smuzaffar 2019-08-23: Make use of new optional parameter to check for optional files.

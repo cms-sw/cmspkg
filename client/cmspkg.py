@@ -68,7 +68,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-00-32"
+cmspkg_tag   = "V00-00-33"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -198,13 +198,14 @@ def set_get_cmd():
   exit(1)
 
 def download_file_if_changed(uri, ofile, optional=False):
-  err, out = fetch_url({'uri': uri, 'info':1}, exit_on_error=not optional)
-  if optional and err:
-    print_msg("Optional file not available on server: " + uri, "DEBUG")
-    return
+  uri_data = {'uri': uri, 'info':1}
+  if optional: uri_data['optional']=1
+  err, out = fetch_url(uri_data)
   reply = json.loads(out)
   check_server_reply(reply)
   if (not 'size' in reply) or (not 'sha' in reply):
+    if optional and (('information' in reply) and ('Unable to find the file:' in reply['information'])):
+      return
     cmspkg_print("Error: Server error: unable to find size/checksum of file: %s" % uri)
     exit(1)
   if exists (ofile) and verify_download(ofile, reply['size'], reply['sha'], debug=False): return True
