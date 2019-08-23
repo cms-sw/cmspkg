@@ -147,3 +147,9 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 
 ### V00-00-30:
  - @smuzaffar 2019-03-18: Do not create lock for download command.
+
+### V00-00-31:
+ - @smuzaffar 2019-08-23: Update clone to copy common driver files
+
+### V00-00-32:
+ - @smuzaffar 2019-08-23: Do not fail if optional files not found.
