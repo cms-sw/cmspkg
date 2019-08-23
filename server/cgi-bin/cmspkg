@@ -16,6 +16,7 @@ debug_msg = []
 warn_msg = []
 info_msg = []
 debug = False
+optional = False
 search_depth = 0
 useDev = ""
 
@@ -196,6 +197,7 @@ def check_request(req):
     'version'    : '^V\d\d-\d\d-\d\d$',
     'info'   : '^1$',
     'debug'  : '^1$',
+    'optional':'^1$',
     'size'   : '^1$',
     'sha'    : '^1$',
     'ping'   : '^1$',
@@ -291,7 +293,11 @@ def file_search_result(rfile, name):
   if debug: debug_msg.append("Found file/package: %s" % rfile)
   if debug: debug_msg.append("Search depth: %s" % str(search_depth))
   if not rfile:
-    error_msg("Unable to find the file: %s" % (name))
+    msg = "Unable to find the file: %s" % (name)
+    if optional:
+      info_msg.append(msg)
+      return_json({})   
+    error_msg(msg)
   if ('info' in req) or ('size' in req) or ('sha' in req):
     return_json(get_file_info(rfile, name))
   else:
@@ -390,6 +396,7 @@ if 'ping' in req:
   print "Content-type: text/plain\n\nCMSPKG OK"
   sys.exit(0)
 if 'debug' in req: debug=True
+if 'optional' in req: optional= True
 if 'repo_uri' in req:
   repo_uri=req.getvalue('repo_uri')
 else:
