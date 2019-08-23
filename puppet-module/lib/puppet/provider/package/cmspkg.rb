@@ -44,6 +44,10 @@ Puppet::Type.type(:package).provide :cmspkg, :parent => Puppet::Provider::Packag
   end
 
   def self.default_bootstrap_opts
+    return []
+  end
+
+  def self.default_reseed
     return ""
   end
 
@@ -62,6 +66,7 @@ Puppet::Type.type(:package).provide :cmspkg, :parent => Puppet::Provider::Packag
     opts["server"]         = (opts["server"]       or self.class.default_server)
     opts["architecture"]   = (opts["architecture"] or self.class.default_architecture)
     opts["bootstrap_opts"] = (opts["bootstrap_opts"] or self.class.default_bootstrap_opts)
+    opts["reseed"]         = (opts["reseed"]         or self.class.default_reseed)
     opts["name"], overwrite_architecture = @resource[:name].split "/"
     opts["architecture"] = (overwrite_architecture and overwrite_architecture or opts["architecture"])
     return opts
@@ -94,6 +99,36 @@ Puppet::Type.type(:package).provide :cmspkg, :parent => Puppet::Provider::Packag
              "--repository", repository,
              "setup"]
     Puppet.debug("cmspkg setup completed")
+  end
+
+  def reseed(architecture, prefix, user, repository, server, bootstrap_opts, reseed_value)
+    begin
+      reseed_file = File.join([prefix, "bootstrap-reseed-#{reseed_value}"])
+      Puppet.debug("Checking reseed #{reseed_file}.")
+      if File.exists? reseed_file
+        return
+      end
+      Puppet.debug("Fetching bootstrap from #{repository}")
+      execute ["sudo", "-u", user,
+               "wget", "--no-check-certificate", "-O",
+               File.join([prefix, "bootstrap-#{architecture}.sh"]),
+               "#{server}/cmssw/repos/bootstrap.sh"]
+      Puppet.debug("Reseeding bootstrap area..")
+      execute ["sudo", "-u", user,
+               "sh", "-x", File.join([prefix, "bootstrap-#{architecture}.sh"]),
+               "reseed",
+               "-path", prefix,
+               "-arch", architecture,
+               "-server", server,
+               "-repository", repository,
+               "-assume-yes",
+               bootstrap_opts]
+      execute ["sudo", "-u", user, "touch", "#{reseed_file}"]
+      Puppet.debug("Reseed completed")
+    rescue Exception => e
+      Puppet.warning "Unable to create / find installation area. Please check your install_options."
+      raise e
+    end
   end
 
   def bootstrap(architecture, prefix, user, repository, server, bootstrap_opts)
@@ -137,6 +172,9 @@ Puppet::Type.type(:package).provide :cmspkg, :parent => Puppet::Provider::Packag
   def install
     opts = self.get_install_options
     bootstrap(opts["architecture"], opts["prefix"], opts["user"], opts["repository"], opts["server"], opts["bootstrap_opts"])
+    if opts["reseed"] != ""
+      reseed(opts["architecture"], opts["prefix"], opts["user"], opts["repository"], opts["server"], opts["bootstrap_opts"], opts["reseed"])
+    end
     cmspkg_cmd = opts["prefix"]+"/common/cmspkg -a "+opts["architecture"]
     cmd = "sudo -u "+opts["user"]+" bash -c '#{cmspkg_cmd} -y upgrade && #{cmspkg_cmd} update && #{cmspkg_cmd} -y install "+opts["name"]+" 2>&1'"
     Puppet.debug("Installing "+opts["name"]+" for "+opts["architecture"])

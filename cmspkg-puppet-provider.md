@@ -34,7 +34,8 @@ resource. The above is equivalent to:
         "architecture"  => "slc6_amd64_gcc530",
         "server"        => "cmsrep.cern.ch",
         "repository"    => "cms",
-        "bootstrap_opts"=> "-additional-provides libGL",
+        "bootstrap_opts"=> ["-additional-provides", "libGL"],
+        "reseed"        => "",
       }]
     }
 
@@ -47,6 +48,7 @@ Available options for `install_options` property are:
  - **dist_clean**: If set (any value) then `cmspkg` will also cleanup/remove any unused package. Default is to not remove the packages not used by any other package.
  - **package_clean**: If set (any value) then `cmspkg` will force delete the package directory i.e. `prefix/architecture/group/name/version` after the package removal. Defaultis to not remove package directory.
  - **bootstrap_opts**: If set (any value) then these will be passed to bootstrap script.
+ - **reseed**: Run bootstrap reseeding once. Set it to some unique value e.g timestamp to trigger the reseeding. Reseeing is run once per value so change its value in order to re-run reseeding.
 
 ### Installing multiple packages
 
@@ -109,6 +111,6 @@ A complete example of a puppet manifest which works is:
         "user"           => "someuser",
         "architecture"   => "slc6_amd64_gcc530",
         "server"         => "cmsrep.cern.ch",
-        "bootstrap_opts" => "-additional-provides libGL,libaio",
+        "bootstrap_opts" => ["-additional-provides", "libGL,libaio"],
       }]
     }
