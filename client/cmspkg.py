@@ -198,13 +198,11 @@ def set_get_cmd():
   exit(1)
 
 def download_file_if_changed(uri, ofile, optional=False):
-  err, out = fetch_url({'uri': uri, 'info':1})
-  reply = json.loads(out)
-  if optional and (('error' in reply) and ('Unable to find the file:' in reply['error'])):
-    reply['warning']="Optional file not available on server: " + uri
-    del reply['error']
-    check_server_reply(reply)
+  err, out = fetch_url({'uri': uri, 'info':1}, exit_on_error=not optional)
+  if optional and err:
+    print_msg("Optional file not available on server: " + uri, "DEBUG")
     return
+  reply = json.loads(out)
   check_server_reply(reply)
   if (not 'size' in reply) or (not 'sha' in reply):
     cmspkg_print("Error: Server error: unable to find size/checksum of file: %s" % uri)
