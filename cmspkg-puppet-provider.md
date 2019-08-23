@@ -34,7 +34,7 @@ resource. The above is equivalent to:
         "architecture"  => "slc6_amd64_gcc530",
         "server"        => "cmsrep.cern.ch",
         "repository"    => "cms",
-        "bootstrap_opts"=> ["-additional-provides", "libGL"],
+        "bootstrap_opts"=> [],
         "reseed"        => "",
       }]
     }
@@ -112,5 +112,6 @@ A complete example of a puppet manifest which works is:
         "architecture"   => "slc6_amd64_gcc530",
         "server"         => "cmsrep.cern.ch",
         "bootstrap_opts" => ["-additional-provides", "libGL,libaio"],
+        "reseed"         => "",
       }]
     }
