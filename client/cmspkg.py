@@ -68,7 +68,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-00-30"
+cmspkg_tag   = "V00-00-31"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -197,9 +197,14 @@ def set_get_cmd():
   cmspkg_print(" "+"\n  ".join([x[0] for x in getcmds]))
   exit(1)
 
-def download_file_if_changed(uri, ofile):
+def download_file_if_changed(uri, ofile, optional=False):
   err, out = fetch_url({'uri': uri, 'info':1})
   reply = json.loads(out)
+  if optional and (('error' in reply) and ('Unable to find the file:' in reply['error'])):
+    reply['warning']="Optional file not available on server: " + uri
+    del reply['error']
+    check_server_reply(reply)
+    return
   check_server_reply(reply)
   if (not 'size' in reply) or (not 'sha' in reply):
     cmspkg_print("Error: Server error: unable to find size/checksum of file: %s" % uri)
@@ -794,7 +799,15 @@ class CmsPkg:
     for sfile in ["cmsos"]:
       download_file_if_changed('file/%s/%s/%s' % (opts.repository, opts.architecture, sfile), join(repo_dir, sfile))
     #download the driver file
-    download_file_if_changed('driver/%s/%s' % (opts.repository, opts.architecture), join(driver_dir, opts.architecture+"-driver.txt"))
+    aitems = opts.architecture.split("_")
+    driver_arch = opts.architecture
+    download_file_if_changed('driver/%s/%s' % (opts.repository, driver_arch), join(driver_dir, driver_arch+"-driver.txt"))
+    aitems[-1] = "common"
+    driver_arch = "_".join(aitems)
+    download_file_if_changed('driver/%s/%s' % (opts.repository, driver_arch), join(driver_dir, driver_arch+"-driver.txt"), optional=True)
+    aitems[-2] = "common"
+    driver_arch = "_".join(aitems)
+    download_file_if_changed('driver/%s/%s' % (opts.repository, driver_arch), join(driver_dir, driver_arch+"-driver.txt"), optional=True)
     #Read existsing package cache
     clone_cache_file = trans_dir+".json"
     clone_cache = {}
