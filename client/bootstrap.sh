@@ -1556,7 +1556,8 @@ seed ()
       init_file=$rootdir/$cmsplatf/external/rpm/$rpm_version/etc/profile.d/init.sh
     fi
     (source $init_file
-     rpmbuild -ba --define "_topdir $PWD" --rcfile $rcfile system-base-import.spec >/dev/null 2>&1
+     rm -rf $tempdir/BUILDROOT && mkdir -p $tempdir/BUILDROOT
+     rpmbuild -ba --define "_topdir $PWD" --rcfile $rcfile --buildroot $tempdir/BUILDROOT system-base-import.spec >/dev/null 2>&1
      [ "X$verbose" = Xtrue ] && echo && echo "...Seeding database in in $rootdir/$rpmdb"
      rpm --define "_rpmlock_path $rpmlock" -U -r $rootdir --rcfile $rcfile --dbpath $rootdir/$rpmdb RPMS/system-base-import.rpm
     ) || cleanup_and_exit $? "Error while seeding rpm database with system packages."
