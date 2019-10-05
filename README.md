@@ -156,3 +156,6 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 
 ### V00-00-33:
  - @smuzaffar 2019-08-23: Make use of new optional parameter to check for optional files.
+
+### V00-00-34:
+ - @smuzaffar 2019-10-05: Python3 fix, use cmspkg_print
