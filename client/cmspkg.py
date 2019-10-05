@@ -1165,9 +1165,9 @@ if __name__ == '__main__':
   if not opts.server_path: opts.server, opts.server_path = get_server_paths (opts.server)
 
   if args[0]=="repository":
-    print "Server:",opts.server
-    print "Repository:",opts.repository
-    print "ServerPath:",opts.server_path
+    cmspkg_print("Server: %s" % opts.server)
+    cmspkg_print("Repository: %s" % opts.repository)
+    cmspkg_print("ServerPath: %s" % opts.server_path)
     exit (0)
   cmspkg_local_dir = join(opts.install_prefix, opts.architecture, 'var/cmspkg')
   if not args[0] in ["clone", "download", "setup"]:
