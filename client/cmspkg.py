@@ -68,7 +68,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-00-34"
+cmspkg_tag   = "V00-00-35"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -648,6 +648,7 @@ class CmsPkg:
     makedirs(join(rpm_download,rpm_partial),True)
 
     #download the package
+    stime = time()
     if not self.downloader.run([pk]): exit(1)
     deps={}
     npkgs = []
@@ -678,6 +679,8 @@ class CmsPkg:
       size_compress += s1
       size_uncompress += s2
       pkg_to_install += "  "+d
+    if self.downloader.counter>0:
+      cmspkg_print("TIME: Downlaod: %s secs for %s packages" % (time()-stime, self.downloader.counter))
     cmspkg_print("Downloaded %s of archives." % human_readable_size(size_compress))
     cmspkg_print( "After unpacking %s of additional disk space will be used." % human_readable_size(size_uncompress))
     ex_opts  = ['-U', '-v', '-h', '-r %s' % opts.install_prefix, '--prefix %s' % opts.install_prefix, '--force', '--ignoreos', '--ignorearch', '--oldpackage']
@@ -688,11 +691,13 @@ class CmsPkg:
     cmd = "cd %s && %s %s" %(rpm_download, rcmd,  pkg_to_install)
 
     #Install the nwly downloaded packages(s)
+    stime = time()
     if syscall(cmd)>0: exit(1)
     self.update_rpm_cache(True)
     if package in self.rpm_cache:
       package_installed(package)
       self.clean()
+    cmspkg_print("TIME: Install: %s secs for %s packages" % (time()-stime, self.downloader.counter))
     return
 
   #print the packages name which matched the pkg_search pattren. 

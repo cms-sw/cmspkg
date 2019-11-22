@@ -1559,7 +1559,7 @@ seed ()
      rm -rf $tempdir/BUILDROOT && mkdir -p $tempdir/BUILDROOT
      rpmbuild -ba --define "_topdir $PWD" --rcfile $rcfile --buildroot $tempdir/BUILDROOT system-base-import.spec >/dev/null 2>&1
      [ "X$verbose" = Xtrue ] && echo && echo "...Seeding database in in $rootdir/$rpmdb"
-     rpm --define "_rpmlock_path $rpmlock" -U -r $rootdir --rcfile $rcfile --dbpath $rootdir/$rpmdb RPMS/system-base-import.rpm
+     rpm --define "_rpmlock_path $rpmlock" -U --ignoresize -r $rootdir --rcfile $rcfile --dbpath $rootdir/$rpmdb RPMS/system-base-import.rpm
     ) || cleanup_and_exit $? "Error while seeding rpm database with system packages."
     popd
 }
@@ -1771,14 +1771,14 @@ echo "Done."
 echo_n "Installing packages in the local rpm database..."
 for pkg in $packageList
 do
-    rpm -U $forceOption --define "_rpmlock_path $rpmlock" $rpmOptions $DOWNLOAD_DIR/$pkg || cleanup_and_exit 1 "Error while installing $pkg. Exiting."
+    rpm -U $forceOption --ignoresize --define "_rpmlock_path $rpmlock" $rpmOptions $DOWNLOAD_DIR/$pkg || cleanup_and_exit 1 "Error while installing $pkg. Exiting."
 done
 echo "Done"
 
 $tempdir/$CMSPKG_SCRIPT --path $rootdir setup
 echo_n "Installing default packages."
 defaultPackages="$additionalPkgs $defaultPkgs"
-[ "X$defaultPackages" = X ] || $rootdir/common/cmspkg ${cmspkg_debug} --architecture $cmsplatf -f install $defaultPackages >$tempdir/apt-get-install.log 2>&1 || (cat $tempdir/apt-get-install.log  && cleanup_and_exit 1 "There was a problem while installing the default packages ")
+[ "X$defaultPackages" = X ] || $rootdir/common/cmspkg ${cmspkg_debug} --architecture $cmsplatf --ignore-size -f install $defaultPackages >$tempdir/apt-get-install.log 2>&1 || (cat $tempdir/apt-get-install.log  && cleanup_and_exit 1 "There was a problem while installing the default packages ")
 [ "X$debug" = "Xtrue" ] && cat $tempdir/apt-get-install.log
 echo "Done"
 
