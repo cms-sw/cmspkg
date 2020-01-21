@@ -68,7 +68,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-00-35"
+cmspkg_tag   = "V00-00-36"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -671,14 +671,15 @@ class CmsPkg:
     if (not force) and (pkg_len>1): ask_user_to_continue("Continue installation (Y/n): ")
 
     #download all the dependencies of the package
-    self.download_deps (sorted(deps), deps)
     pkg_to_install = pk[1]
     size_compress, size_uncompress = self.package_size (pk[1])
-    for d in [p[1] for p in deps.values() if p]:
-      s1, s2 = self.package_size(d)
-      size_compress += s1
-      size_uncompress += s2
-      pkg_to_install += "  "+d
+    if not opts.installOnly:
+      self.download_deps (sorted(deps), deps)
+      for d in [p[1] for p in deps.values() if p]:
+        s1, s2 = self.package_size(d)
+        size_compress += s1
+        size_uncompress += s2
+        pkg_to_install += "  "+d
     if self.downloader.counter>0:
       cmspkg_print("TIME: Downlaod: %s secs for %s packages" % (time()-stime, self.downloader.counter))
     cmspkg_print("Downloaded %s of archives." % human_readable_size(size_compress))
@@ -1156,12 +1157,14 @@ if __name__ == '__main__':
   parser.add_option("-c", "--dist-clean",  dest="dist_clean",   action="store_true", default=False,   help="Only used with 'remove' command to do the distribution cleanup after the package removal.")
   parser.add_option("-D", "--delete-dir",  dest="delete_directory",action="store_true",default=False, help="Only used with 'remove/dist_clean' command to do cleanup the package install directory.")
   parser.add_option("-o", "--download-options",  dest="download_options", default=None,          help="Extra options to pass to wget/curl.")
+  parser.add_option("--install-only",      dest="installOnly",  action="store_true", default=False, help="Only install the packages without their dependencies.")
 
   opts, args = parser.parse_args()
   if opts.version:
     cmspkg_print(cmspkg_tag)
     exit(0)
   if len(args) == 0: parser.error("Too few arguments")
+  if opts.installOnly: opts.Add_Options.append('--nodeps')
   if not opts.architecture: parser.error("Missing architecture string")
   if not opts.server: parser.error("Missing repository server name")
   if not opts.repository: parser.error("Missing repository name")
