@@ -159,3 +159,12 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 
 ### V00-00-34:
  - @smuzaffar 2019-10-05: Python3 fix, use cmspkg_print
+
+### V00-00-35:
+ - @smuzaffar 2019-11-22: Ignore size checks for installing releases.
+
+### V00-00-36:
+ - @smuzaffar 2020-01-21: New --install-only option to install package without its dependencies
+
+### V00-00-37:
+ - @smuzaffar 2020-01-23: Fixed some typos
