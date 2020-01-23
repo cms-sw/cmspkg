@@ -68,7 +68,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-00-36"
+cmspkg_tag   = "V00-00-37"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -594,7 +594,7 @@ class CmsPkg:
   def package_data(self, name, reinstall=False):
     if (name in self.rpm_cache) and (not reinstall): return None
     if not name in self.cache.packs:
-      cmspkg_print("Error: unknown pakcage: %s" % name)
+      cmspkg_print("Error: unknown package: %s" % name)
       exit(1)
     return self.cache.packs[name][self.latest_revision(name)]
 
@@ -633,7 +633,7 @@ class CmsPkg:
       self.cache = pkgCache()
     #Error is unknow package
     if not package in self.cache.packs:
-      cmspkg_print("error: unknown pakcage: %s" % package)
+      cmspkg_print("error: unknown package: %s" % package)
       exit(1)
 
     #Read rpm database
@@ -777,7 +777,7 @@ class CmsPkg:
     makedirs(join(rpm_download,rpm_partial),True)
     if package.endswith('.rpm'): package = rpm2package (package, opts.architecture)
     if not package in self.cache.packs:
-      cmspkg_print("error: unknown pakcage: %s" % package)
+      cmspkg_print("error: unknown package: %s" % package)
       exit(1)
     pk = self.cache.packs[package][self.latest_revision(package)]
     if not self.downloader.run([pk]): exit(1)
