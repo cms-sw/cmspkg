@@ -1247,6 +1247,7 @@ rootdir=$(pwd)
 testInstance=false
 xSeeds=""
 xProvides=""
+xSeedsRemove=""
 
 while [ $# -gt 0 ]; do
   case $1 in
@@ -1328,6 +1329,11 @@ while [ $# -gt 0 ]; do
           [ $# -gt 1 ] || cleanup_and_exit 1 "Option \`$1' requires at lease one argument"
           shift
           xSeeds="${xSeeds} $(echo $1 | tr ',' ' ')" ; shift
+          ;;
+        -remove-seed )
+          [ $# -gt 1 ] || cleanup_and_exit 1 "Option \`$1' requires at lease one argument"
+          shift
+          xSeedsRemove="${xSeedsRemove} $(echo $1 | tr ',' ' ')" ; shift
           ;;
         -additional-provides )
           [ $# -gt 1 ] || cleanup_and_exit 1 "Option \`$1' requires at lease one argument"
@@ -1446,6 +1452,10 @@ generateSeedSpec () {
       for x in $(provide2package "$p") ; do xSeeds="${xSeeds} ${x}" ; done
     done
     seed="$(echo ${seed} ${xSeeds} | tr ' ' '\n' | grep -v '^$' | sort | uniq | tr '\n' ' ')"
+    if [ "${xSeedsRemove}" ] ; then
+      xSeedsRemove="^\\($(echo $xSeedsRemove | sed 's/  */\\|/g')\)\$"
+      seed=$(echo $seed | tr ' ' '\n' | grep -v "${xSeedsRemove}" | tr '\n' ' ')
+    fi
 
     if $unsupportedDistribution
     then
@@ -1520,7 +1530,7 @@ generateSeedSpec () {
       then
     	  [ "X$verbose" = Xtrue ] && echo && echo "...rpm found in $(which rpm), using it to seed the database." >&2
           missingSeeds=""
-          for p in $requiredSeeds; do 
+          for p in $seed; do
               rpm -q $p >/dev/null || missingSeeds="$missingSeeds $p"
           done
           [ "$missingSeeds" ] && {
