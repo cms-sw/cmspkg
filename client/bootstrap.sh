@@ -1426,6 +1426,21 @@ provide2package () {
   rpm -q --whatprovides --queryformat '%{NAME}\n' "$1"
 }
 
+checkPackage_DPKG () {
+    [ "$(dpkg -L $1 2>&1 | grep 'is not installed')" = "" ] && return 0
+    return 0
+}
+
+checkPackage_RPM () {
+    rpm -q $1 >/dev/null 2>&1
+}
+
+checkPackage () {
+    for p in $(echo $1 | tr '|' ' '); do
+        if checkPackage_$2 $p >/dev/null 2>&1 ; then echo $p ; return 0; fi
+    done
+}
+
 generateSeedSpec () {
     # Seed system info
     # GL asound odbc java libtcl libtk
@@ -1451,10 +1466,10 @@ generateSeedSpec () {
     for p in $(eval echo $`cmsos`_packagesWithProvides) ${xProvides}; do
       for x in $(provide2package "$p") ; do xSeeds="${xSeeds} ${x}" ; done
     done
-    seed="$(echo ${seed} ${xSeeds} | tr ' ' '\n' | grep -v '^$' | sort | uniq | tr '\n' ' ')"
+    seed="$(echo "${seed} ${xSeeds}" | tr ' ' '\n' | grep -v '^$' | sort | uniq | tr '\n' ' ')"
     if [ "${xSeedsRemove}" ] ; then
       xSeedsRemove="^\\($(echo $xSeedsRemove | sed 's/  */\\|/g')\)\$"
-      seed=$(echo $seed | tr ' ' '\n' | grep -v "${xSeedsRemove}" | tr '\n' ' ')
+      seed=$(echo "$seed" | tr ' ' '\n' | grep -v "${xSeedsRemove}" | tr '\n' ' ')
     fi
 
     if $unsupportedDistribution
@@ -1514,37 +1529,45 @@ generateSeedSpec () {
         ;;
       esac
 
-      if [ "$(which dpkg 2>&1 | grep 'no dpkg' )" = "" ]
-      then
-    	[ "X$verbose" = Xtrue ] && echo && echo "...dpkg found in $(which dpkg), using it to seed the database." >&2
-    	for p in $seed; do
-    	  if [ "$(dpkg -L $p 2>&1 | grep 'is not installed')" = "" ]; then
-          	  dpkg -L $p 2>/dev/null | sed -e "s|^|Provides:|"
-              dpkg -L $p 2>/dev/null | $rpmFindProvides | sed -e "s|^|Provides:|" || true
-          fi
-    	done
-    	perlHarvester
+      pkgManager=""
+      if [ "$(which dpkg 2>&1 | grep 'no dpkg' )" = "" ] ; then
+          [ "X$verbose" = Xtrue ] && echo && echo "...dpkg found in $(which dpkg), using it to seed the database." >&2
+          pkgManager="DPKG"
+      elif which rpm 2>&1 >/dev/null && [ "$(rpm -qa 2>&1 | grep 'use alien')" = "" ] ; then
+          [ "X$verbose" = Xtrue ] && echo && echo "...rpm found in $(which rpm), using it to seed the database." >&2
+          pkgManager="RPM"
+      else
+          echo 1>&2
+          echo "DPKG or RPM not found." 1>&2
+          exit 1
       fi
-
-      if which rpm 2>&1 >/dev/null && [ "$(rpm -qa 2>&1 | grep 'use alien')" = "" ]
-      then
-    	  [ "X$verbose" = Xtrue ] && echo && echo "...rpm found in $(which rpm), using it to seed the database." >&2
-          missingSeeds=""
-          for p in $seed; do
-              rpm -q $p >/dev/null || missingSeeds="$missingSeeds $p"
-          done
-          [ "$missingSeeds" ] && {
-                echo 1>&2
-                echo "Some required packages are missing:" 1>&2
-                for p in $missingSeeds; do echo $p; done 1>&2
-                exit 1
-          }
-          for p in $seed; do
+      missingSeeds=""
+      selSeeds=""
+      for pp in $seed; do
+          p=$(checkPackage "$pp" ${pkgManager})
+          if [ "$p" = "" ] ; then
+              missingSeeds="$missingSeeds $pp"
+          else
+              selSeeds="${selSeeds} ${p}"
+          fi
+      done
+      if [ "$missingSeeds" ] ; then
+          echo 1>&2
+          echo "Some required packages are missing:" 1>&2
+          echo $missingSeeds 1>&2
+          exit 1
+      fi
+      for p in $(echo ${selSeeds} |  sort | uniq) ; do
+          if [ "$pkgManager" = "DPKG" ] ; then
+              dpkg -L $p 2>/dev/null | sed -e "s|^|Provides:|"
+              dpkg -L $p 2>/dev/null | $rpmFindProvides | sed -e "s|^|Provides:|" || true
+          elif [ "$pkgManager" = "RPM" ] ; then
               rpm -q $p --provides | sed 's!<*=.*!!; s!^!Provides: !' || true
               rpm -q $p --list | fgrep .so | fgrep -v -e /lib/. -e /lib64/. | sed 's!^.*/!Provides: !' || true
               rpm -q $p --list | fgrep /bin/ | sed 's!^!Provides: !' || true
-    	  done
-      fi
+          fi
+      done
+      [ "$pkgManager" = "DPKG" ] && perlHarvester
       echo; echo "%description"; echo "Seeds RPM repository from the base system."
       echo; echo "%prep"; echo "%build"; echo "%install"; echo "%files";
      ) > system-base-import.spec
