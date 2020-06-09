@@ -1248,6 +1248,7 @@ testInstance=false
 xSeeds=""
 xProvides=""
 xSeedsRemove=""
+keep_on_going=false
 
 while [ $# -gt 0 ]; do
   case $1 in
@@ -1257,6 +1258,7 @@ while [ $# -gt 0 ]; do
         reseed )
           command=reseed
           shift;;
+        -k) keep_on_going=true ; shift ;;
         -path|-p )
           [ $# -gt 0 ] || cleanup_and_exit 1 "Option \`$1' requires an argument"
           if [ "$(echo $2 | cut -b 1)" = "/" ]; then
@@ -1463,9 +1465,22 @@ generateSeedSpec () {
       seed="$requiredSeeds"
       unsupportedDistribution=false
     fi
+    ERR=false
     for p in $(eval echo $`cmsos`_packagesWithProvides) ${xProvides}; do
-      for x in $(provide2package "$p") ; do xSeeds="${xSeeds} ${x}" ; done
+      s=$(provide2package "$p") || true
+      if [ "X$s" = "X" ] || [ $(echo "$s" | grep 'no package provides' | wc -l) -gt 0 ]; then
+        additionalProvides="$p ${additionalProvides}"
+        echo "ERROR: Unable to find package to provide '$p'. Software might fail at runtime."
+        if $keep_on_going ; then continue ; fi
+        ERR=true
+      else
+        for x in $s ; do xSeeds="${xSeeds} ${x}" ; done
+      fi
     done
+    if $ERR ; then
+      echo "Use '-k' option to ignore this error and keep on going"
+      exit 1
+    fi
     seed="$(echo "${seed} ${xSeeds}" | tr ' ' '\n' | grep -v '^$' | sort | uniq | tr '\n' ' ')"
     if [ "${xSeedsRemove}" ] ; then
       xSeedsRemove="^\\($(echo $xSeedsRemove | sed 's/  */\\|/g')\)\$"
@@ -1479,7 +1494,6 @@ generateSeedSpec () {
         seed="$seed $unsupportedSeeds"
     fi
 
-    
      rm -rf $importTmp
      mkdir -p $importTmp
      cd $importTmp
