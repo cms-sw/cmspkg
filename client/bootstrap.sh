@@ -1249,7 +1249,7 @@ xSeeds=""
 xProvides=""
 xSeedsRemove=""
 keep_on_going=false
-
+cmspkg_script_path=""
 while [ $# -gt 0 ]; do
   case $1 in
         setup )
@@ -1351,6 +1351,11 @@ while [ $# -gt 0 ]; do
             additionalPkgs="$additionalPkgs $1"
             shift
           done
+          ;;
+        -cmspkg )
+          [ $# -gt 1 ] || cleanup_and_exit 1 "Option \`$1' requires at lease one argument"
+          shift
+          cmspkg_script_path=$1 ; shift
           ;;
         -help|-h )
           cat << \EOF_HELP 
@@ -1659,8 +1664,12 @@ cmspkg_debug=""
 [ "X$debug" = "Xtrue" ] && cmspkg_debug="--debug"
 [ -z $useDev ]          || cmspkg_opts="${cmspkg_opts} --use-dev"
 CMSPKG_SCRIPT="cmspkg.py ${cmspkg_debug} ${cmspkg_opts} --server $cgi_server --server-path $server_main_dir --repository $repository --architecture $cmsplatf"
-cmspkg=$(echo $server | cut -d/ -f1)/${server_main_dir}/repos/cmspkg${useDev}.py
-download_${download_method} $cmspkg $tempdir/cmspkg.py
+if [ "$cmspkg_script_path" ] ; then
+  cp ${cmspkg_script_path} $tempdir/cmspkg.py
+else
+  cmspkg=$(echo $server | cut -d/ -f1)/${server_main_dir}/repos/cmspkg${useDev}.py
+  download_${download_method} $cmspkg $tempdir/cmspkg.py
+fi
 [ -f $tempdir/cmspkg.py ] || cleanup_and_exit 1 "FATAL: Unable to download cmsos: $cmspkg"
 chmod +x $tempdir/cmspkg.py
 echo "Downloading bootstrap core packages..."
