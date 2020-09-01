@@ -10,7 +10,7 @@ ARCH=$2
 DES_REPO=$3
 SRC_REPO=$4
 TMPREPO_BASE=$5
-RSYNC_SOURCES=true
+RSYNC_SOURCES=false
 
 #For debug purposes, Just create a stamp file 
 touch ${TMPREPO_BASE}/running
