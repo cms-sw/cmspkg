@@ -10,6 +10,7 @@ ARCH=$2
 DES_REPO=$3
 SRC_REPO=$4
 TMPREPO_BASE=$5
+RSYNC_SOURCES=true
 
 #For debug purposes, Just create a stamp file 
 touch ${TMPREPO_BASE}/running
@@ -86,26 +87,28 @@ elif [ "${NEW_STYLE_SRC_REPO}" = "YES" ] ; then
     #First create hard-links for every thing except meta data files (RPMS.json)
     rsync -a --chmod=a+rX --link-dest ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/RPMS/ ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/RPMS/ ${TMPREPO_ARCH}/${DEFAULT_HASH}/RPMS/
 
-    #Hard links for WEB and SOURCES/cache
-    for subdir in WEB SOURCES/cache ; do
-      if [ -d ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/${subdir} ] ; then
-        mkdir -p ${TMPREPO_DES}/${subdir}
-        rsync -a --ignore-existing --chmod=a+rX --link-dest ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/${subdir}/ ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/${subdir}/ ${TMPREPO_DES}/${subdir}/
-      fi
-    done
+    if $RSYNC_SOURCES ; then
+      #Hard links for WEB and SOURCES/cache
+      for subdir in WEB SOURCES/cache ; do
+        if [ -d ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/${subdir} ] ; then
+          mkdir -p ${TMPREPO_DES}/${subdir}
+          rsync -a --ignore-existing --chmod=a+rX --link-dest ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/${subdir}/ ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/${subdir}/ ${TMPREPO_DES}/${subdir}/
+        fi
+      done
 
-    #Copy any SOURCES symlinks/drivers files
-    for subdir in SOURCES/${ARCH} drivers ; do
-      if [ -d ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/${subdir} ] ; then
-        mkdir -p ${TMPREPO_DES}/${subdir}
-        rsync -a --ignore-existing --chmod=a+rX ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/${subdir}/ ${TMPREPO_DES}/${subdir}/
-      fi
-    done
+      #Copy any SOURCES symlinks/drivers files
+      for subdir in SOURCES/${ARCH} drivers ; do
+        if [ -d ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/${subdir} ] ; then
+          mkdir -p ${TMPREPO_DES}/${subdir}
+          rsync -a --ignore-existing --chmod=a+rX ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/${subdir}/ ${TMPREPO_DES}/${subdir}/
+        fi
+      done
 
-    #copy any common files
-    for cfile in cmsos ; do
-      [ -f ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/${cfile} ] && cp ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/${cfile} ${TMPREPO_DES}/${cfile}
-    done
+      #copy any common files
+      for cfile in cmsos ; do
+        [ -f ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/${cfile} ] && cp ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/${cfile} ${TMPREPO_DES}/${cfile}
+      done
+    fi
 
     #If it is default hash then stop processing as default repo has no parent
     if [ "${REPO_HASH}" = "${DEFAULT_HASH}" ] ; then
