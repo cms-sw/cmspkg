@@ -224,6 +224,7 @@ fi
 #create the RPMS.json file with md5 sum of all rpms
 $(dirname $0)/genpkg.py ${TMPREPO_BASE}/upload/${NEW_UPLOAD_HASH}
 rm -f ${TMPREPO_BASE}/upload/${NEW_UPLOAD_HASH}/rpms.md5cache
+rm -f ${TMPREPO_BASE}/upload/${NEW_UPLOAD_HASH}/RPMS/*/*/*.dep >/dev/null 2>&1 || true
 
 #Move the new uploaded files in to the initialized dest repo
 if [ ! -d ${TMPREPO_ARCH}/${NEW_UPLOAD_HASH} ] ; then
