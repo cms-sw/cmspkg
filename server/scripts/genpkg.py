@@ -59,7 +59,7 @@ for r in glob(join(RPMS_dir,"*","*","*.rpm")):
     err, md5sum = getstatusoutput("md5sum %s | sed 's| .*||'" % r)
     if err: exit(1)
   deps = []
-  dep_file = r[-4:]+".dep"
+  dep_file = r[:-3]+"dep"
   if exists(dep_file):
     with open(dep_file) as ref:
       deps = [d for l in ref.readlines() for d in l.strip().split(" ") if d]
