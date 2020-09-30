@@ -58,7 +58,12 @@ for r in glob(join(RPMS_dir,"*","*","*.rpm")):
     print "Running MD5SUM : %s" % rpm
     err, md5sum = getstatusoutput("md5sum %s | sed 's| .*||'" % r)
     if err: exit(1)
-  cache[pack][rev] = [rHash, rpm, md5sum, size, []]
+  deps = []
+  dep_file = r[-4:]+".dep"
+  if exists(dep_file):
+    with open(dep_file) as ref:
+      deps = [d for l in ref.readlines() for d in l.strip().split(" ") if d]
+  cache[pack][rev] = [rHash, rpm, md5sum, size, deps]
 
 cache['hash'] = sha256(dumps(cache,sort_keys=True,separators=(',',': '))).hexdigest()
 with open(RPMS_dir+".json", 'w') as outfile:
