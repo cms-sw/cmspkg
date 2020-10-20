@@ -68,7 +68,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-00-38"
+cmspkg_tag   = "V00-00-39"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -602,6 +602,7 @@ class CmsPkg:
   def download_deps(self, deps, deps_cache):
     to_download = []
     for dn in deps:
+      if self.is_installed(dn): continue
       d = None
       if dn in deps_cache: d = deps_cache[dn]
       if not d: continue
@@ -612,6 +613,7 @@ class CmsPkg:
     for d in to_download:
       for xd in get_pkg_deps(d[1])+d[4]:
         if xd in deps_cache: continue
+        if self.is_installed(xd): continue
         deps_cache[xd] = self.package_data(xd)
         ndeps.append(xd)
     if ndeps:
@@ -625,6 +627,34 @@ class CmsPkg:
     if exists (rpm_download):
       run_cmd ("touch %s/tmp.rpm && rm -f %s/*.*" % (rpm_download, rpm_download))
     return
+
+  def is_installed(self, pkg):
+    local_path = join(opts.install_prefix, opts.architecture, *pkg.split('+',2))
+    return exists(local_path)
+
+  def create_ref_links(self, pkg):
+    if self.is_installed(pkg): return True
+    ref_path = join(opts.reference, opts.architecture, *pkg.split('+',2))
+    if not exists (ref_path):
+      return False
+    local_path = join(opts.install_prefix, opts.architecture, *pkg.split('+',2))
+    cmd = "%s/common/cmspkg -a %s env -- rpm -q --requires %s" % (opts.reference, opts.architecture, pkg)
+    err, out = run_cmd(cmd, exit_on_error=False)
+    if err and ('Error: You do not have write permission' not in out):
+      cmspkg_print(out)
+      return False
+    for dep in out.split("\n"):
+      if "+" not in dep: continue
+      items = dep.split("+",2)
+      if items[0] not in ["external", "cms", "lcg"]: continue
+      local_dep = join(opts.install_prefix, opts.architecture, *items)
+      if exists (local_dep): continue
+      ref_dep = join(opts.reference, opts.architecture, *items)
+      run_cmd("mkdir -p %s; rm -rf %s; ln -s %s %s" % (local_dep, local_dep, ref_dep, local_dep))
+      cmspkg_print("Creating symlink for %s" % dep)
+    run_cmd("mkdir -p %s; rm -rf %s; ln -s %s %s" % (local_path, local_path, ref_path, local_path))
+    cmspkg_print("Creating symlink for %s" % pkg)
+    return True
 
   #Installs a package.
   def install(self, package, reinstall=False, force=False):
@@ -656,6 +686,7 @@ class CmsPkg:
     #Find out package dependencies
     cmspkg_print("Building Dependency Tree...")
     for d in get_pkg_deps(pk[1])+pk[4]:
+      if opts.reference and self.create_ref_links(d): continue
       if d in deps: continue
       p = self.package_data(d)
       deps[d] = p
@@ -676,6 +707,7 @@ class CmsPkg:
     if not opts.installOnly:
       self.download_deps (sorted(deps), deps)
       for d in [p[1] for p in deps.values() if p]:
+        if opts.reference and self.create_ref_links(d): continue
         s1, s2 = self.package_size(d)
         size_compress += s1
         size_uncompress += s2
@@ -1054,10 +1086,12 @@ def process(args, opt, cache_dir):
     cmd = rpm_env+" ; "+args[0]
     for a in args[1:]: cmd+=" '"+a+"'"
     if syscall(cmd)>0: exit(1)
+    exit(0)
   if args[0] in ["rpmenv", "env"]:
     cmd = rpm_env+" ; "+args[1]
     for a in args[2:]: cmd+=" '"+a+"'"
     if syscall(cmd)>0: exit(1)
+    exit(0)
 
   if not exists (cache_dir): makedirs(cache_dir,True)
   err, out = run_cmd("touch %s/check.write.permission && rm -f %s/check.write.permission" % (cache_dir, cache_dir), exit_on_error=False)
@@ -1157,6 +1191,7 @@ if __name__ == '__main__':
   parser.add_option("-c", "--dist-clean",  dest="dist_clean",   action="store_true", default=False,   help="Only used with 'remove' command to do the distribution cleanup after the package removal.")
   parser.add_option("-D", "--delete-dir",  dest="delete_directory",action="store_true",default=False, help="Only used with 'remove/dist_clean' command to do cleanup the package install directory.")
   parser.add_option("-o", "--download-options",  dest="download_options", default=None,          help="Extra options to pass to wget/curl.")
+  parser.add_option("--reference",         dest="reference",    default=None,        help="Path to a reference repository which can be used to create package symlinks.")
   parser.add_option("--install-only",      dest="installOnly",  action="store_true", default=False, help="Only install the packages without their dependencies.")
 
   opts, args = parser.parse_args()
@@ -1170,6 +1205,10 @@ if __name__ == '__main__':
   if not opts.repository: parser.error("Missing repository name")
   if not opts.install_prefix: parser.error("Missing install path string")
   if opts.useDev: cmspkg_cgi = cmspkg_cgi+'-dev'
+  if opts.reference:
+    if not exists(join(opts.reference,"common","cmspkg")):
+      parser.error("Unable to find reference installation at %s" % opts.reference)
+    if '--nodeps' not in opts.Add_Options: opts.Add_Options.append('--nodeps')
   if not opts.server_path: opts.server, opts.server_path = get_server_paths (opts.server)
 
   if args[0]=="repository":

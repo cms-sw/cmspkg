@@ -171,3 +171,6 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 
 ### V00-00-38:
  - @smuzaffar 2020-06-12: Fix regexp for matching the rpm size. It was failing for slc5 cms-sw/cms-docker#65
+
+### V00-00-39
+ - @smuzaffar 2020-10-20: Added --reference option to use a local install directory and create symlinks for already installed packages.
