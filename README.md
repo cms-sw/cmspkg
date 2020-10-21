@@ -174,3 +174,6 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 
 ### V00-00-39
  - @smuzaffar 2020-10-20: Added --reference option to use a local install directory and create symlinks for already installed packages.
+
+### V00-00-40
+ - @smuzaffar 2020-10-21: Install multiple packages in one go. This avoid reading RPM DB multiple times.

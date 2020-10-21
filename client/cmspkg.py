@@ -68,7 +68,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-00-39"
+cmspkg_tag   = "V00-00-40"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -456,16 +456,25 @@ class rpmDownloader:
     self.parallel = parallel
     self.counter = 0
     self.lock = Lock()
+    self.start_time = 0
+
+  def get_time(self):
+    return time()-self.start_time
 
   def run(self, packages):
+    if not self.start_time:
+      self.start_time = time()
     total = len(packages)
     index = 0
     threads = []
+    downloaded_pkgs= []
     while(index < total):
       threads = get_alive_threads(threads)
       if(len(threads) < self.parallel):
         package = packages[index]
         index += 1
+        if exists(join(rpm_download, package[1])): continue
+        downloaded_pkgs.append(package)
         self.counter = self.counter + 1
         cmspkg_print("Get:%s http://%s cmssw/%s/%s %s" % (self.counter, opts.server, opts.repository, opts.architecture, package[1]))
         try:
@@ -479,7 +488,7 @@ class rpmDownloader:
         sleep(0.1)
     for t in threads: t.join()
     if index != total: return False
-    for package in packages:
+    for package in downloaded_pkgs:
       if not exists (join(rpm_download, package[1])): return False
     return True
 
@@ -657,7 +666,8 @@ class CmsPkg:
     return True
 
   #Installs a package.
-  def install(self, package, reinstall=False, force=False):
+  def install(self, package, reinstall=False, force=False, packages_to_install={}, do_install=True):
+    if not do_install and package in packages_to_install: return
     if not self.cache:
       cmspkg_print("Reading Package Lists...")
       self.cache = pkgCache()
@@ -678,42 +688,46 @@ class CmsPkg:
     makedirs(join(rpm_download,rpm_partial),True)
 
     #download the package
-    stime = time()
     if not self.downloader.run([pk]): exit(1)
-    deps={}
-    npkgs = []
     
-    #Find out package dependencies
-    cmspkg_print("Building Dependency Tree...")
-    for d in get_pkg_deps(pk[1])+pk[4]:
-      if opts.reference and self.create_ref_links(d): continue
-      if d in deps: continue
-      p = self.package_data(d)
-      deps[d] = p
-      if p: npkgs.append(d)
-    npkgs.sort()
-    pkg_to_install = "  "+package+"\n  "+"\n  ".join(npkgs)
+    if not opts.installOnly:
+      #Find out package dependencies
+      cmspkg_print("Building %s Dependency Tree..." % package)
+      deps={}
+      for d in get_pkg_deps(pk[1])+pk[4]:
+        if (d in deps) or (d in packages_to_install): continue
+        if opts.reference and self.create_ref_links(d): continue
+        deps[d] = self.package_data(d)
+
+      #download all the dependencies of the package
+      self.download_deps (sorted(deps), deps)
+      for dep in deps:
+        if not deps[dep] or (dep in packages_to_install): continue
+        if opts.reference and self.create_ref_links(dep): continue
+        packages_to_install[dep] = deps[dep]
+
+    packages_to_install[package] = pk
+    if not do_install: return
+    pkg_to_install = " "
+    size_compress = 0
+    size_uncompress = 0
+    for pkg in packages_to_install:
+      d = packages_to_install[pkg][1]
+      s1, s2 = self.package_size(d)
+      size_compress += s1
+      size_uncompress += s2
+      pkg_to_install += "  "+d
     cmspkg_print("The following NEW packages will be installed:")
-    cmspkg_print(pkg_to_install)
-    pkg_len = len(npkgs)+1
+    cmspkg_print("  "+"\n  ".join(sorted(packages_to_install.keys())))
+    pkg_len = len(packages_to_install)
     cmspkg_print("0 upgraded, %s newly installed, 0 removed and 0 not upgraded." % pkg_len)
-    
+    packages_to_install = {}
+    if self.downloader.counter>0:
+      cmspkg_print("TIME: Downlaod: %s secs for %s packages" % (self.downloader.get_time(), self.downloader.counter))
+
     #If not force and there are extra packages to install then ask user to confirm
     if (not force) and (pkg_len>1): ask_user_to_continue("Continue installation (Y/n): ")
 
-    #download all the dependencies of the package
-    pkg_to_install = pk[1]
-    size_compress, size_uncompress = self.package_size (pk[1])
-    if not opts.installOnly:
-      self.download_deps (sorted(deps), deps)
-      for d in [p[1] for p in deps.values() if p]:
-        if opts.reference and self.create_ref_links(d): continue
-        s1, s2 = self.package_size(d)
-        size_compress += s1
-        size_uncompress += s2
-        pkg_to_install += "  "+d
-    if self.downloader.counter>0:
-      cmspkg_print("TIME: Downlaod: %s secs for %s packages" % (time()-stime, self.downloader.counter))
     cmspkg_print("Downloaded %s of archives." % human_readable_size(size_compress))
     cmspkg_print( "After unpacking %s of additional disk space will be used." % human_readable_size(size_uncompress))
     ex_opts  = ['-U', '-v', '-h', '-r %s' % opts.install_prefix, '--prefix %s' % opts.install_prefix, '--force', '--ignoreos', '--ignorearch', '--oldpackage']
@@ -1118,8 +1132,10 @@ def process(args, opt, cache_dir):
       if not exists (join(cache_dir , "active")): updateForce=True
       repo.update(force=updateForce, silent=True)
       opts.debug = cDebug
-      for pkg in args[1:]:
-        repo.install(pkg, reinstall=opts.reinstall, force=opts.force)
+      pkgs_to_install = {}
+      for pkg in args[1:-1]:
+        repo.install(pkg, reinstall=opts.reinstall, force=opts.force, packages_to_install=pkgs_to_install, do_install=False)
+      repo.install(args[-1], reinstall=opts.reinstall, force=opts.force, packages_to_install=pkgs_to_install, do_install=True)
     elif args[0] in ["download"]:
       cDebug = opts.debug
       opts.debug = False
