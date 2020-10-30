@@ -103,11 +103,12 @@ def get_parent(repo, arch, uHash):
   if not exists (arch_dir):
     return get_parent_repo(repo), "latest"
   if (uHash == default_repo): return None, None
-  if exists(join(arch_dir, uHash, "parent")):
-    pHash = os.readlink(join(arch_dir, uHash, "parent")).strip().split("/")[-1]
+  plink = join(arch_dir, uHash, "parent")
+  if exists(plink):
+    pHash = os.readlink(plink).strip().split("/")[-1]
     if exists (join(arch_dir, pHash)): return repo, pHash
   if exists (join(arch_dir, default_repo)): return repo, default_repo
-  return None, None
+  return get_parent_repo(repo), "latest"
 
 def search_file(repo, arch, uHash, name, package=True):
   global search_depth
