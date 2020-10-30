@@ -39,7 +39,7 @@ def run_command(cmd, user=None):
   return getstatusoutput(cmd)
 
 #Cleanup in-active transactions
-def cleanup_transactions(repo_dir, tmp_dir, delme_dir, dryRun=False, keep_threshhold_hours=24):
+def cleanup_transactions(repo_dir, delme_dir, dryRun=False, keep_threshhold_hours=24):
   for cfile in glob(join(repo_dir,"*","*","cleanup")):
     age = int((time()-stat(cfile)[8])/3600)
     tdir = dirname(cfile)
@@ -241,6 +241,6 @@ if __name__ == "__main__" :
     for conf in STASH_CONFIG:
       if re.match(conf[0],repo_name):
         stashRepo(repo_dir, conf[1], conf[2], dryRun)
-        cleanup_transactions(repo_dir, tmp_dir, delme_dir, dryRun)
+        cleanup_transactions(repo_dir, delme_dir, dryRun)
         break
   if not dryRun: run_command("rm -rf %s/delete/*" % tmp_dir)
