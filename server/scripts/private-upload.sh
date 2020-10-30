@@ -46,10 +46,12 @@ mkdir -p ${TMPREPO_ARCH}
 if [ "${CREATE_REPO}" = "YES" ] ; then
   #No need to do any initialization for new repo
   echo "No initialization needed."
-elif [ "${NEW_STYLE_SRC_REPO}" = "YES" -a "X${ACTUAL_SRC_REPO}" = "X${DES_REPO}" ] ; then
+  INCREMENTAL="false"
+elif [ "X${ACTUAL_SRC_REPO}" = "X${DES_REPO}" ] ; then
   #Sync-back requested for a repo which already has this arch initialized
   echo "No initialization needed."
-elif [ "${NEW_STYLE_SRC_REPO}" = "YES" ] ; then
+  INCREMENTAL="false"
+elif [ "${INCREMENTAL}" = "false" ] ; then
   #New style repo exists
   #Either a upload without sync back is requested (so initialization is always needed) or
   #sync-back is requested but actual src repo with this arch is one of the 
@@ -133,90 +135,13 @@ elif [ "${NEW_STYLE_SRC_REPO}" = "YES" ] ; then
   #create symlink latest pointing to the new parent hash i.e. DEFAULT_HASH
   ln -sf ${DEFAULT_HASH} ${TMPREPO_ARCH}/latest
   PARENT_HASH=${DEFAULT_HASH}
-else   #i.e  [ "X${APT_REPO}" != "X" ] ; then
-  #There was no new style repo found but we have a apt repo which we have to
-  #use to initialize. In this case we just find all the RPMS from APT REPO
-  #and create hard-links and generate the meta-data for DEFAULT_HASH
-  #Migrating from APT to new style repo takes time (order of 30-60 mins mostly due to WEB and SOURCE files)
-
-  #SRC Repo now points to old style directory
-  SRC_REPO_DIR="${BASEREPO_DIR}/${APT_REPO}-cache/${PARENT_HASH}"
-  #Look for rpms in the RPMS directory and create hard-links 
-  if [ "${NEW_ARCH}" = "NO" ] ; then
-    for r in $(find ${SRC_REPO_DIR}/RPMS/${ARCH} -maxdepth 1 -name "*.rpm" -type l | xargs -i  readlink "{}" | sed "s|.*/RPMS/cache/||;s|/[^/]*/|/|") ; do
-      HASH=$(echo $r | sed 's|/.*||')
-      RPM=$(echo $r | sed 's|.*/||')
-      HASH_INIT=$(echo $HASH | sed 's|^\(..\).*|\1|')
-      RPM_FILE="${SRC_REPO_DIR}/RPMS/cache/$HASH/$ARCH/$RPM"
-      mkdir -p ${TMPREPO_ARCH}/${DEFAULT_HASH}/RPMS/$HASH_INIT/$HASH
-      ln ${RPM_FILE} ${TMPREPO_ARCH}/${DEFAULT_HASH}/RPMS/${HASH_INIT}/${HASH}/${RPM}
-    done
-    #Once hard-links are created then generate the meta-data (package name, rpm name, size, md5sum etc.)
-    #We can make use of md5sum available in genpkglist to make this process fast
-    $(dirname $0)/genpkg.py "${TMPREPO_ARCH}/${DEFAULT_HASH}" "${SRC_REPO_DIR}/md5cache/${ARCH}/genpkglist"
-
-    #create symlink latest pointing to the DEFAULT_HASH
-    ln -sf ${DEFAULT_HASH} ${TMPREPO_ARCH}/latest
-  fi
-
-  #Create hard-links for the SOURCE caches if needed.
-  #If one of the new style parent has SOURCES then we do not need to initialize SOURCES
-  RES="$(findRepo ${CMSPKG_REPOS} ${SRC_REPO} SOURCES)" || exit 19
-  if [ "X${RES}" = "X" ] ; then
-    #Create hard-links for the SOURCE caches
-    mkdir -p ${TMPREPO_DES}/SOURCES/links
-    for r in $(find ${SRC_REPO_DIR}/SOURCES/cache -maxdepth 2 -mindepth 2 -type f | sed "s|${SRC_REPO_DIR}/SOURCES/cache/||") ; do
-      HASH=$(echo $r | sed 's|/.*||')
-      SRC=$(echo $r | sed 's|.*/||')
-      HASH_INIT=$(echo ${HASH} | sed 's|^\(..\).*|\1|')
-      SRC_FILE="${SRC_REPO_DIR}/SOURCES/cache/${r}"
-      mkdir -p ${TMPREPO_DES}/SOURCES/cache/${HASH_INIT}/${HASH}
-      ln ${SRC_FILE} ${TMPREPO_DES}/SOURCES/cache/${HASH_INIT}/${HASH}/${SRC}
-    done
-
-    #Create sources symlinks for easy browsing via web
-    for r in $(find ${SRC_REPO_DIR}/SOURCES -maxdepth 5 -mindepth 5 -type l) ; do
-      DES_LINK=${TMPREPO_DES}/SOURCES/$(echo $r | sed "s|^${SRC_REPO_DIR}/SOURCES/||")
-      [ -e ${DES_LINK} ] && continue
-      SLINK=$(readlink $r || true)
-      [ "X${SLINK}" = "X" ] && continue
-      HASH=$(echo ${SLINK} | sed 's|^.*/SOURCES/cache/||;s|/.*||')
-      HASH_INIT=$(echo ${HASH} | sed 's|^\(..\).*|\1|')
-      SRC=$(echo ${SLINK} | sed 's|^.*/||')
-      [ -e ${SRC_REPO_DIR}/SOURCES/cache/${HASH}/${SRC} ] || continue
-      SRC_FILE=../../../../cache/${HASH_INIT}/${HASH}/${SRC}
-      mkdir -p $(dirname ${DES_LINK})
-      ln -s ${SRC_FILE} ${DES_LINK}
-    done
-  fi
-
-  #Create hard-links for the WEB caches if needed
-  #If one of the new style parent has WEB then we do not need to initialize WEB
-  RES="$(findRepo ${CMSPKG_REPOS} ${SRC_REPO} WEB)" || exit 19
-  if [ "X${RES}" = "X" ] ; then
-    #Create hard-links for the WEB caches
-    rsync -a --chmod=a+rX --link-dest ${SRC_REPO_DIR}/WEB/ ${SRC_REPO_DIR}/WEB/ ${TMPREPO_DES}/WEB/
-  fi
-
-  #Make a copy of driver files
-  RES="$(findRepo ${CMSPKG_REPOS} ${SRC_REPO} drivers)" || exit 19
-  if [ "X${RES}" = "X" ] ; then
-    mkdir -p ${TMPREPO_DES}/drivers/
-    cp ${SRC_REPO_DIR}/*-driver.txt ${TMPREPO_DES}/drivers/ || true
-    for xdir in ${SRC_REPO_DIR} ${CMSPKG_REPOS} ; do
-      for xfile in cmsos bootstrap.sh ; do
-        [ -e ${xdir}/${xfile} ] && cp -f ${xdir}/${xfile} ${TMPREPO_DES}/${xfile}
-      done
-    done
-  fi
-  PARENT_HASH=${DEFAULT_HASH}
 fi
 
 #Find the new upload hash
 NEW_UPLOAD_HASH=$(ls ${TMPREPO_BASE}/upload | grep '^[0-9a-f]\{64\}$')
 
-#For new arch, we just rename new upload hash to default hash
-if [ "${NEW_ARCH}" = "YES" -o "${CREATE_REPO}" = "YES" ] ; then
+#For new arch/repo, we just rename new upload hash to default hash
+if [ "${CREATE_REPO}" = "YES" ] ; then
   mv ${TMPREPO_BASE}/upload/${NEW_UPLOAD_HASH} ${TMPREPO_BASE}/upload/${DEFAULT_HASH}
   NEW_UPLOAD_HASH=${DEFAULT_HASH}
 fi
@@ -235,11 +160,12 @@ fi
 rm -rf ${TMPREPO_BASE}/upload
 
 #create a symlink parent in new upload hash to point to current repo hash
-if [ "${NEW_UPLOAD_HASH}" != "${DEFAULT_HASH}" ] ; then
+#parent symlink should be missing for incremental uploads
+if [ "${NEW_UPLOAD_HASH}" != "${DEFAULT_HASH}" -a "${INCREMENTAL}" = "false" ] ; then
   ln -s ../${PARENT_HASH} ${TMPREPO_ARCH}/${NEW_UPLOAD_HASH}/parent
 fi
 
-#if upload/new pero is requested then we just move the newly initialized dest repo back to repos directory
+#if upload/new repo is requested then we just move the newly initialized dest repo back to repos directory
 #for sync back , if des repo does not have arch in it then we just move the full arch directory
 #normal sync back we only move the newly upload hash to the des repo
 if [ "${SRC_REPO}" != "${DES_REPO}" -o ! -d ${CMSPKG_REPOS}/${DES_REPO} ] ; then
@@ -276,9 +202,6 @@ fi
 #We know mv is a atomic operation, so we create a temp next symlink and then use mv command
 ln -sf ${NEW_UPLOAD_HASH} ${CMSPKG_REPOS}/${DES_REPO}/${ARCH}/next-${NEW_UPLOAD_HASH}
 mv -T ${CMSPKG_REPOS}/${DES_REPO}/${ARCH}/next-${NEW_UPLOAD_HASH} ${CMSPKG_REPOS}/${DES_REPO}/${ARCH}/latest
-
-#Delete old apt style repo link if exists and it is upload request
-[ -e ${BASEREPO_DIR}/${DES_REPO} -a "${SRC_REPO}" != "${DES_REPO}" ] && rm -f ${BASEREPO_DIR}/${DES_REPO}
 
 #if new sources are upload then create a symlink
 if [ -d ${CMSPKG_REPOS}/${DES_REPO}/${ARCH}/${NEW_UPLOAD_HASH}/SOURCES ] ; then

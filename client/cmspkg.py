@@ -68,7 +68,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-00-40"
+cmspkg_tag   = "V00-00-41"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -282,7 +282,7 @@ def verify_download(ofile, size, md5sum, debug=True):
 #After the successful download it puts the downlaod file in rpm_download directory
 def download_rpm(package, tries=5):
   if (package[2]=="") or (package[3]==""):
-    udata = {'uri':'RPMS/%s/%s/%s/%s' % (opts.repository, opts.architecture, package[0], quote(package[1])), 'ref_hash':package[-1]}
+    udata = {'uri':'RPMS/%s/%s/%s/%s' % (package[-2], opts.architecture, package[0], quote(package[1])), 'ref_hash':package[-1]}
     if package[2]=="": udata["sha"]=1
     if package[3]=="": udata["size"]=1 
     err, out = fetch_url(udata)
@@ -306,7 +306,7 @@ def download_rpm(package, tries=5):
   for i in range(tries):
     if not first_try: cmspkg_print("Retry downloading %s" % package[1])
     first_try = False
-    err, out = fetch_url({'uri':'RPMS/%s/%s/%s/%s' % (opts.repository, opts.architecture, package[0], quote(package[1])), 'ref_hash':package[-1]}, outfile=ofile_tmp, exit_on_error=False)
+    err, out = fetch_url({'uri':'RPMS/%s/%s/%s/%s' % (package[-2], opts.architecture, package[0], quote(package[1])), 'ref_hash':package[-1]}, outfile=ofile_tmp, exit_on_error=False)
     if (not err) and exists(ofile_tmp) and verify_download(ofile_tmp, package[3], package[2]):
       err, out = run_cmd("mv %s %s" % (ofile_tmp, join(rpm_download, package[1])))
       return not err
@@ -437,7 +437,8 @@ class pkgCache (object):
       if not pk in self.packs: self.packs[pk]={}
       for r in pkgs[pk]:
         if r in self.packs[pk]: continue
-        self.packs[pk][r] = pkgs[pk][r]+[rfile.split("-")[1]]
+        rdata = rfile.split("-")
+        self.packs[pk][r] = pkgs[pk][r]+['-'.join(rdata[:-2]), rdata[-2]]
     return
 
   def readActive(self, readCaches=True):

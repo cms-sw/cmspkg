@@ -47,6 +47,11 @@ ARCH="$2"                #Required: Architecture string e.g. slc6_amd64_gcc530, 
 SRC_REPO="$3"            #Required: Name of rpm repository to use e.g. cms , comp, comp.pre etc.
 DES_REPO="$4"            #Required: Name of destination repo, for sync-back it should be empty
 TMPREPO_BASE="$5"        #Required: Tmp directory name under TMPDIR obtained via INIT request
+INCREMENTAL="$6"         #Do not copy packages from parent repo but just create an incremental repo
+                         #- every thing missing will be picked up from parent repo
+
+if [ "${INCREMENTAL}" != "true" ] ; then INCREMENTAL="false" ; fi
+export INCREMENTAL
 
 #Make sure COMMAND, SRC_REPO and ARCH command-line args are provided and have valid values
 if [ "X${COMMAND}" = "X" -o "X${SRC_REPO}" = "X" -o "X${ARCH}" = "X" ] ; then
@@ -97,19 +102,14 @@ if [ "${COMMAND}" = "CLONE" ] ; then
   fi
 fi
 ############################################################################
-
-export NEW_STYLE_SRC_REPO="YES"      #Assume we do have new upload style repo for this ARCH
-export NEW_ARCH="NO"                 #Assume that it is not a new arch
-export CREATE_REPO="NO"              #Create new repo if no new style or apt repo found 
+export CREATE_REPO="NO"              #Create new repo if no new style found 
 
 ###########################################################################
 #Search for src repo and get its parent hash.
 # - first search in new style repo area
-# - then search in old style apt area
 # - if no repo found then it is new repo request
 export PARENT_HASH=""                #Hash of src repo
 export PARENT_REPO_DIR_PATH=""       #path to src repo symlink to get its hash
-export APT_REPO=""                   #APT repo name from where to start the migration
 
 #Search for a new style repo for which we already have this arch uploaded
 export ACTUAL_SRC_REPO="$(findRepo ${CMSPKG_REPOS} ${SRC_REPO} ${ARCH})" || exit 19
@@ -118,34 +118,18 @@ if [ "X${ACTUAL_SRC_REPO}" != "X" ] ; then
   PARENT_REPO_DIR_PATH="${CMSPKG_REPOS}/${ACTUAL_SRC_REPO}/${ARCH}/latest"
   PARENT_HASH="$(readlink ${PARENT_REPO_DIR_PATH} | sed 's|^.*/||')"
 else
-  #This arch is not yet migrated to new upload style or it is a new arch
-  #or we are asked create a new repo
-  NEW_STYLE_SRC_REPO="NO"
-  #search the APT repos and get the valid repo name
-  APT_REPO="$(findRepo ${BASEREPO_DIR} ${SRC_REPO} apt)" || exit 19
-  if  [ "X${APT_REPO}" = "X" ] ; then
-    #No APT repo found, so we have to create a new repository
-    CREATE_REPO="YES"
-    PARENT_HASH="XXX"     #Set hash to some invalid value
-    #For new repos, one should always request sync-back and
-    #repo name should not have '.' in it i.e it should be a top level repo e.g cms
-    if [ "${SRC_REPO}" != "${DES_REPO}" ] ; then
-      echo "Error: Trying to create a new repo with out sync-back"
-      exit 19
-    fi
-    if [ "$(echo ${SRC_REPO} | grep '[.]' | wc -l)" -gt 0 ] ; then
-      echo "Error: Invalid character in repo name: ${SRC_REPO}"
-      exit 19
-    fi
-  else
-    #Found an existing APT src repo
-    PARENT_REPO_DIR_PATH="${BASEREPO_DIR}/${APT_REPO}"
-    PARENT_HASH="$(readlink ${PARENT_REPO_DIR_PATH} | sed 's|^.*/||')"
-    APT_REPO="$(echo ${PARENT_HASH} | sed 's|\.[0-9a-f]\{64\}-[0-9a-f]\{64\}$||')"
-    if [ ! -d "${PARENT_REPO_DIR_PATH}/apt/${ARCH}" ] ; then
-      #Arch is unknown in the apt repo, so it is a new arch
-      NEW_ARCH="YES"
-    fi
+  #it is a new arch or we are asked create a new repo
+  CREATE_REPO="YES"
+  PARENT_HASH="XXX"     #Set hash to some invalid value
+  #For new repos, one should always request sync-back and
+  #repo name should not have '.' in it i.e it should be a top level repo e.g cms
+  if [ "${SRC_REPO}" != "${DES_REPO}" ] ; then
+    echo "Error: Trying to create a new repo with out sync-back"
+    exit 19
+  fi
+  if [ "$(echo ${SRC_REPO} | grep '[.]' | wc -l)" -gt 0 ] ; then
+    echo "Error: Invalid character in repo name: ${SRC_REPO}"
+    exit 19
   fi
 fi
 
