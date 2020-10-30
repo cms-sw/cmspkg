@@ -164,7 +164,6 @@ def stashRepo(repo_dir, days=7, max_trans=10, dryRun=False):
       if not exists(join(arch_dir, def_hash)):
         def_hash = commits[-1][0]
         del commits[-1]
-        print "    Setting default hash: %s" % def_hash
       commits_count = len(commits)
       print "    Total transactions: %s (%s)" % (commits_count, max_trans)
       while commits_count>1:
