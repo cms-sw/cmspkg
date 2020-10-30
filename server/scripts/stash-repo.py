@@ -67,7 +67,7 @@ def cleanup_tmp_uploads(tmp_dir, delme_dir, dryRun=False, keep_threshhold_hours=
   return
 
 #Starting from a upload transaction for an architecture, this function returns 
-#All the parents reachable but not including DEFAULT_HASH
+#All the parents reachable but not including default hash
 def getUploadChain(arch_dir, uHash):
   commits = []
   while uHash and (uHash != DEFAULT_HASH):
@@ -79,11 +79,11 @@ def getUploadChain(arch_dir, uHash):
     else: uHash = ""
   return commits
 
-def stashArch (repo_dir, arch, uHash, dryRun=False):
-  if uHash==DEFAULT_HASH: return
+def stashArch (repo_dir, arch, uHash, def_hash, dryRun=False):
+  if uHash==def_hash: return
   arch_dir = join(repo_dir, arch)
   repoInfo = {"hash_dir"    : join(arch_dir, uHash),
-              "default_dir" : join(arch_dir, DEFAULT_HASH),
+              "default_dir" : join(arch_dir, def_hash),
               "repo_dir"    : repo_dir,
               "arch"        : arch,
               "hash"        : uHash,
@@ -160,10 +160,15 @@ def stashRepo(repo_dir, days=7, max_trans=10, dryRun=False):
       print "  >> %s/%s" %(repo, arch)
       uHash   = readlink (latest)
       commits = getUploadChain (arch_dir, uHash)
+      def_hash = DEFAULT_HASH
+      if not exists(join(arch_dir, def_hash)):
+        def_hash = commits[-1][0]
+        del commits[-1]
+        print "    Setting default hash: %s" % def_hash
       commits_count = len(commits)
       print "    Total transactions: %s (%s)" % (commits_count, max_trans)
       while commits_count>1:
-        #Start with the first child of DEFAULT_HASH i.e. commits[-1]
+        #Start with the first child of default hash i.e. commits[-1]
         firstChild = commits[-1][0]
         dtime = int(time() - commits[-1][1])
         #we keep the transaction if it is newer than days and
@@ -175,14 +180,14 @@ def stashRepo(repo_dir, days=7, max_trans=10, dryRun=False):
           print "    Keeping %s" % firstChild
           break
         print "    Stashing %s" % firstChild
-        ret = stashArch(repo_dir, arch, firstChild, dryRun)
+        ret = stashArch(repo_dir, arch, firstChild, def_hash, dryRun)
         if not ret:
           has_error=True
           break
-        nextChild =  commits[-2][0]
         print "    Done %s" % firstChild
         if not dryRun:
-          run_command ("ln -nsf ../%s %s/%s/parent && touch %s/%s/cleanup" % (DEFAULT_HASH, arch_dir, nextChild, arch_dir, firstChild), REPO_OWNER)
+          nextChild =  commits[-2][0]
+          run_command ("ln -nsf ../%s %s/%s/parent && touch %s/%s/cleanup" % (def_hash, arch_dir, nextChild, arch_dir, firstChild), REPO_OWNER)
           utime(join(arch_dir, nextChild), (commits[-2][1], commits[-2][1]))
         del commits[-1]
         commits_count = len(commits)
