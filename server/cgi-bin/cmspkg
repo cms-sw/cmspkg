@@ -26,15 +26,16 @@ ReRepo      = '[a-zA-Z0-9_-]+((\.[a-zA-Z0-9_-]+)+|)'
 ReHash      = '[0-9a-f]{32}'
 ReRepoHash  = '(apt|[0-9a-f]{64})'
 ReSrcName   = '[+a-zA-Z0-9._-]+'
-RePkgName   = '(cms|lcg|external)[+][a-zA-Z0-9_-]+[+][a-zA-Z0-9._-]+[.]rpm'
+RePkgName   = '(cms|lcg|external)[+][a-zA-Z0-9_-]+[+][a-zA-Z0-9._-]+'
 ReOtherName = '(cmsos|bootstrap.sh|README.md|WEB/[0-9a-zA-Z._/+-]+)'
 
 REQUESTS = {
   'SOURCES' : [ReRepo, ReHash, ReSrcName],
-  'RPMS'    : [ReRepo, ReArch, ReHash, RePkgName ],
+  'RPMS'    : [ReRepo, ReArch, ReHash, '%s[.]rpm' % RePkgName],
   'cache'   : [ReRepo, ReArch, ReRepoHash ],
   'caches'  : [ReRepo, ReArch ],
   'file'    : [ReRepo, ReArch, ReOtherName],
+  'deps'    : [ReRepo, ReArch, RePkgName],
   'driver'  : [ReRepo, ReArch],
   'upgrade' : [],
 }
@@ -379,6 +380,9 @@ def process(req):
   elif ftype == "caches":
     return caches(*items[1:])
   elif ftype == "file":
+    return file_search_result(get_file (*items[1:]), "%s" % (rpath))
+  elif ftype == "deps":
+    items[-1] = "WEB/%s/%s.json" % (items[-2], items[-1])
     return file_search_result(get_file (*items[1:]), "%s" % (rpath))
   elif ftype == "driver":
     items.append("drivers/"+items[2]+"-driver.txt")
