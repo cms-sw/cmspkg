@@ -27,7 +27,7 @@ ReHash      = '[0-9a-f]{32}'
 ReRepoHash  = '(apt|[0-9a-f]{64})'
 ReSrcName   = '[+a-zA-Z0-9._-]+'
 RePkgName   = '(cms|lcg|external)[+][a-zA-Z0-9_-]+[+][a-zA-Z0-9._-]+[.]rpm'
-ReOtherName = '(cmsos|bootstrap.sh|README.md|WEB/[0-9a-zA-Z._/-]+)'
+ReOtherName = '(cmsos|bootstrap.sh|README.md|WEB/[0-9a-zA-Z._/+-]+)'
 
 REQUESTS = {
   'SOURCES' : [ReRepo, ReHash, ReSrcName],
