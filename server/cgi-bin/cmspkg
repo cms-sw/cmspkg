@@ -387,13 +387,18 @@ def process(req):
     items[-1] = "WEB/%s/%s.json" % (items[-2], pkg)
     rfile = get_file (*items[1:])
     if 'package' in req and rfile:
+      dep = req.getvalue('package')
       try:
         jobj = {}
         with open(join(basedir, rfile)) as ref:
           jobj = json.load(ref)
-        return_json(jobj['package'])
+        try:
+          return_json(jobj[dep])
+        except:
+          info_msg.append("Error, package %s does not depend on %s." % (pkg, dep))
+          return_json({}, True)
       except:
-        info_msg.append("Unable to find dependency information for %s or it does not depend on package %s." % (pkg, req['package']))
+        info_msg.append("System error, unable to load %s" % rfile)
         return_json({}, True)
     return file_search_result(rfile, "%s" % (rpath))
   elif ftype == "driver":
