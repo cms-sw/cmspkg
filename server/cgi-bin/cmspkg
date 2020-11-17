@@ -203,6 +203,7 @@ def check_request(req):
     'size'   : '^1$',
     'sha'    : '^1$',
     'ping'   : '^1$',
+    'package': '^[a-zA-Z0-9_-]+$',
     'stamp'  : '^[0-9a-f]+$',
   }
   errs = []
@@ -382,8 +383,19 @@ def process(req):
   elif ftype == "file":
     return file_search_result(get_file (*items[1:]), "%s" % (rpath))
   elif ftype == "deps":
-    items[-1] = "WEB/%s/%s.json" % (items[-2], items[-1])
-    return file_search_result(get_file (*items[1:]), "%s" % (rpath))
+    pkg = items[-1]
+    items[-1] = "WEB/%s/%s.json" % (items[-2], pkg)
+    rfile = get_file (*items[1:])
+    if 'package' in req and rfile:
+      try:
+        jobj = {}
+        with open(join(basedir, rfile)) as ref:
+          jobj = json.load(ref)
+        return_json(jobj['package'])
+      except:
+        info_msg.append("Unable to find dependency information for %s or it does not depend on package %s." % (pkg, req['package']))
+        return_json({}, True)
+    return file_search_result(rfile, "%s" % (rpath))
   elif ftype == "driver":
     items.append("drivers/"+items[2]+"-driver.txt")
     return file_search_result(get_file (*items[1:]), "%s" % (rpath))
