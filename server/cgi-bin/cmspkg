@@ -44,7 +44,7 @@ def error_msg(msg):
   return_json({"error":msg}, True)
 
 def return_json(data,err=False):
-  if err: print "Status: 404 Not Found\n"
+  if err: print "Status: 404 Not Found"
   print "Content-type: application/json\n"
   if debug and debug_msg: data['debug']="\n".join(debug_msg)
   if warn_msg: data['warning']="\n".join(warn_msg)
