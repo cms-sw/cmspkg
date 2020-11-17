@@ -394,10 +394,10 @@ def process(req):
           jobj = json.load(ref)
         try:
           return_json(jobj[dep])
-        except:
+        except Exception as e:
           info_msg.append("Error, package %s does not depend on %s." % (pkg, dep))
           return_json({}, True)
-      except:
+      except Exception as e:
         info_msg.append("System error, unable to load %s" % rfile)
         return_json({}, True)
     return file_search_result(rfile, "%s" % (rpath))
