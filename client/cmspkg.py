@@ -68,7 +68,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-00-41"
+cmspkg_tag   = "V00-00-42"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -769,29 +769,33 @@ class CmsPkg:
     return
    
   #print the packages name and all its revisions.
-  def showpkg(self, package):
+  def showpkg(self, packages):
     self.cache = pkgCache()
-    cmspkg_print("%s - CMS Experiment package" % package)
-    cmspkg_print("Versions:")
-    if package in self.cache.packs:
-      for rev in sorted(self.cache.packs[package], key=int, reverse=True):
-        cmspkg_print("1-"+str(rev)+"."+opts.architecture+"(available in remote repository)")
-      return
-    cmspkg_print("W: Unable to locate package")
+    for package in packages:
+      cmspkg_print("%s - CMS Experiment package" % package)
+      cmspkg_print("Versions:")
+      ok = False
+      if package in self.cache.packs:
+        for rev in sorted(self.cache.packs[package], key=int, reverse=True):
+          cmspkg_print("1-"+str(rev)+"."+opts.architecture+"(available in remote repository)")
+          ok = True
+      if not ok:
+        cmspkg_print("W: Unable to locate package")
     return
    
   #print the packages dependencies
-  def depends(self, package):
+  def depends(self, packages):
     self.cache = pkgCache()
-    if not package in self.cache.packs:
-      cmspkg_print("W: Unable to locate package %s" % package)
-      return
-    rev = self.latest_revision(package)
-    pk = self.cache.packs[package][rev]
-    makedirs(join(rpm_download,rpm_partial),True)
-    download_package(pk)
-    cmspkg_print("%s-1-%s" % (package, rev))
-    for d in get_pkg_deps(pk[1]): cmspkg_print("  Depends: %s" % d)
+    for package in packages:
+      if not package in self.cache.packs:
+        cmspkg_print("W: Unable to locate package %s" % package)
+        continue
+      rev = self.latest_revision(package)
+      pk = self.cache.packs[package][rev]
+      makedirs(join(rpm_download,rpm_partial),True)
+      download_package(pk)
+      cmspkg_print("%s-1-%s" % (package, rev))
+      for d in get_pkg_deps(pk[1]): cmspkg_print("  Depends: %s" % d)
     return
    
   #Shows a package detail just like apt-cache showpkg
@@ -1161,10 +1165,10 @@ def process(args, opt, cache_dir):
       repo.search(pkg, exact=opts.force)
     elif args[0] == "showpkg":
       if not exists (join(cache_dir , "active")): repo.update(True)
-      repo.showpkg(args[1])
+      repo.showpkg(args[1:])
     elif args[0] == "depends":
       if not exists (join(cache_dir , "active")): repo.update(True)
-      repo.depends(args[1])
+      repo.depends(args[1:])
     elif args[0] == "show":
       if not exists (join(cache_dir , "active")): repo.update(True)
       repo.show(args[1])
@@ -1257,7 +1261,7 @@ if __name__ == '__main__':
   elif (args[0] in ["search"]):
     if len(args) > 2: parser.error("Too many arguments")
   elif (args[0] in ["showpkg", "depends"]):
-    if len(args) != 2: parser.error("Too many/few arguments")
+    if len(args) < 2: parser.error("Too many/few arguments")
   if args[0] == "reinstall": opts.reinstall = True
 
   process(args, opts, cache_dir)
