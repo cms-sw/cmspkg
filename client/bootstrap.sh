@@ -1395,7 +1395,7 @@ for x in $(echo ${server}/${server_main_dir} | tr / ' ') ; do
 done
 [ "$found_server" = "yes" ] || cleanup_and_exit 1 "Unable to find /cgi-bin/cmspkg on $server"
 
-cmsos="$cgi_server/cgi-bin/cmspkg${useDev}/file/$repository/$cmsplatf/cmsos?repo_uri=${server_main_dir}"
+cmsos=$(echo $server | cut -d/ -f1)/${server_main_dir}/repos/cmsos
 [ "X$verbose" = Xtrue ] && echo_n "Downloading cmsos file..."
 download_${download_method} "$cmsos" $tempdir/cmsos
 [ -f $tempdir/cmsos ] || cleanup_and_exit 1 "FATAL: Unable to download cmsos: $cmsos"
@@ -1670,7 +1670,7 @@ else
   cmspkg=$(echo $server | cut -d/ -f1)/${server_main_dir}/repos/cmspkg${useDev}.py
   download_${download_method} $cmspkg $tempdir/cmspkg.py
 fi
-[ -f $tempdir/cmspkg.py ] || cleanup_and_exit 1 "FATAL: Unable to download cmsos: $cmspkg"
+[ -f $tempdir/cmspkg.py ] || cleanup_and_exit 1 "FATAL: Unable to download cmspkg: $cmspkg"
 chmod +x $tempdir/cmspkg.py
 echo "Downloading bootstrap core packages..."
 $tempdir/$CMSPKG_SCRIPT --path $DOWNLOAD_DIR download $packageList || cleanup_and_exit 1 "Error downloading $pkg. Exiting."
