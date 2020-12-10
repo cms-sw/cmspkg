@@ -9,10 +9,10 @@
 #where nn is first two chars of md5sum
 #<tmp>/upload/<sha256-upload-hash>/RPMS/<nn>/<md5sum>/*.<arch>.rpm
 #<tmp>/upload/<sha256-upload-hash>/rpm.md5cache  (with one line for each rpm e.g. <md5sum> <group>+<name>+<version>-*.arch.rpm)
-#Optionally it could have SOURCES, WEB, drivers, cmsos, bootstrap.sh
+#Optionally it could have SOURCES, WEB, drivers, bootstrap.sh
 #<tmp>/upload/<sha256-upload-hash>[/SOURCES/cache/<nn>/<nn><md5sum>/<src-files>]
 #<tmp>/upload/<sha256-upload-hash>[/SOURCES/<arch>/<group>/<name>/<version>/<symlink> -> ../../../../cache/nn>/<nn><md5sum>/<src-file>]
-#<tmp>/upload/<sha256-upload-hash>[/cmsos|bootstrap.sh|drivers/<arch>-driver.txt|WEB/Files]
+#<tmp>/upload/<sha256-upload-hash>[/bootstrap.sh|drivers/<arch>-driver.txt|WEB/Files]
 
 ######################
 # Utility functions  #

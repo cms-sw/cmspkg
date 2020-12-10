@@ -177,3 +177,12 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 
 ### V00-00-40
  - @smuzaffar 2020-10-21: Install multiple packages in one go. This avoid reading RPM DB multiple times.
+
+### V00-00-41
+ - @smuzaffar 2020-10-30: Cleanup obsolete APT code
+
+### V00-00-42
+ - @smuzaffar 2020-11-24: Support to show multiple packages.
+
+### V00-00-43
+ - @smuzaffar 2020-12-10: Drop cmsos as it is now taken from original cms-common repository.

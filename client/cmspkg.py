@@ -68,7 +68,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-00-42"
+cmspkg_tag   = "V00-00-43"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -851,9 +851,6 @@ class CmsPkg:
     obj_store        = join(clone_dir, ".obj_store", "RPMS", opts.architecture)
     if opts.useStore and not exists(obj_store):  makedirs(obj_store, True)
 
-    #download system files: cmsos
-    for sfile in ["cmsos"]:
-      download_file_if_changed('file/%s/%s/%s' % (opts.repository, opts.architecture, sfile), join(repo_dir, sfile))
     #download the driver file
     aitems = opts.architecture.split("_")
     driver_arch = opts.architecture
