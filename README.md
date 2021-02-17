@@ -186,3 +186,6 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 
 ### V00-00-43
  - @smuzaffar 2020-12-10: Drop cmsos as it is now taken from original cms-common repository.
+
+### V00-00-44
+ - @smuzaffar 2021-02-17: Clone system files e.g. cmsos, bootstrap.sh and README.md
