@@ -1395,7 +1395,7 @@ for x in $(echo ${server}/${server_main_dir} | tr / ' ') ; do
 done
 [ "$found_server" = "yes" ] || cleanup_and_exit 1 "Unable to find /cgi-bin/cmspkg on $server"
 
-cmsos="https://raw.githubusercontent.com/cms-sw/cms-common/master/common/cmsos"
+cmsos="$(echo $server | cut -d/ -f1)/${server_main_dir}/repos/cmsos"
 [ "X$verbose" = Xtrue ] && echo_n "Downloading cmsos file..."
 download_${download_method} "$cmsos" $tempdir/cmsos
 [ -f $tempdir/cmsos ] || cleanup_and_exit 1 "FATAL: Unable to download cmsos: $cmsos"
