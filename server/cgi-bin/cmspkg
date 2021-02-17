@@ -166,6 +166,7 @@ def get_file(repo, arch, name):
    if name=="bootstrap.sh": name="bootstrap%s.sh" % useDev
    if name=="README.md": name="README%s.md" % useDev
   search_depth = 0
+  if name=="cmsos": repo = None
   return search_file (repo, arch, "latest", name, package=False)
 
 def get_source(repo, hash, name):
