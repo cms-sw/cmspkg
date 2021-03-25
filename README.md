@@ -189,3 +189,9 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 
 ### V00-00-44
  - @smuzaffar 2021-02-17: Clone system files e.g. cmsos, bootstrap.sh and README.md
+
+### V00-00-45
+ - @smuzaffar 2021-03-24: Bug fix, cmspkg failed to install if multiple packages are provided and last one is already installed.
+
+### V00-00-46
+ - @smuzaffar 2021-03-25: Revert last change
