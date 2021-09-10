@@ -195,3 +195,6 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 
 ### V00-00-46
  - @smuzaffar 2021-03-25: Revert last change
+
+### V00-00-47
+ - @smuzaffar 2021-09-10: Use python3 as default otherwise fallback to python.

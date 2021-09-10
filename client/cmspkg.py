@@ -1,4 +1,11 @@
-#!/usr/bin/env python
+#!/bin/bash
+
+""":"
+python_cmd="python"
+python3 -V >/dev/null 2>&1 && python_cmd="python3"
+exec ${python_cmd} $0 ${1+"$@"}
+"""
+
 from re import compile, match, escape
 from re import search as research
 from re import IGNORECASE as reIGNORECASE
@@ -68,7 +75,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-00-46"
+cmspkg_tag   = "V00-00-47"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
