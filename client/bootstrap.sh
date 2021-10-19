@@ -1250,6 +1250,7 @@ xProvides=""
 xSeedsRemove=""
 keep_on_going=false
 cmspkg_script_path=""
+driver_file=""
 while [ $# -gt 0 ]; do
   case $1 in
         setup )
@@ -1306,6 +1307,11 @@ while [ $# -gt 0 ]; do
         -architecture|-arch|-a )
             [ $# -gt 1 ] || cleanup_and_exit 1 "Option \`$1' requires at lease one argument"
             cmsplatf="$2"
+            shift; shift ;;
+        -driver)
+            [ $# -gt 1 ] || cleanup_and_exit 1 "Option \`$1' requires at lease one argument"
+            [ -e "$2" ]  || cleanup_and_exit 1 "No such file: $2"
+            driver_file=$(realpath $2)
             shift; shift ;;
         -unsupported_distribution_hack )
           unsupportedDistribution=true; shift
@@ -1549,12 +1555,12 @@ generateSeedSpec () {
       esac
 
       pkgManager=""
-      if [ "$(which dpkg 2>&1 | grep 'no dpkg' )" = "" ] ; then
-          [ "X$verbose" = Xtrue ] && echo && echo "...dpkg found in $(which dpkg), using it to seed the database." >&2
-          pkgManager="DPKG"
-      elif which rpm 2>&1 >/dev/null && [ "$(rpm -qa 2>&1 | grep 'use alien')" = "" ] ; then
-          [ "X$verbose" = Xtrue ] && echo && echo "...rpm found in $(which rpm), using it to seed the database." >&2
+      if command -v rpm >/dev/null 2>&1 ; then
+          [ "X$verbose" = Xtrue ] && echo && echo "...rpm found in $(command -v rpm), using it to seed the database." >&2
           pkgManager="RPM"
+      elif command -v dpkg >/dev/null 2>&1 ; then
+          [ "X$verbose" = Xtrue ] && echo && echo "...dpkg found in $(command -v dpkg), using it to seed the database." >&2
+          pkgManager="DPKG"
       else
           echo 1>&2
           echo "DPKG or RPM not found." 1>&2
@@ -1618,21 +1624,25 @@ seed ()
 
 get_driver() {
 # Get the architecture driver from the web
-driver="$cgi_server/cgi-bin/cmspkg${useDev}/driver/$repository/$cmsplatf?repo_uri=${server_main_dir}"
-echo_n "Downloading driver file $cmsplatf..."
-download_${download_method} "$driver" $tempdir/$cmsplatf-driver.txt
-[ -f $tempdir/$cmsplatf-driver.txt ] || cleanup_and_exit 1 "Unable to download platform driver: $driver"
-eval `cat $tempdir/$cmsplatf-driver.txt`
-echo "Done driver $cmsplatf."
-#Setting up optional drivers
-for arch in $(echo $cmsplatf | sed 's|_[^_]*$||')_common common_$(echo $cmsplatf | sed 's|^[^_]*_||;s|_[^_]*$||')_common ; do
-  driver="$cgi_server/cgi-bin/cmspkg${useDev}/driver/$repository/$arch?repo_uri=${server_main_dir}"
-  echo_n "Downloading driver file $arch ..."
-  download_${download_method} "$driver" $tempdir/$arch-driver.txt || continue
-  [ -f $tempdir/$arch-driver.txt ]
-  eval `cat $tempdir/$arch-driver.txt`
-  echo "Done driver $arch."
-done
+if [ "$driver_file" = "" ] ; then
+  driver="$cgi_server/cgi-bin/cmspkg${useDev}/driver/$repository/$cmsplatf?repo_uri=${server_main_dir}"
+  echo_n "Downloading driver file $cmsplatf..."
+  download_${download_method} "$driver" $tempdir/$cmsplatf-driver.txt
+  [ -f $tempdir/$cmsplatf-driver.txt ] || cleanup_and_exit 1 "Unable to download platform driver: $driver"
+  eval `cat $tempdir/$cmsplatf-driver.txt`
+  echo "Done driver $cmsplatf."
+  #Setting up optional drivers
+  for arch in $(echo $cmsplatf | sed 's|_[^_]*$||')_common common_$(echo $cmsplatf | sed 's|^[^_]*_||;s|_[^_]*$||')_common ; do
+    driver="$cgi_server/cgi-bin/cmspkg${useDev}/driver/$repository/$arch?repo_uri=${server_main_dir}"
+    echo_n "Downloading driver file $arch ..."
+    download_${download_method} "$driver" $tempdir/$arch-driver.txt || continue
+    [ -f $tempdir/$arch-driver.txt ]
+    eval `cat $tempdir/$arch-driver.txt`
+    echo "Done driver $arch."
+  done
+else
+  eval `cat $driver_file`
+fi
 }
 
 setup() {
@@ -1794,7 +1804,7 @@ do
     (mkdir -p $tmpInstDir;                                                            \
      cd $tmpInstDir                                                                   \
        && perl $DOWNLOAD_DIR/myrpm2cpio $DOWNLOAD_DIR/$pkg | cpio $cpio_opts -id      \
-       && rsync -aqr ${tmpInstDir}${pkgInstRoot}/ $pkgFinalInstDir                     \
+       && cp -ar ${tmpInstDir}${pkgInstRoot}/* $pkgFinalInstDir/                     \
        || cleanup_and_exit 1 "Unable to unpack $DOWNLOAD_DIR/$pkg";                   \
      rm -rf $tmpInstDir)
     $tempdir/bin/rpmHeader.pl $DOWNLOAD_DIR/$pkg PREIN | grep -v "^Unknown" | sed -e "s|[$]RPM_INSTALL_PREFIX|$PWD/inst|g" > $tempdir/scriptlets/$pkg.pre.sh
