@@ -1244,13 +1244,13 @@ unsupportedDistribution=false
 useDev=
 
 rootdir=$(pwd)
-testInstance=false
 xSeeds=""
 xProvides=""
 xSeedsRemove=""
 keep_on_going=false
 cmspkg_script_path=""
 driver_file=""
+seed_type="runtime"
 while [ $# -gt 0 ]; do
   case $1 in
         setup )
@@ -1273,7 +1273,6 @@ while [ $# -gt 0 ]; do
           server=$(echo $2 | cut -d/ -f1)
           server_path=$(echo $2/${server_main_dir} | cut -d/ -f2-100)
           [ "X$server_path" = "X" ] || server_main_dir=${server_path}
-          testInstance=true
           shift; shift ;;
         -server-path )
           [ $# -gt 1 ] || cleanup_and_exit 1 "Option \`$1' requires an argument"
@@ -1282,7 +1281,6 @@ while [ $# -gt 0 ]; do
           repository=$(basename $2)
           echo "server_main_dir $server_main_dir"
           echo "repository $repository"
-          testInstance=true
           hasServerPath=true
           shift; shift ;;
         -repository|-r )
@@ -1290,20 +1288,7 @@ while [ $# -gt 0 ]; do
           $hasServerPath || cleanup_and_exit 1 "Cannot specify -repository and -server-path at the same time"
           repository=$2 
           hasRepository=true
-          testInstance=true
           shift; shift ;;
-        -groups|-g )
-          [ $# -gt 1 ] || cleanup_and_exit 1 "Option \`$1' requires at lease one argument"
-          shift
-          while [ $# -gt 0 ]
-          do
-            [ "X$(echo $1 | cut -b1)" = X- ] && break
-            [ "X$1" = Xsetup ] && break
-            [ "X$1" = Xreseed ] && break
-            shift
-          done
-          testInstance=true
-          ;;
         -architecture|-arch|-a )
             [ $# -gt 1 ] || cleanup_and_exit 1 "Option \`$1' requires at lease one argument"
             cmsplatf="$2"
@@ -1312,6 +1297,13 @@ while [ $# -gt 0 ]; do
             [ $# -gt 1 ] || cleanup_and_exit 1 "Option \`$1' requires at lease one argument"
             [ -e "$2" ]  || cleanup_and_exit 1 "No such file: $2"
             driver_file=$(realpath $2)
+            shift; shift ;;
+        -seed-type)
+            [ $# -gt 1 ] || cleanup_and_exit 1 "Option \`$1' requires at lease one argument"
+            case $2 in
+              runtime|build) seed_type="$2" ;;
+              *)  cleanup_and_exit 1 "Invalid value \`$2' for option \`$1'. Valid values are runtime|build. Default is runtime."
+            esac
             shift; shift ;;
         -unsupported_distribution_hack )
           unsupportedDistribution=true; shift
@@ -1335,34 +1327,25 @@ while [ $# -gt 0 ]; do
           ;;
         -additional-seed )
           [ $# -gt 1 ] || cleanup_and_exit 1 "Option \`$1' requires at lease one argument"
-          shift
-          xSeeds="${xSeeds} $(echo $1 | tr ',' ' ')" ; shift
-          ;;
+          xSeeds="${xSeeds} $(echo $2 | tr ',' ' ')"
+          shift; shift ;;
         -remove-seed )
           [ $# -gt 1 ] || cleanup_and_exit 1 "Option \`$1' requires at lease one argument"
-          shift
-          xSeedsRemove="${xSeedsRemove} $(echo $1 | tr ',' ' ')" ; shift
-          ;;
+          xSeedsRemove="${xSeedsRemove} $(echo $2 | tr ',' ' ')"
+          shift; shift ;;
         -additional-provides )
           [ $# -gt 1 ] || cleanup_and_exit 1 "Option \`$1' requires at lease one argument"
-          shift
-          xProvides="${xProvides} $(echo $1 | tr ',' ' ')" ; shift
-          ;;
+          xProvides="${xProvides} $(echo \"$2\" | tr ',' ' ')"
+          shift; shift ;;
         -additional-pkgs )
-          while [ $# -gt 0 ]
-          do
-            [ "X$(echo $1 | cut -b1)" = X- ] && break
-            [ "X$1" = Xsetup ] && break
-            [ "X$1" = Xreseed ] && break
-            additionalPkgs="$additionalPkgs $1"
-            shift
-          done
-          ;;
+          [ $# -gt 1 ] || cleanup_and_exit 1 "Option \`$1' requires at lease one argument"
+          additionalPkgs="$additionalPkgs $(echo $2 | tr ',' ' ')"
+          shift; shift ;;
         -cmspkg )
           [ $# -gt 1 ] || cleanup_and_exit 1 "Option \`$1' requires at lease one argument"
-          shift
-          cmspkg_script_path=$1 ; shift
-          ;;
+          [ -e "$2" ]  || cleanup_and_exit 1 "No such file: $2"
+          cmspkg_script_path=$(realpath $2)
+          shift; shift ;;
         -help|-h )
           cat << \EOF_HELP 
 bootstrap.sh 
@@ -1370,12 +1353,31 @@ bootstrap.sh
 A script to bootstrap a CMS software area.
 
 Syntax:
-bootstrap.sh setup [-path <cms-path>] [-server <server>] [-server-path <download-path>] 
+bootstrap.sh setup|reseed <-a|-arch|-architecture arch> [optional options]
 
--path <cms-path> : location of where the installation must be done (default $PWD).
--server <server>  : repositories are to be found on server <server> (default cmsrep.cern.ch).
--server-path <download-path> : package structure is found on <download-path> on server (default cms/cpt/Software/download/apt).
--repository <repository> : use private apt repository cms.<username> (default: public repository)
+setup|reseed                  Setup a new installation area or reconfigure/reseed and existing area.
+-a|-arch|-architecture <arch> Select an architecture e.g slc7_amd64_gcc11
+
+Optional options
+-p|-path <cms-path>            Location of where the installation must be done (default: $PWD).
+-r|-repository <repository>    Use private cmspkg repository cms.<username> (default: cms).
+-server-path <download-path>   Package structure is found on <download-path> on server (default: cmssw).
+-server <server>               Repositories are to be found on server <server> (default: cmsrep.cern.ch).
+-seed-type runtime|build       Seed local installation area for runtime or runtime+build packages (default: runtime)
+-additional-seed <csv>         Additional <csv> packages to seed for this install area.
+-remove-seed     <csv>         Remove <csv> packages from default seeding.
+-additional-provides <csv>     Search and seed packages which provides <cvs>.
+-additional-pkgs <csv>         Additional packages to be installed.
+-driver <local-driver>         Use a local directory file instead of downloading it from server.
+-cmspkg <cmspkg-script>        Local cmspk script to be used instead of downloading from server.
+-unsupported_distribution_hack Seed for unsupported distributions
+-v|verbose                     Run in verbose mode
+-debug                         Run in debug mode
+-dev                           Use development cmspkg
+-y|-assume-yes                 Assume yes as answer
+-only-once                     Do not bootstrap installation area if already setup
+-k                             Keep going without failure.
+-h|-help                       Show this help message.
 EOF_HELP
         cleanup_and_exit 1
         ;;
@@ -1454,6 +1456,13 @@ checkPackage () {
     done
 }
 
+get_platformSeeds () {
+  requiredSeeds=$(eval echo $`cmsos`_$1)
+  if [ "X$requiredSeeds" = X ] ; then
+    requiredSeeds=$(eval echo $`cmsos | sed -e 's|\([0-9]\)[0-9]*|\1|'`_$1)
+  fi
+}
+
 generateSeedSpec () {
     # Seed system info
     # GL asound odbc java libtcl libtk
@@ -1463,18 +1472,16 @@ generateSeedSpec () {
     # rhXYZ_WWW_ does not exists we try to use
     # rhX_WWW_ platformSeeds before dropping to
     # the (optional) platformSeeds. 
-    requiredSeeds=$(eval echo $`cmsos`_platformSeeds)
-    if [ "X$requiredSeeds" = X ]
-    then
-      requiredSeeds=$(eval echo $`cmsos | sed -e 's|\([0-9]\)[0-9]*|\1|'`_platformSeeds)
-    fi
-
-    if [ "X$requiredSeeds" = X ]
-    then
+    get_platformSeeds platformSeeds
+    if [ "X$requiredSeeds" = X ]; then
       seed="$platformSeeds"
     else
       seed="$requiredSeeds"
       unsupportedDistribution=false
+    fi
+    if [ "${seed_type}" = "build" ] ; then
+        get_platformSeeds platformBuildSeeds
+        requiredBuildSeeds="${requiredSeeds}"
     fi
     ERR=false
     for p in $(eval echo $`cmsos`_packagesWithProvides) ${xProvides}; do
@@ -1574,6 +1581,12 @@ generateSeedSpec () {
               missingSeeds="$missingSeeds $pp"
           else
               selSeeds="${selSeeds} ${p}"
+          fi
+      done
+      for pp in ${requiredBuildSeeds}; do
+          p=$(checkPackage "$pp" ${pkgManager})
+          if [ "$p" = "" ] ; then
+              missingSeeds="$missingSeeds $pp"
           fi
       done
       if [ "$missingSeeds" ] ; then
