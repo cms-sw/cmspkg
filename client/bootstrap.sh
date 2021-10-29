@@ -1479,6 +1479,7 @@ generateSeedSpec () {
       seed="$requiredSeeds"
       unsupportedDistribution=false
     fi
+    requiredBuildSeeds=""
     if [ "${seed_type}" = "build" ] ; then
         get_platformSeeds platformBuildSeeds
         requiredBuildSeeds="${requiredSeeds}"
