@@ -1479,12 +1479,20 @@ generateSeedSpec () {
       seed="$requiredSeeds"
       unsupportedDistribution=false
     fi
+    ERR=false
     requiredBuildSeeds=""
     if [ "${seed_type}" = "build" ] ; then
-        get_platformSeeds platformBuildSeeds
-        requiredBuildSeeds="${requiredSeeds}"
+      get_platformSeeds platformBuildSeeds
+      requiredBuildSeeds="${requiredSeeds}"
+      for p in $(eval echo $`cmsos`_packagesWithBuildProvides); do
+        s=$(provide2package "$p") || true
+        if [ "X$s" = "X" ] || [ $(echo "$s" | grep 'no package provides' | wc -l) -gt 0 ]; then
+          echo "ERROR: Unable to find package to provide '$p'. Software might fail at build time."
+          if $keep_on_going ; then continue ; fi
+          ERR=true
+        fi
+      done
     fi
-    ERR=false
     for p in $(eval echo $`cmsos`_packagesWithProvides) ${xProvides}; do
       s=$(provide2package "$p") || true
       if [ "X$s" = "X" ] || [ $(echo "$s" | grep 'no package provides' | wc -l) -gt 0 ]; then
