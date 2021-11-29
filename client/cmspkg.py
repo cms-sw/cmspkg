@@ -75,7 +75,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-00-47"
+cmspkg_tag   = "V00-00-48"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -514,7 +514,7 @@ class CmsPkg:
   def update_rpm_cache(self, force=False):
     if (not force) and self.rpm_cache: return
     self.rpm_cache.clear()
-    err, out = run_cmd("%s; rpm -qa --queryformat '%%{NAME} %%{RELEASE}\n'" % rpm_env)
+    err, out = run_cmd("(%s; rpm -qa --queryformat '%%{NAME} %%{RELEASE}\n') 2>&1 | grep -v 'qemu: Unsupported syscall:'" % rpm_env)
     for r in out.split("\n"):
       r = r.strip()
       if check_kbe(r): continue
@@ -526,7 +526,7 @@ class CmsPkg:
   #Read RPM database to get a package size
   def package_size(self, pkg):
     pkg_file = join(rpm_download, pkg)
-    err, out = run_cmd("%s; rpm -qip  %s | grep '^Size[[:blank:]]*:' | awk '{print $3}'"  % (rpm_env, pkg_file))
+    err, out = run_cmd("(%s; rpm -qip  %s) 2>&1 | grep '^Size[[:blank:]]*:' | awk '{print $3}'"  % (rpm_env, pkg_file))
     st = stat(pkg_file)
     return st.st_size, int(out)
 
@@ -1026,7 +1026,7 @@ class CmsPkg:
       if pkg in cache["KEPT"]: return
       cache["KEPT"][pkg]=1
       cache["RPMS"].pop(pkg,None)
-      err, out = run_cmd("%s; rpm -qR --queryformat '%%{NAME}\n' %s" % (rpm_env, pkg))
+      err, out = run_cmd("(%s; rpm -qR --queryformat '%%{NAME}\n' %s) 2>&1 | grep -v 'qemu: Unsupported syscall:'" % (rpm_env, pkg))
       for dep in out.split("\n"): cache["RPMS"].pop(dep.strip(),None)
 
     def checkDeps(pkg, cache):
@@ -1035,7 +1035,7 @@ class CmsPkg:
       if not pkg in cache["RPMS"]:
         keepPack(pkg, cache)
         return
-      err, out = run_cmd("%s; rpm -q --whatrequires --queryformat '%%{NAME}\n' %s" % (rpm_env, pkg), False, False)
+      err, out = run_cmd("(%s; rpm -q --whatrequires --queryformat '%%{NAME}\n' %s) 2>&1 | grep -v 'qemu: Unsupported syscall:'" % (rpm_env, pkg), False, False)
       if err: return
       for req in out.split("\n"):
         req=req.strip()
