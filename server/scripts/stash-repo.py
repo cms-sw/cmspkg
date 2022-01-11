@@ -240,6 +240,7 @@ if __name__ == "__main__" :
     repo_name = basename(repo_dir)
     for conf in STASH_CONFIG:
       if re.match(conf[0],repo_name):
+        print repo_name,"is matched by",conf
         stashRepo(repo_dir, conf[1], conf[2], dryRun)
         cleanup_transactions(repo_dir, delme_dir, dryRun)
         break
