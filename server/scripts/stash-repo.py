@@ -166,7 +166,7 @@ def stashRepo(repo_dir, days=7, max_trans=10, dryRun=False):
         del commits[-1]
       commits_count = len(commits)
       print "    Total transactions: %s (%s)" % (commits_count, max_trans)
-      while (commits_count>1) and (commits_count>max_trans):
+      while (commits_count>max_trans):
         #Start with the first child of default hash i.e. commits[-1]
         firstChild = commits[-1][0]
         dtime = int(time() - commits[-1][1])
