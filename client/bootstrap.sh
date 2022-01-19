@@ -18,6 +18,9 @@ else
   echo_n() { echo -n ${1+"$@"}; }
 fi
 
+get_cmsos() {
+  echo $cmsarch
+}
 cleanup_and_exit () {
     exitcode=$1
     exitmessage=$2
@@ -1403,16 +1406,17 @@ for x in $(echo ${server}/${server_main_dir} | tr / ' ') ; do
 done
 [ "$found_server" = "yes" ] || cleanup_and_exit 1 "Unable to find /cgi-bin/cmspkg on $server"
 
-cmsos="$(echo $server | cut -d/ -f1)/${server_main_dir}/repos/cmsos"
-[ "X$verbose" = Xtrue ] && echo_n "Downloading cmsos file..."
-download_${download_method} "$cmsos" $tempdir/cmsos
-[ -f $tempdir/cmsos ] || cleanup_and_exit 1 "FATAL: Unable to download cmsos: $cmsos"
-source $tempdir/cmsos
-
 # Use cmsos to guess the platform if it is not set on command line.
-if [ "X$cmsplatf" = X ] 
-then
-  cmsplatf=`cmsos`_`defaultCompiler`
+if [ "X$cmsplatf" = X ] ; then
+  cmsos="$(echo $server | cut -d/ -f1)/${server_main_dir}/repos/cmsos"
+  [ "X$verbose" = Xtrue ] && echo_n "Downloading cmsos file..."
+  download_${download_method} "$cmsos" $tempdir/cmsos
+  [ -f $tempdir/cmsos ] || cleanup_and_exit 1 "FATAL: Unable to download cmsos: $cmsos"
+  source $tempdir/cmsos
+  cmsarch=`cmsos`
+  cmsplatf=${cmsarch}_`defaultCompiler`
+else
+  cmsarch=$(echo $cmsplatf | cut -d_ -f1,2)
 fi
 
 case $cmsplatf in
@@ -1457,9 +1461,9 @@ checkPackage () {
 }
 
 get_platformSeeds () {
-  requiredSeeds=$(eval echo $`cmsos`_$1)
+  requiredSeeds=$(eval echo $`get_cmsos`_$1)
   if [ "X$requiredSeeds" = X ] ; then
-    requiredSeeds=$(eval echo $`cmsos | sed -e 's|\([0-9]\)[0-9]*|\1|'`_$1)
+    requiredSeeds=$(eval echo $`get_cmsos | sed -e 's|\([0-9]\)[0-9]*|\1|'`_$1)
   fi
 }
 
@@ -1484,7 +1488,7 @@ generateSeedSpec () {
     if [ "${seed_type}" = "build" ] ; then
       get_platformSeeds platformBuildSeeds
       requiredBuildSeeds="${requiredSeeds}"
-      for p in $(eval echo $`cmsos`_packagesWithBuildProvides); do
+      for p in $(eval echo $`get_cmsos`_packagesWithBuildProvides); do
         s=$(provide2package "$p") || true
         if [ "X$s" = "X" ] || [ $(echo "$s" | grep 'no package provides' | wc -l) -gt 0 ]; then
           echo "ERROR: Unable to find package to provide '$p'. Software might fail at build time."
@@ -1493,7 +1497,7 @@ generateSeedSpec () {
         fi
       done
     fi
-    for p in $(eval echo $`cmsos`_packagesWithProvides) ${xProvides}; do
+    for p in $(eval echo $`get_cmsos`_packagesWithProvides) ${xProvides}; do
       s=$(provide2package "$p") || true
       if [ "X$s" = "X" ] || [ $(echo "$s" | grep 'no package provides' | wc -l) -gt 0 ]; then
         additionalProvides="$p ${additionalProvides}"
