@@ -198,3 +198,9 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 
 ### V00-00-47
  - @smuzaffar 2021-09-10: Use python3 as default otherwise fallback to python.
+
+### V00-00-48
+ - @smuzaffar 2021-11-29: Fixes for running under QEMU
+
+### V00-00-49
+ - @smuzaffar 2022-02-28: For cmspkg remove command, covert RPM name to cmspkg name

@@ -941,12 +941,13 @@ class CmsPkg:
   #uninstall a package and remove its stamp file
   def remove(self, package):
     self.update_rpm_cache()
-    cmd = "%s; rpm -q --queryformat='%%{NAME}' %s" % (rpm_env, package)
-    err, out = run_cmd(cmd)
-    if err:
-      cmspkg_print(out)
-    else:
-      package = out.strip()
+    if package not in self.rpm_cache:
+      cmd = "%s; rpm -q --queryformat='%%{NAME}' %s" % (rpm_env, package)
+      err, out = run_cmd(cmd)
+      if err:
+        cmspkg_print(out)
+      else:
+        package = out.strip()
     if package in self.rpm_cache:
       if not opts.force: ask_user_to_continue("Are you sure to delete %s (Y/n): " % package)
       cmspkg_print("Removing package %s" % package)
