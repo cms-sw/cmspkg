@@ -204,3 +204,6 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 
 ### V00-00-49
  - @smuzaffar 2022-02-28: For cmspkg remove command, covert RPM name to cmspkg name
+
+### V00-01-00
+ - @smuzaffar 2022-03-12: Run OS specific commands under CMSPKG_OS_COMMAND if set. This allow to run most of the cmspkg command on host.

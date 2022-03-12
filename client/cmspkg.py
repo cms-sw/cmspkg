@@ -14,7 +14,7 @@ from sys import exit, argv
 from sys import version_info,stdout
 from sys import exc_info, platform
 from os import system as syscall
-from os import getpid, getcwd, mkdir, stat, kill
+from os import getpid, getcwd, mkdir, stat, kill, getenv
 from os.path import join, exists, abspath, dirname, basename, isdir
 from time import sleep, time
 from glob import glob
@@ -75,7 +75,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-00-49"
+cmspkg_tag   = "V00-01-00"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -236,8 +236,14 @@ def fetch_url(data, outfile=None, debug=False, exit_on_error=True):
   return run_cmd(cmd_str, outdebug=debug, exit_on_error=exit_on_error)
 
 #Run a shell command
-def run_cmd (cmd,outdebug=False,exit_on_error=True):
-  if opts.debug: cmspkg_print("[CMD]: %s" % cmd)
+def fix_cmd(cmd):
+  if rpm_env and (rpm_env in cmd) and getenv("CMSPKG_OS_COMMAND",""):
+    return "%s \"%s\"" % (getenv("CMSPKG_OS_COMMAND"), cmd)
+  return cmd
+
+def run_cmd (cmd,outdebug=False,exit_on_error=True, silent=False):
+  cmd = fix_cmd(cmd)
+  if opts.debug and not silent: cmspkg_print("[CMD]: %s" % cmd)
   err, out = getstatusoutput(cmd)
   if err:
     if exit_on_error:
@@ -321,15 +327,13 @@ def download_rpm(package, tries=5):
 
 #Returns rpm dependencies using rpm -qp --requires command
 def get_pkg_deps(rpm):
-  cmd = "%s; rpm -qp --requires %s" % (rpm_env, join(rpm_download, rpm))
-  err, out = run_cmd(cmd)
+  err, out = run_cmd("cat %s" % join(rpm_download, rpm)+".info", silent=True)
   deps = []
-  ReReq = compile('^(cms|external|lcg)[+][^+]+[+].+')
+  ReReq = compile('^REQ:(cms|external|lcg)[+][^+]+[+].+')
   for line in out.split("\n"):
     line = line.strip()
-    if check_kbe(line): continue
     if ReReq.match(line):
-      deps.append(line)
+      deps.append(line[4:])
   return deps
 
 def human_readable_size(size):
@@ -342,10 +346,21 @@ def human_readable_size(size):
       schar = 'MB'
   return str(size)+schar
 
+def dump_rpm_data(rpm_file):
+  if not rpm_env: return
+  xfile = rpm_file+".info"
+  if not exists(xfile):
+    run_cmd("%s; rpm -qp --queryformat='SIZE:%%{SIZE}\\n[REQ:%%{REQUIRENAME}\\n]' %s > %s" % (rpm_env, rpm_file, xfile))
+
 #Download a package if not already downloaed
 def download_package(package):
-  if exists (join(rpm_download, package[1])): return
-  try: download_rpm(package)
+  rpm_file = join(rpm_download, package[1])
+  if exists (rpm_file):
+    dump_rpm_data(rpm_file)
+    return
+  try:
+    if download_rpm(package):
+      dump_rpm_data(rpm_file)
   except Exception: cmspkg_print("Error: Downloading RPMS: %s" % str(exc_info()[1]))
 
 #get RPM Command-line Options
@@ -481,7 +496,9 @@ class rpmDownloader:
       if(len(threads) < self.parallel):
         package = packages[index]
         index += 1
-        if exists(join(rpm_download, package[1])): continue
+        chk_ext = ""
+        if rpm_env: chk_ext = ".info"
+        if exists(join(rpm_download, package[1]+chk_ext)): continue
         downloaded_pkgs.append(package)
         self.counter = self.counter + 1
         cmspkg_print("Get:%s http://%s cmssw/%s/%s %s" % (self.counter, opts.server, opts.repository, opts.architecture, package[1]))
@@ -514,7 +531,7 @@ class CmsPkg:
   def update_rpm_cache(self, force=False):
     if (not force) and self.rpm_cache: return
     self.rpm_cache.clear()
-    err, out = run_cmd("(%s; rpm -qa --queryformat '%%{NAME} %%{RELEASE}\n') 2>&1 | grep -v 'qemu: Unsupported syscall:'" % rpm_env)
+    err, out = run_cmd("(%s; rpm -qa --queryformat '%%{NAME} %%{RELEASE}\\n' 2>&1) | grep -v 'qemu: Unsupported syscall:'" % rpm_env)
     for r in out.split("\n"):
       r = r.strip()
       if check_kbe(r): continue
@@ -526,9 +543,10 @@ class CmsPkg:
   #Read RPM database to get a package size
   def package_size(self, pkg):
     pkg_file = join(rpm_download, pkg)
-    err, out = run_cmd("(%s; rpm -qip  %s) 2>&1 | grep '^Size[[:blank:]]*:' | awk '{print $3}'"  % (rpm_env, pkg_file))
+    err, out = run_cmd("grep '^SIZE:' %s | head -1"  % (pkg_file+".info"), silent=True)
+    if out: out = int(out.strip()[5:])
     st = stat(pkg_file)
-    return st.st_size, int(out)
+    return st.st_size, out
 
   #Download cmspkg caches from server. It is identical to "apt-get update"
   #It first fetches the list of all caches from server and then only download the new caches.
@@ -747,7 +765,7 @@ class CmsPkg:
 
     #Install the nwly downloaded packages(s)
     stime = time()
-    if syscall(cmd)>0: exit(1)
+    if syscall(fix_cmd(cmd))>0: exit(1)
     self.update_rpm_cache(True)
     if package in self.rpm_cache:
       package_installed(package)
@@ -1033,7 +1051,7 @@ class CmsPkg:
       if pkg in cache["KEPT"]: return
       cache["KEPT"][pkg]=1
       cache["RPMS"].pop(pkg,None)
-      err, out = run_cmd("(%s; rpm -qR --queryformat '%%{NAME}\n' %s) 2>&1 | grep -v 'qemu: Unsupported syscall:'" % (rpm_env, pkg))
+      err, out = run_cmd("(%s; rpm -qR --queryformat '%%{NAME}\\n' %s 2>&1) | grep -v 'qemu: Unsupported syscall:'" % (rpm_env, pkg))
       for dep in out.split("\n"): cache["RPMS"].pop(dep.strip(),None)
 
     def checkDeps(pkg, cache):
@@ -1042,7 +1060,7 @@ class CmsPkg:
       if not pkg in cache["RPMS"]:
         keepPack(pkg, cache)
         return
-      err, out = run_cmd("(%s; rpm -q --whatrequires --queryformat '%%{NAME}\n' %s) 2>&1 | grep -v 'qemu: Unsupported syscall:'" % (rpm_env, pkg), False, False)
+      err, out = run_cmd("(%s; rpm -q --whatrequires --queryformat '%%{NAME}\n\n' %s 2>&1) | grep -v 'qemu: Unsupported syscall:'" % (rpm_env, pkg), False, False)
       if err: return
       for req in out.split("\n"):
         req=req.strip()
@@ -1119,12 +1137,12 @@ def process(args, opt, cache_dir):
   if args[0]=="rpm":
     cmd = rpm_env+" ; "+args[0]
     for a in args[1:]: cmd+=" '"+a+"'"
-    if syscall(cmd)>0: exit(1)
+    if syscall(fix_cmd(cmd))>0: exit(1)
     exit(0)
   if args[0] in ["rpmenv", "env"]:
     cmd = rpm_env+" ; "+args[1]
     for a in args[2:]: cmd+=" '"+a+"'"
-    if syscall(cmd)>0: exit(1)
+    if syscall(fix_cmd(cmd))>0: exit(1)
     exit(0)
 
   if not exists (cache_dir): makedirs(cache_dir,True)
