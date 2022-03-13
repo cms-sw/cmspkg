@@ -75,7 +75,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-01-05"
+cmspkg_tag   = "V00-01-06"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -85,7 +85,8 @@ rpm_env      = None
 rpm_partial  = "partial"
 getcmd       = None
 cmspkg_agent = "CMSPKG/1.0"
-pkgs_to_keep = ["cms[+](local-cern-siteconf|afs-relocation-cern)[+]","external[+](apt|rpm)[+]","cms[+](cmspkg|cmssw|cmssw-patch|cms-common|cmsswdata)[+]"]
+cmspkg_regex = compile('^(cms|external|lcg)[+][^+]+[+].+')
+pkgs_to_keep = ["cms[+](local-cern-siteconf|afs-relocation-cern)[+]","external[+](apt|rpm)[+]","cms[+](cmspkg|cmssw|cmssw-patch|fakesystem|cms-common|cmsswdata)[+]"]
 getcmds = [ 
             ['curl','--version','--connect-timeout 60 --max-time 600 -L -q -f -s -H "Cache-Control: max-age=0" --user-agent "%s"' % (cmspkg_agent),"-o %s"],
             ['wget','--version','--timeout=600 -q --header="Cache-Control: max-age=0" --user-agent="%s" -O -' % (cmspkg_agent),"-O %s"],
@@ -329,11 +330,8 @@ def download_rpm(package, tries=5):
 def get_pkg_deps(rpm):
   err, out = run_cmd("cat %s" % join(rpm_download, rpm)+".info", silent=True)
   deps = []
-  ReReq = compile('^REQ:(cms|external|lcg)[+][^+]+[+].+')
-  for line in out.split("\n"):
-    line = line.strip()
-    if ReReq.match(line):
-      deps.append(line[4:])
+  for line in [o[4:].strip() for o in out.split("\n") if o.startswith('REQ:')]:
+    if cmspkg_regex.match(line): deps.append(line)
   return deps
 
 def human_readable_size(size):
@@ -970,7 +968,7 @@ class CmsPkg:
       if err:
         cmspkg_print(out)
       else:
-        package = [o[4:].strip() for o in out.strip("\n") if o.startswith("RES:")][-1]
+        package = [o[4:].strip() for o in out.split("\n") if o.startswith("RES:")][-1]
     if package in self.rpm_cache:
       if not opts.force: ask_user_to_continue("Are you sure to delete %s (Y/n): " % package)
       cmspkg_print("Removing package %s" % package)
@@ -1015,7 +1013,7 @@ class CmsPkg:
     self.update_rpm_cache()
     reinstall_packs = []
     for pack in self.rpm_cache:
-      if pack.split("+")[0] not in ["cms", "external", "lcg"]: continue
+      if not cmspkg_regex.match(pack): continue
       try:
         rev = int(self.rpm_cache[pack])
         if (rev>1) and (rev<self.latest_revision(pack)):
@@ -1073,10 +1071,10 @@ class CmsPkg:
       if pkg in cache["KEPT"]: return
       cache["KEPT"][pkg]=1
       cache["RPMS"].pop(pkg,None)
-      err, out = run_cmd("%s; rpm -qR --queryformat 'RES:%%{NAME}\\n' %s" % (rpm_env, pkg))
+      err, out = run_cmd("%s; rpm -qR --queryformat '%%{NAME}\\n' %s" % (rpm_env, pkg))
       for dep in out.split("\n"):
-        if not dep.startswith("RES:"): continue
-        cache["RPMS"].pop(dep[4:].strip(),None)
+        if not cmspkg_regex.match(dep): continue
+        cache["RPMS"].pop(dep,None)
 
     def checkDeps(pkg, cache):
       if pkg in cache["CHECK"]: return
@@ -1084,11 +1082,10 @@ class CmsPkg:
       if not pkg in cache["RPMS"]:
         keepPack(pkg, cache)
         return
-      err, out = run_cmd("%s; rpm -q --whatrequires --queryformat 'RES:%%{NAME}\\n' %s" % (rpm_env, pkg), False, False)
+      err, out = run_cmd("%s; rpm -q --whatrequires --queryformat '%%{NAME}\\n' %s" % (rpm_env, pkg), False, False)
       if err: return
       for req in out.split("\n"):
-        if not req.startswith("RES:"): continue
-        req=req[4:].strip()
+        if not cmspkg_regex.match(req): continue
         checkDeps(req, cache)
         if (req in cache["RPMS"]) and (pkg in cache["RPMS"]):
           cache["RPMS"][pkg]["USEDBY"][req]=1
@@ -1107,7 +1104,7 @@ class CmsPkg:
     self.update_rpm_cache(True)
     cache = {"RPMS" : {}, "KEPT": {}, "CHECK" : {}}
     for pkg in self.rpm_cache:
-      if not match("^(cms|external|lcg)[+].+",pkg): continue
+      if not cmspkg_regex.match(pkg): continue
       cache["RPMS"][pkg]={"USEDBY":{}}
 
     for pkg in sorted(cache["RPMS"].keys()):

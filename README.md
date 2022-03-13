@@ -222,3 +222,6 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 
 ### V00-01-05
  - @smuzaffar 2022-03-13: New --upgrade-packages options for upgrade command added. Thsi should update default packages like cms-common
+
+### V00-01-06
+ - @smuzaffar 2022-03-13: Fixes for package clean
