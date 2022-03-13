@@ -75,7 +75,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-01-03"
+cmspkg_tag   = "V00-01-04"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -350,7 +350,7 @@ def dump_rpm_data(rpm_file):
   if not rpm_env: return
   xfile = rpm_file+".info"
   if not exists(xfile):
-    run_cmd("%s; rpm -qp --queryformat='SIZE:%%{SIZE}\\n[REQ:%%{REQUIRENAME}\\n]' %s > %s" % (rpm_env, rpm_file, xfile))
+    run_cmd("rpm -qp --queryformat='SIZE:%%{SIZE}\\n[REQ:%%{REQUIRENAME}\\n]' %s > %s" % (rpm_file, xfile))
 
 #Download a package if not already downloaed
 def download_package(package):
@@ -548,7 +548,7 @@ class CmsPkg:
     try:
       out = int(out.strip()[5:])
     except:
-      err, out = run_cmd("(%s; rpm -qip  %s 2>&1) | grep '^Size[[:blank:]]*:' | awk '{print $3}'"  % (rpm_env, pkg_file))
+      err, out = run_cmd("rpm -qip  %s | grep '^Size[[:blank:]]*:' | awk '{print $3}'"  % (pkg_file))
       out = int(out)
     st = stat(pkg_file)
     return st.st_size, out

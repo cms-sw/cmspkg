@@ -216,3 +216,6 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 
 ### V00-01-03
  - @smuzaffar 2022-03-13: Fix typo
+
+### V00-01-04
+ - @smuzaffar 2022-03-13: USe system rpm for getting rpm file expand size and requirements
