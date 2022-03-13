@@ -75,7 +75,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-01-01"
+cmspkg_tag   = "V00-01-02"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -531,9 +531,10 @@ class CmsPkg:
   def update_rpm_cache(self, force=False):
     if (not force) and self.rpm_cache: return
     self.rpm_cache.clear()
-    err, out = run_cmd("(%s; rpm -qa --queryformat '%%{NAME} %%{RELEASE}\\n' 2>&1) | grep -v 'qemu: Unsupported syscall:'" % rpm_env)
+    err, out = run_cmd("%s; rpm -qa --queryformat 'RES:%%{NAME} %%{RELEASE}\\n'" % rpm_env)
     for r in out.split("\n"):
-      r = r.strip()
+      if not r.startswith("RES:"): continue
+      r = r[4:].strip()
       if check_kbe(r): continue
       if not r: continue
       n, rv = r.split(" ")
@@ -964,12 +965,12 @@ class CmsPkg:
   def remove(self, package):
     self.update_rpm_cache()
     if package not in self.rpm_cache:
-      cmd = "%s; rpm -q --queryformat='%%{NAME}' %s" % (rpm_env, package)
+      cmd = "%s; rpm -q --queryformat='RES:%%{NAME}\\n' %s" % (rpm_env, package)
       err, out = run_cmd(cmd)
       if err:
         cmspkg_print(out)
       else:
-        package = out.strip()
+        package = [o[4:].strip() for o in out.strip("\n") if o.startswith("RES:")][-1]
     if package in self.rpm_cache:
       if not opts.force: ask_user_to_continue("Are you sure to delete %s (Y/n): " % package)
       cmspkg_print("Removing package %s" % package)
@@ -1055,8 +1056,10 @@ class CmsPkg:
       if pkg in cache["KEPT"]: return
       cache["KEPT"][pkg]=1
       cache["RPMS"].pop(pkg,None)
-      err, out = run_cmd("(%s; rpm -qR --queryformat '%%{NAME}\\n' %s 2>&1) | grep -v 'qemu: Unsupported syscall:'" % (rpm_env, pkg))
-      for dep in out.split("\n"): cache["RPMS"].pop(dep.strip(),None)
+      err, out = run_cmd("%s; rpm -qR --queryformat 'RES:%%{NAME}\\n' %s" % (rpm_env, pkg))
+      for dep in out.split("\n"):
+        if not dep.startswith("RES:")
+        cache["RPMS"].pop(dep[4:].strip(),None)
 
     def checkDeps(pkg, cache):
       if pkg in cache["CHECK"]: return
@@ -1064,10 +1067,11 @@ class CmsPkg:
       if not pkg in cache["RPMS"]:
         keepPack(pkg, cache)
         return
-      err, out = run_cmd("(%s; rpm -q --whatrequires --queryformat '%%{NAME}\n\n' %s 2>&1) | grep -v 'qemu: Unsupported syscall:'" % (rpm_env, pkg), False, False)
+      err, out = run_cmd("%s; rpm -q --whatrequires --queryformat 'RES:%%{NAME}\\n' %s" % (rpm_env, pkg), False, False)
       if err: return
       for req in out.split("\n"):
-        req=req.strip()
+        if not req.startswith("RES:")
+        req=req[4:].strip()
         checkDeps(req, cache)
         if (req in cache["RPMS"]) and (pkg in cache["RPMS"]):
           cache["RPMS"][pkg]["USEDBY"][req]=1
