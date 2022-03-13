@@ -75,7 +75,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-01-04"
+cmspkg_tag   = "V00-01-05"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -1007,6 +1007,23 @@ class CmsPkg:
     cmspkg_print("Newer cmspkg client installed")
     return
 
+  def upgrade_packages(self):
+    if not self.cache:
+      cmspkg_print("Reading Package Lists...")
+      self.cache = pkgCache()
+    #Read rpm database
+    self.update_rpm_cache()
+    reinstall_packs = []
+    for pack in self.rpm_cache:
+      if pack.split("+")[0] not in ["cms", "external", "lcg"]: continue
+      try:
+        rev = int(self.rpm_cache[pack])
+        if (rev>1) and (rev<self.latest_revision(pack)):
+          reinstall_packs.append(pack)
+      except:
+        pass
+    return reinstall_packs
+
   #setup cmspkg area 
   def setup(self, version, client_file):
     pkg_dir = join(opts.install_prefix, opts.architecture, "cms", "cmspkg", version)
@@ -1215,6 +1232,12 @@ def process(args, opt, cache_dir):
       repo.show(args[1])
     elif args[0] == "upgrade":
       repo.upgrade()
+      if not opt.upgrade_packages: return
+      packs = repo.upgrade_packages()
+      if packs:
+        opts.reinstall = True
+        process(["install"]+packs, opt, cache_dir)
+  return
 
 if __name__ == '__main__':
   from optparse import OptionParser
@@ -1228,6 +1251,7 @@ if __name__ == '__main__':
   "              [-d|--debug]\n"
   "              [-c|--dist-clean]\n"
   "              [-v|--version]\n"
+  "              [--upgrade-packages]\n"
   "              [--show-revision]\n"
   "              [--use-dev]\n"
   "              [--reinstall]\n"
@@ -1237,6 +1261,7 @@ if __name__ == '__main__':
   parser.add_option("-y",                  dest="force",     action="store_true", default=False, help="Assume yes for installation")
   parser.add_option("-d", "--debug",       dest="debug",     action="store_true", default=False, help="Print more debug outputs")
   parser.add_option("-v", "--version",     dest="version",   action="store_true", default=False, help="Print version string")
+  parser.add_option("--upgrade-packages",  dest="upgrade_packages", action="store_true", default=False, help="Upgrade default packages e.g. cms-common, fakesystem etc.")
   parser.add_option("--show-revision",     dest="show_revision", action="store_true", default=False, help="Used with search command to show also the revision of the package(s)")
   parser.add_option("--use-dev",           dest="useDev",    action="store_true", default=False, help="Use development server instead of production")
   parser.add_option("--ignore-known",      dest="IgnoreKbe", action="store_true", default=False, help="Ignore known errors")

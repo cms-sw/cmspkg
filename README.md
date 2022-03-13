@@ -218,4 +218,7 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
  - @smuzaffar 2022-03-13: Fix typo
 
 ### V00-01-04
- - @smuzaffar 2022-03-13: USe system rpm for getting rpm file expand size and requirements
+ - @smuzaffar 2022-03-13: Use system rpm for getting rpm file expand size and requirements
+
+### V00-01-05
+ - @smuzaffar 2022-03-13: New --upgrade-packages options for upgrade command added. Thsi should update default packages like cms-common
