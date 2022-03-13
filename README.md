@@ -212,7 +212,7 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
  - @smuzaffar 2022-03-13: Big fix for large RPM sizes
 
 ### V00-01-02
- - @smuzaffar 2022-03-13: Fxies for qemu printouts
+ - @smuzaffar 2022-03-13: Fixes for qemu printouts
 
 ### V00-01-03
  - @smuzaffar 2022-03-13: Fix typo
