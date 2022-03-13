@@ -207,3 +207,6 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 
 ### V00-01-00
  - @smuzaffar 2022-03-12: Run OS specific commands under CMSPKG_OS_COMMAND if set. This allow to run most of the cmspkg command on host.
+
+### V00-01-01
+ - @smuzaffar 2022-03-13: Big fix for large RPM sizes

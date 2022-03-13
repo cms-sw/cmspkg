@@ -75,7 +75,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-01-00"
+cmspkg_tag   = "V00-01-01"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -544,7 +544,11 @@ class CmsPkg:
   def package_size(self, pkg):
     pkg_file = join(rpm_download, pkg)
     err, out = run_cmd("grep '^SIZE:' %s | head -1"  % (pkg_file+".info"), silent=True)
-    if out: out = int(out.strip()[5:])
+    try:
+      out = int(out.strip()[5:])
+    except:
+      err, out = run_cmd("(%s; rpm -qip  %s 2>&1) | grep '^Size[[:blank:]]*:' | awk '{print $3}'"  % (rpm_env, pkg_file))
+      out = int(out)
     st = stat(pkg_file)
     return st.st_size, out
 
