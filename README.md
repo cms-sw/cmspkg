@@ -213,3 +213,6 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 
 ### V00-01-02
  - @smuzaffar 2022-03-13: Fxies for qemu printouts
+
+### V00-01-03
+ - @smuzaffar 2022-03-13: Fix typo

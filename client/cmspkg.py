@@ -75,7 +75,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-01-02"
+cmspkg_tag   = "V00-01-03"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -1058,7 +1058,7 @@ class CmsPkg:
       cache["RPMS"].pop(pkg,None)
       err, out = run_cmd("%s; rpm -qR --queryformat 'RES:%%{NAME}\\n' %s" % (rpm_env, pkg))
       for dep in out.split("\n"):
-        if not dep.startswith("RES:")
+        if not dep.startswith("RES:"): continue
         cache["RPMS"].pop(dep[4:].strip(),None)
 
     def checkDeps(pkg, cache):
@@ -1070,7 +1070,7 @@ class CmsPkg:
       err, out = run_cmd("%s; rpm -q --whatrequires --queryformat 'RES:%%{NAME}\\n' %s" % (rpm_env, pkg), False, False)
       if err: return
       for req in out.split("\n"):
-        if not req.startswith("RES:")
+        if not req.startswith("RES:"): continue
         req=req[4:].strip()
         checkDeps(req, cache)
         if (req in cache["RPMS"]) and (pkg in cache["RPMS"]):
