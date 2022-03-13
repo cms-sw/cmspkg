@@ -225,3 +225,6 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 
 ### V00-01-06
  - @smuzaffar 2022-03-13: Fixes for package clean
+
+### V00-01-07
+ - @smuzaffar 2022-03-13: Fix dist-clean and reference install bug

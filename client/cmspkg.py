@@ -75,7 +75,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-01-06"
+cmspkg_tag   = "V00-01-07"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -640,7 +640,9 @@ class CmsPkg:
   def download_deps(self, deps, deps_cache):
     to_download = []
     for dn in deps:
-      if self.is_installed(dn): continue
+      if opts.reference:
+        if self.is_installed(dn): continue
+      elif dn in self.rpm_cache: continue
       d = None
       if dn in deps_cache: d = deps_cache[dn]
       if not d: continue
@@ -651,7 +653,9 @@ class CmsPkg:
     for d in to_download:
       for xd in get_pkg_deps(d[1])+d[4]:
         if xd in deps_cache: continue
-        if self.is_installed(xd): continue
+        if opts.reference:
+          if self.is_installed(xd): continue
+        elif xd in self.rpm_cache: continue
         deps_cache[xd] = self.package_data(xd)
         ndeps.append(xd)
     if ndeps:
@@ -682,9 +686,8 @@ class CmsPkg:
       cmspkg_print(out)
       return False
     for dep in out.split("\n"):
-      if "+" not in dep: continue
+      if not cmspkg_regex.match(dep): continue
       items = dep.split("+",2)
-      if items[0] not in ["external", "cms", "lcg"]: continue
       local_dep = join(opts.install_prefix, opts.architecture, *items)
       if exists (local_dep): continue
       ref_dep = join(opts.reference, opts.architecture, *items)
@@ -1075,6 +1078,7 @@ class CmsPkg:
       for dep in out.split("\n"):
         if not cmspkg_regex.match(dep): continue
         cache["RPMS"].pop(dep,None)
+      return
 
     def checkDeps(pkg, cache):
       if pkg in cache["CHECK"]: return
@@ -1089,6 +1093,15 @@ class CmsPkg:
         checkDeps(req, cache)
         if (req in cache["RPMS"]) and (pkg in cache["RPMS"]):
           cache["RPMS"][pkg]["USEDBY"][req]=1
+      return
+
+    def removePackages(rpms2del):
+      pkgs = " ".join(rpms2del)
+      cmspkg_print("Removing %s" % pkgs)
+      err, out = run_cmd("%s; rpm -e %s" % (rpm_env, pkgs))
+      if opts.delete_directory:
+        for pkg in rpms2del: cleanup_package_dir(pkg)
+      return
 
     keep_regexp = [compile("^"+x+".*$") for x in pkgs_to_keep]
     explicit_pkgs = {}
@@ -1135,18 +1148,10 @@ class CmsPkg:
         for dep in cache["RPMS"]: cache["RPMS"][dep]["USEDBY"].pop(pkg,None)
       rpms2del = rpms2del + dels
       if del_count>=20:
-        pkgs = " ".join(rpms2del)
-        cmspkg_print("Removing %s" % pkgs)
-        err, out = run_cmd("%s; rpm -e %s" % (rpm_env, pkgs))
-        if opts.delete_directory:
-          for pkg in rpms2del: cleanup_package_dir(pkg)
+        removePackages(rpms2del)
         rpms2del =[]
     if rpms2del:
-      pkgs = " ".join(rpms2del)
-      cmspkg_print("Removing %s" % pkgs)
-      err, out = run_cmd("%s; rpm -e %s" % (rpm_env, pkgs))
-      if opts.delete_directory:
-        for pkg in rpms2del: cleanup_package_dir(pkg)
+      removePackages(rpms2del)
     return
 
 #Process the input command/options
