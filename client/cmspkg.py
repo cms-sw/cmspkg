@@ -14,12 +14,16 @@ from sys import exit, argv
 from sys import version_info,stdout
 from sys import exc_info, platform
 from os import system as syscall
-from os import getpid, getcwd, mkdir, stat, kill, getenv
+from os import getpid, getcwd, mkdir, stat, kill, getenv,environ
 from os.path import join, exists, abspath, dirname, basename, isdir
 from time import sleep, time
 from glob import glob
 try: import json
 except:import simplejson as json
+
+environ["LANG"] = "C"
+environ["LC_CTYPE"] = "C"
+environ["LC_ALL"] = "C"
 
 #to work with python 2 and 3
 def cmspkg_print(msg): stdout.write(msg+"\n")
@@ -75,7 +79,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-01-09"
+cmspkg_tag   = "V00-01-10"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None

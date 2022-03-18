@@ -231,3 +231,6 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 
 ### V00-01-09
  - @smuzaffar 2022-03-15: Print upgrade packages details
+
+### V00-01-10
+ - @smuzaffar 2022-03-18: Set various LANG and LC_ env to about perl warnings.
