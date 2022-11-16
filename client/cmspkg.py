@@ -79,7 +79,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-01-11"
+cmspkg_tag   = "V00-01-12"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -695,6 +695,7 @@ class CmsPkg:
     for dep in out.split("\n"):
       if not cmspkg_regex.match(dep): continue
       items = dep.split("+",2)
+      if items[1] in opts.no_reference: continue
       local_dep = join(opts.install_prefix, opts.architecture, *items)
       if exists (local_dep): continue
       ref_dep = join(opts.reference, opts.architecture, *items)

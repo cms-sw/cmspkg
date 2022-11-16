@@ -237,3 +237,6 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 
 ### V00-01-11
  - @smuzaffar 2022-11-16: Added --no-reference option to skip creating symlinks for selected packages.
+
+### V00-01-12
+ - @smuzaffar 2022-11-16: Fix no-reference packages
