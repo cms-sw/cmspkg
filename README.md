@@ -234,3 +234,6 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 
 ### V00-01-10
  - @smuzaffar 2022-03-18: Set various LANG and LC_ env to about perl warnings.
+
+### V00-01-11
+ - @smuzaffar 2022-11-16: Added --no-reference option to skip creating symlinks for selected packages.

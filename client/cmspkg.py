@@ -79,7 +79,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-01-10"
+cmspkg_tag   = "V00-01-11"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -90,6 +90,7 @@ rpm_partial  = "partial"
 getcmd       = None
 cmspkg_agent = "CMSPKG/1.0"
 cmspkg_regex = compile('^(cms|external|lcg)[+][^+]+[+].+')
+default_no_reference = ["SCRAMV1", "SCRAMV2", "cms-git-tools"]
 pkgs_to_keep = ["cms[+](local-cern-siteconf|afs-relocation-cern)[+]","external[+](apt|rpm)[+]","cms[+](cmspkg|cmssw|cmssw-patch|fakesystem|cms-common|cmsswdata)[+]"]
 getcmds = [ 
             ['curl','--version','--connect-timeout 60 --max-time 600 -L -q -f -s -H "Cache-Control: max-age=0" --user-agent "%s"' % (cmspkg_agent),"-o %s"],
@@ -679,8 +680,10 @@ class CmsPkg:
     return exists(local_path)
 
   def create_ref_links(self, pkg):
+    pkg_data = pkg.split('+',2)
+    if pkg_data[1] in opts.no_reference: return False
     if self.is_installed(pkg): return True
-    ref_path = join(opts.reference, opts.architecture, *pkg.split('+',2))
+    ref_path = join(opts.reference, opts.architecture, *pkg_data)
     if not exists (ref_path):
       return False
     local_path = join(opts.install_prefix, opts.architecture, *pkg.split('+',2))
@@ -1288,6 +1291,7 @@ if __name__ == '__main__':
   parser.add_option("-D", "--delete-dir",  dest="delete_directory",action="store_true",default=False, help="Only used with 'remove/dist_clean' command to do cleanup the package install directory.")
   parser.add_option("-o", "--download-options",  dest="download_options", default=None,          help="Extra options to pass to wget/curl.")
   parser.add_option("--reference",         dest="reference",    default=None,        help="Path to a reference repository which can be used to create package symlinks.")
+  parser.add_option("--no-reference",      dest="no_reference", action='append',     default=default_no_reference , help="Do not use reference installation for selected packages")
   parser.add_option("--install-only",      dest="installOnly",  action="store_true", default=False, help="Only install the packages without their dependencies.")
 
   opts, args = parser.parse_args()
@@ -1304,6 +1308,7 @@ if __name__ == '__main__':
   if opts.reference:
     if not exists(join(opts.reference,"common","cmspkg")):
       parser.error("Unable to find reference installation at %s" % opts.reference)
+    opts.no_reference = list(set(opts.no_reference + default_no_reference))
     if '--nodeps' not in opts.Add_Options: opts.Add_Options.append('--nodeps')
   if not opts.server_path: opts.server, opts.server_path = get_server_paths (opts.server)
 
