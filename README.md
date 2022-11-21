@@ -240,3 +240,6 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 
 ### V00-01-12
  - @smuzaffar 2022-11-16: Fix no-reference packages
+
+### V00-01-13
+ - @smuzaffar 2022-11-21: Remove qemu: Unsupported syscall: messages from cmd output

@@ -79,7 +79,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-01-12"
+cmspkg_tag   = "V00-01-13"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -257,6 +257,7 @@ def run_cmd (cmd,outdebug=False,exit_on_error=True, silent=False):
       exit(1)
   elif outdebug:
     cmspkg_print(out)
+  out = '\n'.join([l for l in out.split("\n") if not 'qemu: Unsupported syscall:' in l])
   return err, out
 
 #Get server cgi-path and repo path from url
