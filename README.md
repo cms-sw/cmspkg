@@ -243,3 +243,6 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 
 ### V00-01-13
  - @smuzaffar 2022-11-21: Remove qemu: Unsupported syscall: messages from cmd output
+
+### V00-01-14
+ - @smuzaffar 2022-11-27: --build-order option added to show searched packages in build order (latest first)
