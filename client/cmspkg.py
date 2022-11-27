@@ -79,7 +79,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-01-13"
+cmspkg_tag   = "V00-01-14"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -790,7 +790,7 @@ class CmsPkg:
 
   #print the packages name which matched the pkg_search pattren. 
   #If -f option is used the exact package name is matched
-  def search(self, pkg_search="", exact=False):
+  def search(self, pkg_search="", exact=False, build_order=False):
     self.cache = pkgCache()
     pkgs = []
     if pkg_search=="": pkgs=self.cache.packs.keys()
@@ -799,9 +799,10 @@ class CmsPkg:
     else:
       for pk in self.cache.packs:
         if pkg_search in pk: pkgs.append(pk)
-    pkgs = sorted(pkgs)
+    if not build_order:
+      pkgs = sorted(pkgs)
     for pk in pkgs:
-      rev = sorted(self.cache.packs[pk],key=int)[-1]
+      rev = self.latest_revision(pk)
       data = self.cache.packs[pk][rev]
       srev=""
       if opts.show_revision: srev=" %s" % rev
@@ -1234,7 +1235,7 @@ def process(args, opt, cache_dir):
       if not exists (join(cache_dir , "active")): repo.update(True)
       pkg = ""
       if len(args)==2: pkg =args[1]
-      repo.search(pkg, exact=opts.force)
+      repo.search(pkg, exact=opts.force, build_order=opts.build_order)
     elif args[0] == "showpkg":
       if not exists (join(cache_dir , "active")): repo.update(True)
       repo.showpkg(args[1:])
@@ -1275,6 +1276,7 @@ if __name__ == '__main__':
   parser.add_option("-y",                  dest="force",     action="store_true", default=False, help="Assume yes for installation")
   parser.add_option("-d", "--debug",       dest="debug",     action="store_true", default=False, help="Print more debug outputs")
   parser.add_option("-v", "--version",     dest="version",   action="store_true", default=False, help="Print version string")
+  parser.add_option("--build-order",       dest="build_order",action="store_true", default=False, help="Show searched packages in build order.")
   parser.add_option("--upgrade-packages",  dest="upgrade_packages", action="store_true", default=False, help="Upgrade default packages e.g. cms-common, fakesystem etc.")
   parser.add_option("--show-revision",     dest="show_revision", action="store_true", default=False, help="Used with search command to show also the revision of the package(s)")
   parser.add_option("--use-dev",           dest="useDev",    action="store_true", default=False, help="Use development server instead of production")
