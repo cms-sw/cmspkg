@@ -79,7 +79,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-01-14"
+cmspkg_tag   = "V00-01-15"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -1030,7 +1030,7 @@ class CmsPkg:
       try:
         rev = int(self.rpm_cache[pack])
         if (rev>1):
-          latest_rev = self.latest_revision(pack)
+          latest_rev = int(self.latest_revision(pack))
           cmspkg_print("  %s revision:%s (%s)" % (pack, rev, latest_rev))
           if (rev<latest_rev):
             reinstall_packs.append(pack)
