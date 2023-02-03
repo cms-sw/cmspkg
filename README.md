@@ -246,3 +246,6 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 
 ### V00-01-14
  - @smuzaffar 2022-11-27: --build-order option added to show searched packages in build order (latest first)
+
+### V00-01-15
+ - @smuzaffar 2023-02-02: Bug fix: Make sure to convert package revision number to int before comparison
