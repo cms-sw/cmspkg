@@ -176,7 +176,7 @@ Puppet::Type.type(:package).provide :cmspkg, :parent => Puppet::Provider::Packag
       reseed(opts["architecture"], opts["prefix"], opts["user"], opts["repository"], opts["server"], opts["bootstrap_opts"], opts["reseed"])
     end
     cmspkg_cmd = opts["prefix"]+"/common/cmspkg -a "+opts["architecture"]
-    cmd = "sudo -u "+opts["user"]+" bash -c '#{cmspkg_cmd} -y upgrade && #{cmspkg_cmd} update && #{cmspkg_cmd} -y install "+opts["name"]+" 2>&1'"
+    cmd = "sudo -u "+opts["user"]+" bash -c '#{cmspkg_cmd} -y --upgrade-packages upgrade && #{cmspkg_cmd} update && #{cmspkg_cmd} -y install "+opts["name"]+" 2>&1'"
     Puppet.debug("Installing "+opts["name"]+" for "+opts["architecture"])
     output = `#{cmd}`
     Puppet.debug output
