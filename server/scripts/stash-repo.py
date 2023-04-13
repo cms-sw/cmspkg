@@ -29,6 +29,7 @@ DEFAULT_HASH = "0000000000000000000000000000000000000000000000000000000000000000
 #Repository owner
 DEFAULT_REPO_OWNER = "cmsbuild"
 REPO_OWNER = DEFAULT_REPO_OWNER
+MAX_TRANSACTION_SIZE = 1024*1024
 
 #Helper function to format a string
 def format(s, **kwds): return s % kwds
@@ -70,13 +71,18 @@ def cleanup_tmp_uploads(tmp_dir, delme_dir, dryRun=False, keep_threshhold_hours=
 #All the parents reachable but not including default hash
 def getUploadChain(arch_dir, uHash):
   commits = []
-  while uHash and (uHash != DEFAULT_HASH):
+  while uHash:
     hash_dir = join (arch_dir, uHash)
     st = stat(hash_dir)
+    trans_size = stat(join(hash_dir, "RPMS.json")).st_size
+    if trans_size > MAX_TRANSACTION_SIZE:
+      print "    Max transaction size: %s %s" % (uHash, trans_size)
+      return commits
     commits.append([uHash, st.st_mtime])
+    if uHash == DEFAULT_HASH: break
     parent = join (hash_dir, "parent")
     if exists (parent): uHash = basename(readlink(parent))
-    else: uHash = ""
+    else: break
   return commits
 
 def stashArch (repo_dir, arch, uHash, def_hash, dryRun=False):
@@ -160,10 +166,10 @@ def stashRepo(repo_dir, days=7, max_trans=10, dryRun=False):
       print "  >> %s/%s" %(repo, arch)
       uHash   = readlink (latest)
       commits = getUploadChain (arch_dir, uHash)
-      def_hash = DEFAULT_HASH
-      if not exists(join(arch_dir, def_hash)):
-        def_hash = commits[-1][0]
-        del commits[-1]
+      def_hash = commits[-1][0]
+      del commits[-1]
+      if def_hash!=DEFAULT_HASH:
+        print "    Default hash: %s" % def_hash
       commits_count = len(commits)
       print "    Total transactions: %s (%s)" % (commits_count, max_trans)
       while (commits_count>max_trans):
