@@ -15,7 +15,7 @@ from pwd import getpwuid
 #[ RepoNameTo Match, Days-to-keep, max-transactions-to-keep]
 STASH_CONFIG = [
   ["^cms$",             30, 30],
-  ["^cms[.]week[0-9]$",  7, 10],
+  ["^cms[.]week[0-9]$",  5, 10],
   ["^cms[.].+$",         7, 10],
   ["^comp$",            30, 10],
   ["^comp[.]pre$",      30, 30],
