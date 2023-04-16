@@ -173,7 +173,7 @@ def stashRepo(repo_dir, days=7, max_trans=10, dryRun=False):
         cleanup_file = join(arch_dir, def_hash, "cleanup")
         if exists(cleanup_file):
           print "    ==> Removing %s" % cleanup_file
-          run_command ("rm -f %s" % cleanup_file)
+          if not dryRun: run_command ("rm -f %s" % cleanup_file)
       commits_count = len(commits)
       print "    Total transactions: %s (%s)" % (commits_count, max_trans)
       while (commits_count>max_trans):
