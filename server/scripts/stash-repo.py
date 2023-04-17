@@ -40,7 +40,7 @@ def run_command(cmd, user=None):
   return getstatusoutput(cmd)
 
 #Cleanup in-active transactions
-def cleanup_transactions(repo_dir, delme_dir, dryRun=False, keep_threshhold_hours=24):
+def cleanup_transactions(repo_dir, delme_dir, dryRun=False, keep_threshhold_hours=12):
   for cfile in glob(join(repo_dir,"*","*","cleanup")):
     age = int((time()-stat(cfile)[8])/3600)
     tdir = dirname(cfile)
