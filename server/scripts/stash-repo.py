@@ -1,12 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 from sys import argv, exit
 from os import readlink, stat, utime, getpid
 from os.path import exists, join, basename, dirname, abspath
 from glob import glob
 from time import time
-from commands import getstatusoutput
-from hashlib import sha256
-from json import loads, dumps
+from subprocess import getstatusoutput
 import traceback, re
 from cmspkg_utils import merge_meta
 from pwd import getpwuid
@@ -44,18 +42,18 @@ def cleanup_transactions(repo_dir, delme_dir, dryRun=False, keep_threshhold_hour
   for cfile in glob(join(repo_dir,"*","*","cleanup")):
     age = int((time()-stat(cfile)[8])/3600)
     tdir = dirname(cfile)
-    print "Inactive Transaction %s: %s Hours (max: %s)" % (tdir, age, keep_threshhold_hours)
+    print ("Inactive Transaction %s: %s Hours (max: %s)" % (tdir, age, keep_threshhold_hours))
     if age < keep_threshhold_hours: continue
-    print "  Deleting"
+    print ("  Deleting")
     items = tdir.split("/")
     delme_trans = join(delme_dir, items[-3], items[-2])
     if not dryRun:
       err, out = run_command("mkdir -p %s" % delme_trans)
       if err:
-        print "Error: Unable to create directory %s: %s" % (delme_trans, out)
+        print ("Error: Unable to create directory %s: %s" % (delme_trans, out))
         continue
       err, out = run_command("mv %s %s" % (tdir, delme_trans))
-      if err: print "Error: Unable to move transation: %s" % out
+      if err: print ("Error: Unable to move transation: %s" % out)
   return
 
 #cleanup in-complete uploads in tmp directory
@@ -63,7 +61,7 @@ def cleanup_tmp_uploads(tmp_dir, delme_dir, dryRun=False, keep_threshhold_hours=
   for tdir in glob (join(tmp_dir,"tmp-*")):
     age = int((time()-stat(tdir)[8])/3600)
     if age < keep_threshhold_hours: continue
-    print "Deleting tmp %s: %s(%s) Hours" % (tdir, age, keep_threshhold_hours)
+    print ("Deleting tmp %s: %s(%s) Hours" % (tdir, age, keep_threshhold_hours))
     if not dryRun: run_command("mv %s %s" % (tdir, delme_dir))
   return
 
@@ -76,7 +74,7 @@ def getUploadChain(arch_dir, uHash):
     st = stat(hash_dir)
     trans_size = stat(join(hash_dir, "RPMS.json")).st_size
     if trans_size > MAX_TRANSACTION_SIZE:
-      print "    Max transaction size: %s %s" % (uHash, trans_size)
+      print ("    Max transaction size: %s %s" % (uHash, trans_size))
       return commits
     commits.append([uHash, st.st_mtime])
     if uHash == DEFAULT_HASH: break
@@ -107,7 +105,7 @@ def stashArch (repo_dir, arch, uHash, def_hash, dryRun=False):
     cmd = cmd + " && mkdir -p %(repo_dir)s/drivers && cp -rf %(hash_dir)s/drivers/%(arch)s-*.txt %(repo_dir)s/drivers/"
   err, out = run_command("find %s -maxdepth 1 -mindepth 1 -type f" % (repoInfo["hash_dir"]))
   if err:
-    print out
+    print (out)
     return False
   for common_file in out.split("\n"):
     if common_file.endswith("RPMS.json"): continue
@@ -115,34 +113,34 @@ def stashArch (repo_dir, arch, uHash, def_hash, dryRun=False):
   default_meta = join(repoInfo["default_dir"],"RPMS.json")
   try:
     merge_meta (default_meta, join(repoInfo["hash_dir"],"RPMS.json"), default_meta+"-"+uHash, dryRun)
-  except Exception, e:
-    print e
+  except Exception as e:
+    print (e)
     traceback.print_exc()
     return False
   cmd = format (cmd , **repoInfo)
   if not dryRun:
     err, out = run_command (cmd, REPO_OWNER)
     if err:
-      print out
+      print (out)
       run_command("rm -f %s-%s" % (default_meta, uHash))
       return False
   else:
-    print cmd
+    print (cmd)
   cmd = "mv %s-%s %s" % (default_meta, uHash, default_meta)
   cmd = cmd + " && chown %s: %s" % (REPO_OWNER, default_meta)
   if not dryRun:
     err, out = run_command (cmd)
     if err:
-      print out
+      print (out)
       return False
   else:
-    print cmd
+    print (cmd)
   history_dir = join(arch_dir, "history", uHash[0:2])
   cmd = "mkdir -p %s && cp -f %s/%s/RPMS.json %s/%s.json" % (history_dir, arch_dir, uHash, history_dir, uHash)
   if not dryRun:
     run_command(cmd, REPO_OWNER)
   else:
-    print cmd
+    print (cmd)
   return True
   
 #This function looks for all the archs of a repo and stash the oldest transactions in to default
@@ -157,39 +155,39 @@ def stashRepo(repo_dir, days=7, max_trans=10, dryRun=False):
   has_error=False
   #Loop over all the archs of this repo
   repo = basename (repo_dir)
-  print ">> Working on ",repo
+  print (">> Working on %s" % repo)
   for arch_dir in glob (join(repo_dir,"*")):
     #Get the hash of latest transaction
     latest = join(arch_dir, "latest")
     if exists (latest):
       arch    = basename(arch_dir)
-      print "  >> %s/%s" %(repo, arch)
+      print ("  >> %s/%s" %(repo, arch))
       uHash   = readlink (latest)
       commits = getUploadChain (arch_dir, uHash)
       def_hash = commits[-1][0]
       del commits[-1]
       if def_hash!=DEFAULT_HASH:
-        print "    Default hash: %s" % def_hash
+        print ("    Default hash: %s" % def_hash)
       commits_count = len(commits)
-      print "    Total transactions: %s (%s)" % (commits_count, max_trans)
+      print ("    Total transactions: %s (%s)" % (commits_count, max_trans))
       while (commits_count>max_trans):
         #Start with the first child of default hash i.e. commits[-1]
         firstChild = commits[-1][0]
         dtime = int(time() - commits[-1][1])
         #we keep the transaction if it is newer than days and
         #total trans are less than max transactions to keep
-        print "    Checking %s" % firstChild
-        print "      Age (sec)   : %s (%s)" % (dtime, keeptime)
-        print "      Transactions: %s (%s)" % (commits_count, max_trans)
+        print ("    Checking %s" % firstChild)
+        print ("      Age (sec)   : %s (%s)" % (dtime, keeptime))
+        print ("      Transactions: %s (%s)" % (commits_count, max_trans))
         if (dtime<=keeptime):
-          print "    Keeping %s" % firstChild
+          print ("    Keeping %s" % firstChild)
           break
-        print "    Stashing %s" % firstChild
+        print ("    Stashing %s" % firstChild)
         ret = stashArch(repo_dir, arch, firstChild, def_hash, dryRun)
         if not ret:
           has_error=True
           break
-        print "    Done %s" % firstChild
+        print ("    Done %s" % firstChild)
         if not dryRun:
           nextChild =  commits[-2][0]
           run_command ("ln -nsf ../%s %s/%s/parent && touch %s/%s/cleanup" % (def_hash, arch_dir, nextChild, arch_dir, firstChild), REPO_OWNER)
@@ -199,7 +197,7 @@ def stashRepo(repo_dir, days=7, max_trans=10, dryRun=False):
   return has_error
 # ================================================================================
 def usage():
-  print "usage: ", basename(argv[0])," [-d|--dry-run] [-h|--help]"
+  print ("usage: "+basename(argv[0])+" [-d|--dry-run] [-h|--help]")
   return
 
 if __name__ == "__main__" :
@@ -226,7 +224,7 @@ if __name__ == "__main__" :
   if not dryRun:
     err, out = run_command("rm -rf %s; mkdir -p %s" % (delme_dir, delme_dir))
     if err:
-      print out
+      print (out)
       run_command("rm -rf %s/delete/*" % tmp_dir)
       exit(1)
   cleanup_tmp_uploads(tmp_dir, delme_dir, dryRun)
@@ -234,14 +232,14 @@ if __name__ == "__main__" :
     repo_dir = dirname(d)
     try:
       REPO_OWNER = getpwuid(stat(d).st_uid).pw_name
-    except KeyError, e:
+    except KeyError as e:
       REPO_OWNER = DEFAULT_REPO_OWNER
-      print "ERROR: Looks like owner does not exists any more:", str(e)
-      print "       Changing to default owner:", REPO_OWNER
+      print ("ERROR: Looks like owner does not exists any more: %s" % str(e))
+      print ("       Changing to default owner: %s" % REPO_OWNER)
       err, out = run_command ("chown -R %s: %s" % (REPO_OWNER, repo_dir))
       if err:
-        print "ERROR: Unable to change owner"
-        print out
+        print ("ERROR: Unable to change owner")
+        print (out)
         continue
     repo_name = basename(repo_dir)
     for conf in STASH_CONFIG:

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 from os import stat
 from sys import argv, exit
 from os.path import exists, join
@@ -6,7 +6,7 @@ from glob import glob
 from hashlib import sha256
 import re
 from json import dumps
-from commands import getstatusoutput
+from subprocess import getstatusoutput
 
 ReRPM = None
 
@@ -20,7 +20,7 @@ def rpm2cmspkg(rpm):
   return pk,rev
 
 if len(argv)<2:
-  print "Error: Missing arguments\nUsage: ",argv[0],"<RPMS-dir> [dir-with-md5cache-file]"
+  print ("Error: Missing arguments\nUsage: "+argv[0]+" <RPMS-dir> [dir-with-md5cache-file]")
   exit(99)
 
 basedir = argv[1]
@@ -29,7 +29,7 @@ if len(argv)>2: md5dir = argv[2]
 
 RPMS_dir=join(basedir,"RPMS")
 if not exists (RPMS_dir):
-  print "Error: No such directory", RPMS_dir
+  print ("Error: No such directory %s" % RPMS_dir)
   exit(99)
 
 md5sums = {}
@@ -55,7 +55,7 @@ for r in glob(join(RPMS_dir,"*","*","*.rpm")):
   if rpm in md5sums:
     md5sum = md5sums[rpm]
   else:
-    print "Running MD5SUM : %s" % rpm
+    print ("Running MD5SUM : %s" % rpm)
     err, md5sum = getstatusoutput("md5sum %s | sed 's| .*||'" % r)
     if err: exit(1)
   deps = []
@@ -65,7 +65,7 @@ for r in glob(join(RPMS_dir,"*","*","*.rpm")):
       deps = [d for l in ref.readlines() for d in l.strip().split(" ") if d]
   cache[pack][rev] = [rHash, rpm, md5sum, size, deps]
 
-cache['hash'] = sha256(dumps(cache,sort_keys=True,separators=(',',': '))).hexdigest()
+cache['hash'] = sha256(dumps(cache,sort_keys=True,separators=(',',': ')).encode()).hexdigest()
 with open(RPMS_dir+".json", 'w') as outfile:
   outfile.write(dumps(cache,sort_keys=True,indent=2,separators=(',',': ')))        
   outfile.close()

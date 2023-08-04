@@ -1,12 +1,11 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import cgitb, cgi
 import sys, os, re
 from os.path import exists, join, getmtime, dirname
-from commands import getstatusoutput
+from subprocess import getstatusoutput
 from hashlib import sha256
 from glob import glob
-try: import json
-except:import simplejson as json
+import json
 cgitb.enable()
 
 basedir = None
@@ -44,12 +43,12 @@ def error_msg(msg):
   return_json({"error":msg}, True)
 
 def return_json(data,err=False):
-  if err: print "Status: 404 Not Found"
-  print "Content-type: application/json\n"
+  if err: print ("Status: 404 Not Found")
+  print ("Content-type: application/json\n")
   if debug and debug_msg: data['debug']="\n".join(debug_msg)
   if warn_msg: data['warning']="\n".join(warn_msg)
   if info_msg: data['information']="\n".join(info_msg)
-  print json.dumps(data,sort_keys=True,indent=2,separators=(',',': '))
+  print (json.dumps(data,sort_keys=True,indent=2,separators=(',',': ')))
   sys.exit(0)
 
 def latest_client_version():
@@ -74,7 +73,7 @@ def get_apt_md5sums(md5dir):
   return md5sums
 
 def redirect(path):
-  print "Location: /%s/%s\n\n" % (repo_uri, path)
+  print ("Location: /%s/%s\n\n" % (repo_uri, path))
   sys.exit(0)
 
 def get_parent_repo(repo):
@@ -353,7 +352,7 @@ def process(req):
   ftype = items[0]
   if (ftype == "api") or (ftype==""):
    if exists(join(os.environ['DOCUMENT_ROOT'],"cmspkg.html")):
-     print "Location: /cmspkg.html\n\n"
+     print ("Location: /cmspkg.html\n\n")
      sys.exit(0)
    else:
      redirect("cmspkg.html")
@@ -416,7 +415,7 @@ except:
   pass
 
 if 'ping' in req:
-  print "Content-type: text/plain\n\nCMSPKG OK"
+  print ("Content-type: text/plain\n\nCMSPKG OK")
   sys.exit(0)
 if 'debug' in req: debug=True
 if 'optional' in req: optional= True

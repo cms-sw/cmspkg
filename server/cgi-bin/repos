@@ -1,16 +1,16 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 from sys import exit
-from commands import getstatusoutput as cmd
+from subprocess import getstatusoutput as cmd
 from os import environ
 from os.path import exists,dirname,basename
 base_dir = "/data/cmssw"
 uri = environ['SCRIPT_NAME']
 
 def redirect(path):
-  print "Location: /%s\n\n" % (path)
+  print ("Location: /%s\n\n" % (path))
   exit(0)
 
-def doc_head(): print "Content-type: text/html\n\n<html><head></head><body>\n"
+def doc_head(): print ("Content-type: text/html\n\n<html><head></head><body>\n")
 
 def show_repos():
   doc_head()
@@ -24,7 +24,7 @@ def show_repos():
   for r in o.split("\n"): repos [basename(dirname(dirname(r)))] =1
 
   for r in sorted(repos.keys()):
-    print "<a href='%s/%s'>%s</a><br>\n" % (uri,r,r)
+    print ("<a href='%s/%s'>%s</a><br>\n" % (uri,r,r))
 
 def show_archs(repo, archs={}, xrepo=None):
   doc_head()
@@ -43,7 +43,7 @@ def show_archs(repo, archs={}, xrepo=None):
     archs [basename(dirname(r))] =1
 
   for r in sorted(archs.keys()):
-    print "<a href='%s/%s/%s'>%s</a><br>\n" % (uri, xrepo, r, r)
+    print ("<a href='%s/%s/%s'>%s</a><br>\n" % (uri, xrepo, r, r))
 
 def show_rpms(repo, arch, rpm_to_get=None):
   sort  = ""
@@ -123,13 +123,13 @@ def show_rpms(repo, arch, rpm_to_get=None):
     if "O=D" == order:
       orpms = reversed(orpms)
   doc_head()
-  print "<table>\n"
-  print '<tr><th><a href="?%s">Name</a></th><th><a href="?%s">Last modified</a></th><th><a href="?%s">Size</a></th></tr>' % (next_opt[0], next_opt[1], next_opt[2])
+  print ("<table>\n")
+  print ('<tr><th><a href="?%s">Name</a></th><th><a href="?%s">Last modified</a></th><th><a href="?%s">Size</a></th></tr>' % (next_opt[0], next_opt[1], next_opt[2]))
   for r in orpms:
-    print "<tr>",
-    for x in rpms[r]: print "<td>%s</td>" % x,
-    print "</tr>\n"
-  print "</table>\n";
+    print ("<tr>", end="")
+    for x in rpms[r]: print ("<td>%s</td>" % x, end="")
+    print ("</tr>\n")
+  print ("</table>\n")
 
 rpath = ""
 try: rpath = environ['PATH_INFO'].strip("/")
@@ -154,5 +154,5 @@ else:
     else: show_rpms (items[0], items[1], items[2])
   else: show_repos()
 
-print "</body></html>\n"
+print ("</body></html>\n")
 
