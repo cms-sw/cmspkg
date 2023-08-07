@@ -6,11 +6,17 @@ from os.path import exists,dirname,basename
 base_dir = "/data/cmssw"
 uri = environ['SCRIPT_NAME']
 
+doc_header=False
+
 def redirect(path):
   print ("Location: /%s\n\n" % (path))
   exit(0)
 
-def doc_head(): print ("Content-type: text/html\n\n<html><head></head><body>\n")
+def doc_head():
+  global doc_header
+  if doc_header: return
+  doc_header=True
+  print ("Content-type: text/html\n\n<html><head></head><body>\n")
 
 def show_repos():
   doc_head()
