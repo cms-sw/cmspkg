@@ -254,7 +254,7 @@ def cache(repo, arch, uHash):
     cache = join(basedir, "repos", repo, arch, uHash, "RPMS.json")
     if exists (cache): redirect("repos/%s/%s/%s/RPMS.json" % (repo, arch, uHash))
     if debug: debug_msg.append("Not found package cache for %s/%s/%s" % (repo, arch, uHash))
-    data['hash'] = sha256(json.dumps(data,sort_keys=True,separators=(',',': '))).hexdigest()
+    data['hash'] = sha256(json.dumps(data,sort_keys=True,separators=(',',': ')).encode()).hexdigest()
     return_json(data)
 
   repo = apt_repo(repo)
@@ -277,7 +277,7 @@ def cache(repo, arch, uHash):
       if rpm in md5sums: md5sum = md5sums[rpm]
       data[pk][r] = [rHash, rpm, md5sum, "", []]
     if debug: debug_msg.append("Found APT package cache for %s/%s/%s" % (repo, arch, uHash))
-  data['hash'] = sha256(json.dumps(data,sort_keys=True,separators=(',',': '))).hexdigest()
+  data['hash'] = sha256(json.dumps(data,sort_keys=True,separators=(',',': ')).encode()).hexdigest()
   return_json(data)
 
 def get_file_info (rfile, name):
