@@ -79,7 +79,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-01-15"
+cmspkg_tag   = "V00-01-16"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -106,6 +106,27 @@ try:
 except:
   script_path = argv[0]
 script_path = abspath(script_path)
+#####################################
+# Patching newly installed packages #
+#####################################
+def root_webgui_patch(package):
+  rootrc = join(opts.install_prefix, opts.architecture, *package.split("+",2), "etc", "system.rootrc")
+  if exists(rootrc):
+    err, out = run_cmd("grep '::RWebBrowserImp' %s | wc -l" % rootrc, exit_on_error=False)
+    if (not err) and int(out)>0:
+      cmspkg_print("ROOT WebGUI bug: %s" % rootrc)
+      cmd = "sed -i -e 's|Browser.Name:.*|Browser.Name: TRootBrowser|;s|WebGui.HttpLoopback:.*|WebGui.HttpLoopback: yes|' %s" % rootrc
+      err, out = run_cmd(cmd, exit_on_error=False)
+      if err: cmspkg_print("  ERROR: Failed to apply patch:",out)
+      else: cmspkg_print("  WebGUI patch applied.")
+  return
+
+def patch_for_package(package):
+  #ROOT WebGUI Patch
+  if match('^lcg[+]root[+]6[.](2[6-9]|3[01])[.].*$',package):
+    return root_webgui_patch
+  return None
+
 #####################################
 #Utility functions:
 ######################################
@@ -752,12 +773,16 @@ class CmsPkg:
     pkg_to_install = " "
     size_compress = 0
     size_uncompress = 0
+    packages_pacthes = {}
     for pkg in packages_to_install:
       d = packages_to_install[pkg][1]
       s1, s2 = self.package_size(d)
       size_compress += s1
       size_uncompress += s2
       pkg_to_install += "  "+d
+      pkg_patch = patch_for_package(pkg)
+      if pkg_patch:
+        packages_pacthes[pkg] = pkg_patch
     cmspkg_print("The following NEW packages will be installed:")
     cmspkg_print("  "+"\n  ".join(sorted(packages_to_install.keys())))
     pkg_len = len(packages_to_install)
@@ -778,7 +803,7 @@ class CmsPkg:
     cmspkg_print("Executing RPM (%s)..." % rcmd)
     cmd = "cd %s && %s %s" %(rpm_download, rcmd,  pkg_to_install)
 
-    #Install the nwly downloaded packages(s)
+    #Install the newly downloaded packages(s)
     stime = time()
     if syscall(fix_cmd(cmd))>0: exit(1)
     self.update_rpm_cache(True)
@@ -786,6 +811,8 @@ class CmsPkg:
       package_installed(package)
       self.clean()
     cmspkg_print("TIME: Install: %s secs for %s packages" % (time()-stime, self.downloader.counter))
+    for pkg in packages_pacthes:
+      packages_pacthes[pkg](pkg)
     return
 
   #print the packages name which matched the pkg_search pattren. 

@@ -249,3 +249,6 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 
 ### V00-01-15
  - @smuzaffar 2023-02-02: Bug fix: Make sure to convert package revision number to int before comparison
+
+### V00-01-16
+ - @sumuzaffar 2023-11-27 Apply ROOT WebGUI patch for root packages 6.26-6.31
