@@ -252,3 +252,6 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 
 ### V00-01-16
  - @sumuzaffar 2023-11-27 Apply ROOT WebGUI patch for root packages 6.26-6.31
+
+### V00-01-17
+ - @sumuzaffar 2023-11-28 Bug fix for python2
