@@ -110,7 +110,8 @@ script_path = abspath(script_path)
 # Patching newly installed packages #
 #####################################
 def root_webgui_patch(package):
-  rootrc = join(opts.install_prefix, opts.architecture, *package.split("+",2), "etc", "system.rootrc")
+  rootrc = join(opts.install_prefix, opts.architecture, *package.split("+",2))
+  rootrc = join (rootrc, "etc", "system.rootrc")
   if exists(rootrc):
     err, out = run_cmd("grep '::RWebBrowserImp' %s | wc -l" % rootrc, exit_on_error=False)
     if (not err) and int(out)>0:
