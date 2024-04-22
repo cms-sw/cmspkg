@@ -412,7 +412,7 @@ try:
   req = cgi.FieldStorage()
   check_request(req)
 except:
-  pass
+  sys.exit(0)
 
 if 'ping' in req:
   print ("Content-type: text/plain\n\nCMSPKG OK")
