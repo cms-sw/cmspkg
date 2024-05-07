@@ -58,6 +58,10 @@ if [ "X${COMMAND}" = "X" -o "X${SRC_REPO}" = "X" -o "X${ARCH}" = "X" ] ; then
   echo "${USAGE_MSG}"
   exit 19
 fi
+if [ -e ${CMSPKG_REPOS}/${SRC_REPO}/${ARCH}/readonly ] ; then
+  echo "Error: ${SRC_REPO}/${ARCH} read-only: Can not upload new packages for this arch."
+  exit 19
+fi
 if [ "X$(echo ${COMMAND} | egrep '^(INIT|CLONE)$')" = "X" ] ; then
   echo "Error: Unknow command type: ${COMMAND}"
   echo "${USAGE_MSG}"
