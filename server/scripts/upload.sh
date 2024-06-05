@@ -58,6 +58,11 @@ if [ "X${COMMAND}" = "X" -o "X${SRC_REPO}" = "X" -o "X${ARCH}" = "X" ] ; then
   echo "${USAGE_MSG}"
   exit 19
 fi
+if [ -e ${CMSPKG_REPOS}/readonly ] ; then
+  sleep 120
+  echo "ERROR: Repository server is set to readonly mode, please try again ..."
+  exit 0
+fi
 if [ -e ${CMSPKG_REPOS}/${SRC_REPO}/${ARCH}/readonly ] ; then
   echo "Error: ${SRC_REPO}/${ARCH} read-only: Can not upload new packages for this arch."
   exit 19
