@@ -79,7 +79,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-01-17"
+cmspkg_tag   = "V00-01-18"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -91,6 +91,7 @@ getcmd       = None
 cmspkg_agent = "CMSPKG/1.0"
 cmspkg_regex = compile('^(cms|external|lcg)[+][^+]+[+].+')
 default_no_reference = ["SCRAMV1", "SCRAMV2", "cms-git-tools"]
+default_no_reference += ["cmssw-osenv", "crab", "crab-dev", "crab-pre", "crab-prod"]
 pkgs_to_keep = ["cms[+](local-cern-siteconf|afs-relocation-cern)[+]","external[+](apt|rpm)[+]","cms[+](cmspkg|cmssw|cmssw-patch|fakesystem|cms-common|cmsswdata)[+]"]
 getcmds = [ 
             ['curl','--version','--connect-timeout 60 --max-time 600 -L -q -f -s -H "Cache-Control: max-age=0" --user-agent "%s"' % (cmspkg_agent),"-o %s"],
