@@ -259,5 +259,5 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 ### V00-01-18
  - @sumuzaffar 2024-07-04 add crab and cmssw-osenv as no ref packages
 
-### V00-01-19
+### V00-01-20
  - @sumuzaffar 2024-08-02 Support Python 3.12
