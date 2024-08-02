@@ -1614,8 +1614,8 @@ generateSeedSpec () {
               dpkg -L $p 2>/dev/null | $rpmFindProvides | sed -e "s|^|Provides:|" || true
           elif [ "$pkgManager" = "RPM" ] ; then
               rpm -q $p --provides | sed 's!<*=.*!!; s!^!Provides: !' || true
-              rpm -q $p --list | fgrep .so | fgrep -v -e /lib/. -e /lib64/. | sed 's!^.*/!Provides: !' || true
-              rpm -q $p --list | fgrep /bin/ | sed 's!^!Provides: !' || true
+              rpm -q $p --list | grep -F .so | grep -F -v -e /lib/. -e /lib64/. | sed 's!^.*/!Provides: !' || true
+              rpm -q $p --list | grep -F /bin/ | sed 's!^!Provides: !' || true
           fi
       done
       [ "$pkgManager" = "DPKG" ] && perlHarvester

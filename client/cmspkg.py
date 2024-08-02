@@ -79,7 +79,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-01-18"
+cmspkg_tag   = "V00-01-19"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -136,7 +136,11 @@ def patch_for_package(package):
 #RPM file name format: <group>+<pkg-name>+<pkg-version>-1-([0-9]+|<arch>).<arch>.rpm
 #Returns: <group>+<pkg-name>+<pkg-version>
 def rpm2package(rpm, arch):
-  ReRPM = compile('(.+)[-]1[-]((1|\d+)(.%s|))\.%s\.rpm' % (arch,arch))
+  ReRPM = None
+  if version_info > (3,11):
+    ReRPM = compile(r'(.+)[-]1[-]((1|\d+)(.%s|))\.%s\.rpm' % (arch,arch))
+  else:
+    ReRPM = compile('(.+)[-]1[-]((1|\d+)(.%s|))\.%s\.rpm' % (arch,arch))
   g,p,vx = rpm.split("+",2)
   m = ReRPM.match (vx)
   v = m.group(1)
