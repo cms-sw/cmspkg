@@ -20,13 +20,13 @@ search_depth = 0
 useDev = ""
 
 
-ReArch      = '[a-zA-Z0-9]+_[a-zA-Z0-9]+_[a-zA-Z0-9]+'
-ReRepo      = '[a-zA-Z0-9_-]+((\.[a-zA-Z0-9_-]+)+|)'
-ReHash      = '[0-9a-f]{32}'
-ReRepoHash  = '(apt|[0-9a-f]{64})'
-ReSrcName   = '[+a-zA-Z0-9._-]+'
-RePkgName   = '(cms|lcg|external)[+][a-zA-Z0-9_-]+[+][a-zA-Z0-9._-]+'
-ReOtherName = '(cmsos|bootstrap.sh|README.md|WEB/[0-9a-zA-Z._/+-]+)'
+ReArch      = r'[a-zA-Z0-9]+_[a-zA-Z0-9]+_[a-zA-Z0-9]+'
+ReRepo      = r'[a-zA-Z0-9_-]+((\.[a-zA-Z0-9_-]+)+|)'
+ReHash      = r'[0-9a-f]{32}'
+ReRepoHash  = r'(apt|[0-9a-f]{64})'
+ReSrcName   = r'[+a-zA-Z0-9._-]+'
+RePkgName   = r'(cms|lcg|external)[+][a-zA-Z0-9_-]+[+][a-zA-Z0-9._-]+'
+ReOtherName = r'(cmsos|bootstrap.sh|README.md|WEB/[0-9a-zA-Z._/+-]+)'
 
 REQUESTS = {
   'SOURCES' : [ReRepo, ReHash, ReSrcName],
@@ -204,17 +204,17 @@ def get_source(repo, hash, name):
 
 def check_request(req):
   valid_fields = {
-    'ref_hash'   : '^(apt|[0-9a-f]{64}|[0-9a-f]{32})$',
-    'repo_uri'   : '^(/|)[a-zA-Z0-9_.-]+(/[a-zA-Z0-9_.-]+)*$',
-    'version'    : '^V\d\d-\d\d-\d\d$',
+    'ref_hash'   : r'^(apt|[0-9a-f]{64}|[0-9a-f]{32})$',
+    'repo_uri'   : r'^(/|)[a-zA-Z0-9_.-]+(/[a-zA-Z0-9_.-]+)*$',
+    'version'    : r'^V\d\d-\d\d-\d\d$',
     'info'   : '^1$',
     'debug'  : '^1$',
     'optional':'^1$',
     'size'   : '^1$',
     'sha'    : '^1$',
     'ping'   : '^1$',
-    'package': '^[a-zA-Z0-9_-]+$',
-    'stamp'  : '^[0-9a-f]+$',
+    'package': r'^[a-zA-Z0-9_-]+$',
+    'stamp'  : r'^[0-9a-f]+$',
   }
   errs = []
   for key in req.keys():
@@ -273,7 +273,7 @@ def cache(repo, arch, uHash):
   cdir = join(basedir, repo, uHash, arch)
   if exists (cdir):
     md5sums = get_apt_md5sums(join(basedir, repo, "md5cache", arch, "genpkglist"))
-    ReRPM = re.compile('(.+)[-]1[-]((1|\d+)(.%s|))\.%s\.rpm' % (arch,arch))
+    ReRPM = re.compile(r'(.+)[-]1[-]((1|\d+)(.%s|))\.%s\.rpm' % (arch,arch))
     err, out = getstatusoutput("find %s -maxdepth 2 -mindepth 2 -name '*.rpm' -type l | sort | xargs -i readlink '{}'" % cdir)
     for line in out.split("\n"):
       items = line.split("/")
