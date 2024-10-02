@@ -146,8 +146,8 @@ if (rpath==""):
 else:
   from re import match
   items = rpath.split("/")
-  ReRepo = '^[a-zA-Z0-9_-]+((\.[a-zA-Z0-9_-]+)+|)$'
-  ReArch = '^[a-zA-Z0-9]+_[a-zA-Z0-9]+_[a-zA-Z0-9]+$'
+  ReRepo = r'^[a-zA-Z0-9_-]+((\.[a-zA-Z0-9_-]+)+|)$'
+  ReArch = r'^[a-zA-Z0-9]+_[a-zA-Z0-9]+_[a-zA-Z0-9]+$'
   if not match(ReRepo,items[0]):
     show_repos()
   elif len(items)==1:

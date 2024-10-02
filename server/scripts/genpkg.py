@@ -44,7 +44,7 @@ arch=None
 for r in glob(join(RPMS_dir,"*","*","*.rpm")):
   if not arch:
     arch = r.split(".")[-2]
-    ReRPM = re.compile('(.+)[-]1[-]((1|\d+)(.%s|))\.%s\.rpm' % (arch,arch))
+    ReRPM = re.compile(r'(.+)[-]1[-]((1|\d+)(.%s|))\.%s\.rpm' % (arch,arch))
   items = r.split("/")
   rpm   = items[-1]
   rHash = items[-2]
