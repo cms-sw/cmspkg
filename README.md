@@ -261,3 +261,6 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 
 ### V00-01-20
  - @sumuzaffar 2024-08-02 Support Python 3.12
+
+### V00-01-21
+ - @sumuzaffar 2025-04-19 Added support for passing extra rpm options via CMSPKG_RPM_OPTS env

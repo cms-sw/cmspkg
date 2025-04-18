@@ -1845,6 +1845,11 @@ echo "Done."
 echo_n "Harvesting system for locally available software..."
 generateSeedSpec
 
+RPM_EXTRA_OPTS=""
+RPM_VERSION_NUM=$(echo $rpm_version | sed -E -e 's|^([0-9]+)\.([0-9]+).*|\1.00\2|' | sed -E -e 's|\.0*([0-9]{3})$|\1|')
+if [ $(echo ${RPM_VERSION_NUM} | grep -E '^[0-9]+$' | wc -l) -gt 0 ] ; then
+  [ $RPM_VERSION_NUM -gt 4020 ] && RPM_EXTRA_OPTS="--noplugins"
+fi
 # Now move to use the new RPM by sourcing its init.sh
 source $DOWNLOAD_DIR/inst/$cmsplatf/external/rpm/$rpm_version/etc/profile.d/init.sh
 cd $rootdir
@@ -1863,7 +1868,7 @@ echo "Done."
 echo_n "Installing packages in the local rpm database..."
 for pkg in $packageList
 do
-    rpm -U $forceOption --ignoresize --define "_rpmlock_path $rpmlock" $rpmOptions $DOWNLOAD_DIR/$pkg || cleanup_and_exit 1 "Error while installing $pkg. Exiting."
+    rpm -U $forceOption ${RPM_EXTRA_OPTS} --ignoresize --define "_rpmlock_path $rpmlock" $rpmOptions $DOWNLOAD_DIR/$pkg || cleanup_and_exit 1 "Error while installing $pkg. Exiting."
 done
 echo "Done"
 
