@@ -1848,7 +1848,7 @@ generateSeedSpec
 RPM_EXTRA_OPTS=""
 RPM_VERSION_NUM=$(echo $rpm_version | sed -E -e 's|^([0-9]+)\.([0-9]+).*|\1.00\2|' | sed -E -e 's|\.0*([0-9]{3})$|\1|')
 if [ $(echo ${RPM_VERSION_NUM} | grep -E '^[0-9]+$' | wc -l) -gt 0 ] ; then
-  [ $RPM_VERSION_NUM -gt 4020 ] && RPM_EXTRA_OPTS="--noplugins"
+  [ $RPM_VERSION_NUM -ge 4020 ] && RPM_EXTRA_OPTS="--noplugins"
 fi
 # Now move to use the new RPM by sourcing its init.sh
 source $DOWNLOAD_DIR/inst/$cmsplatf/external/rpm/$rpm_version/etc/profile.d/init.sh
