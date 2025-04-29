@@ -264,3 +264,6 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 
 ### V00-01-21
  - @sumuzaffar 2025-04-19 Added support for passing extra rpm options via CMSPKG_RPM_OPTS env
+
+### V00-01-22
+ - @sumuzaffar 2025-04-29 typo, fix for CMSPKG_RPM_OPTS env

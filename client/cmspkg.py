@@ -79,7 +79,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-01-21"
+cmspkg_tag   = "V00-01-22"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -798,7 +798,7 @@ class CmsPkg:
 
     cmspkg_print("Downloaded %s of archives." % human_readable_size(size_compress))
     cmspkg_print( "After unpacking %s of additional disk space will be used." % human_readable_size(size_uncompress))
-    ex_opts  = ['-U', '-v', '-h', '-r %s' % opts.install_prefix, '--prefix %s' % opts.install_prefix, '--force', '--ignoreos', '--ignorearch', '--oldpackage', '${CMSPKG_RPM_OPTS}']
+    ex_opts  = ['-U', '-v', '-h', '-r %s' % opts.install_prefix, '--prefix %s' % opts.install_prefix, '--force', '--ignoreos', '--ignorearch', '--oldpackage', '\${CMSPKG_RPM_OPTS}']
     if reinstall and (package in self.rpm_cache): ex_opts += ['--replacepkgs', '--replacefiles', '--nodeps']
     if opts.IgnoreSize: ex_opts.append('--ignoresize')
     rcmd = "%s; rpm %s" % (rpm_env, getRPMOptions(ex_opts, opts))
