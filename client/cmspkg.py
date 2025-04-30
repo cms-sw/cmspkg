@@ -79,7 +79,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-01-23"
+cmspkg_tag   = "V00-01-24"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -267,7 +267,7 @@ def fetch_url(data, outfile=None, debug=False, exit_on_error=True):
 #Run a shell command
 def fix_cmd(cmd):
   if rpm_env and (rpm_env in cmd) and getenv("CMSPKG_OS_COMMAND",""):
-    return "%s \"%s\"" % (getenv("CMSPKG_OS_COMMAND"), cmd)
+    return "%s \"%s\"" % (getenv("CMSPKG_OS_COMMAND"), cmd.replace('$', '\\$'))
   return cmd
 
 def run_cmd (cmd,outdebug=False,exit_on_error=True, silent=False):
