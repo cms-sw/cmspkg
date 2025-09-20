@@ -8,6 +8,20 @@ from glob import glob
 import json
 cgitb.enable()
 
+blocked_user_agents = [
+  "GPTBot",
+  "SemrushBot",
+  "ClaudeBot",
+  "Googlebot",
+  "DataForSeoBot",
+  "UptimeRobot",
+  "Applebot",
+  "DotBot",
+  "YandexBot",
+  "BacklinksExtendedBot",
+  "bingbot",
+  "AliyunSecBot",
+]
 basedir = None
 repo_uri = "cmssw"
 default_repo = '0000000000000000000000000000000000000000000000000000000000000000'
@@ -39,11 +53,22 @@ REQUESTS = {
   'upgrade' : [],
 }
 
-def error_msg(msg):
-  return_json({"error":msg}, True)
+def error_msg(msg, err_code=404):
+  return_json({"error":msg}, True, err_code)
 
-def return_json(data,err=False):
-  if err: print ("Status: 404 Not Found")
+def check_user_agent():
+  if not blocked_user_agents:
+    return
+  user_agent = os.environ.get("HTTP_USER_AGENT", "")
+  if not user_agent:
+    return error_msg("ERROR USER_AGENT")
+  for agent in blocked_user_agents:
+    if agent in user_agent:
+      error_msg("ERROR", 403)
+  return
+
+def return_json(data,err=False,err_code=404):
+  if err: print ("Status: %s Not Found" % err_code)
   print ("Content-type: application/json\n")
   if debug and debug_msg: data['debug']="\n".join(debug_msg)
   if warn_msg: data['warning']="\n".join(warn_msg)
@@ -419,6 +444,7 @@ def process(req):
   return error_msg("Unable to find the file: %s" % (rpath))
 
 ###################################   
+check_user_agent()
 req = {}
 try: 
   req = cgi.FieldStorage()
