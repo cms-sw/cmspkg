@@ -3,6 +3,7 @@ from sys import exit
 from subprocess import getstatusoutput as cmd
 from os import environ
 from os.path import exists,dirname,basename
+from cmspkg_utils import check_user_agent
 base_dir = "/data/cmssw"
 uri = environ['SCRIPT_NAME']
 
@@ -137,6 +138,7 @@ def show_rpms(repo, arch, rpm_to_get=None):
     print ("</tr>\n")
   print ("</table>\n")
 
+check_user_agent()
 rpath = ""
 try: rpath = environ['PATH_INFO'].strip("/")
 except: pass
