@@ -273,3 +273,6 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 
 ### V00-01-24
   - @sumuzaffar 2025-04-30 Proper fix for CMSPKG_RPM_OPTS when run under dockerrun
+
+### V00-01-25
+  - @sumuzaffar 2025-12-09 Do not use -r /path if system RPM is used
