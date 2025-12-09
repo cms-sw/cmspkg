@@ -1643,7 +1643,7 @@ seed ()
      rm -rf $tempdir/BUILDROOT && mkdir -p $tempdir/BUILDROOT
      rpmbuild -ba --define "_topdir $PWD" --rcfile $rcfile --buildroot $tempdir/BUILDROOT system-base-import.spec >/dev/null 2>&1
      [ "X$verbose" = Xtrue ] && echo && echo "...Seeding database in in $rootdir/$rpmdb"
-     rpm --define "_rpmlock_path $rpmlock" -U --ignoresize -r $rootdir --rcfile $rcfile --dbpath $rootdir/$rpmdb RPMS/system-base-import.rpm
+     rpm --define "_rpmlock_path $rpmlock" -U --ignoresize ${rpmBaseOptions} --rcfile $rcfile RPMS/system-base-import.rpm
     ) || cleanup_and_exit $? "Error while seeding rpm database with system packages."
     popd
 }
@@ -1852,15 +1852,19 @@ if [ $(echo ${RPM_VERSION_NUM} | grep -E '^[0-9]+$' | wc -l) -gt 0 ] ; then
 fi
 # Now move to use the new RPM by sourcing its init.sh
 source $DOWNLOAD_DIR/inst/$cmsplatf/external/rpm/$rpm_version/etc/profile.d/init.sh
+rpmBaseOptions="-r $rootdir --dbpath $rootdir/$rpmdb"
+if [ "${CMSPKG_SYSTEM_RPM}" = "1" ] ; then
+  rpmBaseOptions="--dbpath $rootdir/$rpmdb"
+fi
 cd $rootdir
 echo "Done."
 
 # Initialise the rpmdb using the new rpm.
 echo_n "Initializing local rpm database..."
-rpmdb --define "_rpmlock_path $rpmlock" -r $rootdir --dbpath $rootdir/$rpmdb --initdb || cleanup_and_exit 1 "Unable to initialize $rootdir/$rpmdb. Exiting."
+rpmdb --define "_rpmlock_path $rpmlock" ${rpmBaseOptions} --initdb || cleanup_and_exit 1 "Unable to initialize $rootdir/$rpmdb. Exiting."
 
 # Build the seed spec and install it, in order to seed the newly generated db.
-rpmOptions="-r $rootdir --dbpath $rootdir/$rpmdb --rcfile $DOWNLOAD_DIR/inst/$cmsplatf/external/rpm/$rpm_version/lib/rpm/rpmrc --nodeps --prefix $rootdir --ignoreos --ignorearch"
+rpmOptions="${rpmBaseOptions} --rcfile $DOWNLOAD_DIR/inst/$cmsplatf/external/rpm/$rpm_version/lib/rpm/rpmrc --nodeps --prefix $rootdir --ignoreos --ignorearch"
 seed $DOWNLOAD_DIR/inst/$cmsplatf/external/rpm/$rpm_version/lib/rpm/rpmrc
 echo "Done."
 
