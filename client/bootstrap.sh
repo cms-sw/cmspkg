@@ -1256,11 +1256,14 @@ driver_file=""
 seed_type="runtime"
 while [ $# -gt 0 ]; do
   case $1 in
+        check )
+          command=$1
+          shift ;;
         setup )
-          command=setup 
+          command=$1
           shift ;;
         reseed )
-          command=reseed
+          command=$1
           shift;;
         -k) keep_on_going=true ; shift ;;
         -path|-p )
@@ -1358,7 +1361,7 @@ A script to bootstrap a CMS software area.
 Syntax:
 bootstrap.sh setup|reseed <-a|-arch|-architecture arch> [optional options]
 
-setup|reseed                  Setup a new installation area or reconfigure/reseed and existing area.
+setup|reseed|check             Check/Setup a new installation area or reconfigure/reseed and existing area.
 -a|-arch|-architecture <arch> Select an architecture e.g slc7_amd64_gcc11
 
 Optional options
@@ -1608,6 +1611,7 @@ generateSeedSpec () {
           echo $missingSeeds 1>&2
           exit 1
       fi
+      [ "$command" = "check" ] && exit 0
       for p in $(echo ${selSeeds} |  sort | uniq) ; do
           if [ "$pkgManager" = "DPKG" ] ; then
               dpkg -L $p 2>/dev/null | sed -e "s|^|Provides:|"
@@ -1622,9 +1626,13 @@ generateSeedSpec () {
       echo; echo "%description"; echo "Seeds RPM repository from the base system."
       echo; echo "%prep"; echo "%build"; echo "%install"; echo "%files";
      ) > system-base-import.spec
-    if [ "X$?" = X0 ]; then : ; else 
+    if [ "X$?" != X0 ] ; then
+        [ "$command" = "check" ] && exit 1
         echo "There was an error generating the platform seed"
         exit 1
+    elif [ "$command" = "check" ] ; then
+        echo "${seed} ${requiredBuildSeeds}" | tr ' ' '\n' | sort | uniq
+        cleanup_and_exit 0 "Great, all system packages are installed."
     fi
 
     perl -p -i -e 's|^Provides:[\s]*$||' system-base-import.spec
@@ -1894,7 +1902,7 @@ case $command in
     setup )
         setup 
         ;;
-    reseed )
+    reseed|check )
         get_driver
         generateSeedSpec
         seed $rootdir/$cmsplatf/external/rpm/$rpm_version/lib/rpm/rpmrc 
