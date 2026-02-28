@@ -1591,21 +1591,29 @@ generateSeedSpec () {
       fi
       missingSeeds=""
       selSeeds=""
+      echo "Runtime required system packages:" > system-seed-check.txt
       for pp in $seed; do
           p=$(checkPackage "$pp" ${pkgManager})
           if [ "$p" = "" ] ; then
               missingSeeds="$missingSeeds $pp"
+              echo "  - Fail .... $pp" >> system-seed-check.txt
           else
               selSeeds="${selSeeds} ${p}"
+              echo "  - OK ...... $p" >> system-seed-check.txt
           fi
       done
+      [ "${requiredBuildSeeds}" != "" ] && echo "Buildtime required system pakcages:" >> system-seed-check.txt
       for pp in ${requiredBuildSeeds}; do
           p=$(checkPackage "$pp" ${pkgManager})
           if [ "$p" = "" ] ; then
               missingSeeds="$missingSeeds $pp"
+              echo "  - Fail .... $pp" >> system-seed-check.txt
+          else
+              echo "  - OK ...... $p" >> system-seed-check.txt
           fi
       done
       if [ "$missingSeeds" ] ; then
+          [ "$command" = "check" ] && cat system-seed-check.txt 1>&2 && rm -f system-seed-check.txt
           echo 1>&2
           echo "Some required packages are missing:" 1>&2
           echo $missingSeeds 1>&2
@@ -1626,12 +1634,13 @@ generateSeedSpec () {
       echo; echo "%description"; echo "Seeds RPM repository from the base system."
       echo; echo "%prep"; echo "%build"; echo "%install"; echo "%files";
      ) > system-base-import.spec
-    if [ "X$?" != X0 ] ; then
+    ecode=$?
+    [ -e system-seed-check.txt ] && cat system-seed-check.txt && rm -f system-seed-check.txt
+    if [ "X$ecode" != X0 ] ; then
         [ "$command" = "check" ] && exit 1
         echo "There was an error generating the platform seed"
         exit 1
     elif [ "$command" = "check" ] ; then
-        echo "${seed} ${requiredBuildSeeds}" | tr ' ' '\n' | sort | uniq
         cleanup_and_exit 0 "Great, all system packages are installed."
     fi
 
@@ -1664,15 +1673,19 @@ if [ "$driver_file" = "" ] ; then
   download_${download_method} "$driver" $tempdir/$cmsplatf-driver.txt
   [ -f $tempdir/$cmsplatf-driver.txt ] || cleanup_and_exit 1 "Unable to download platform driver: $driver"
   eval `cat $tempdir/$cmsplatf-driver.txt`
-  echo "Done driver $cmsplatf."
+  echo "Done"
   #Setting up optional drivers
   for arch in $(echo $cmsplatf | sed 's|_[^_]*$||')_common common_$(echo $cmsplatf | sed 's|^[^_]*_||;s|_[^_]*$||')_common ; do
     driver="$cgi_server/cgi-bin/cmspkg${useDev}/driver/$repository/$arch?repo_uri=${server_main_dir}"
     echo_n "Downloading driver file $arch ..."
-    download_${download_method} "$driver" $tempdir/$arch-driver.txt || continue
-    [ -f $tempdir/$arch-driver.txt ]
-    eval `cat $tempdir/$arch-driver.txt`
-    echo "Done driver $arch."
+    if download_${download_method} "$driver" $tempdir/$arch-driver.txt ; then
+      echo "Not available"
+      continue
+    fi
+    if [ -f $tempdir/$arch-driver.txt ] ; then
+      eval `cat $tempdir/$arch-driver.txt`
+    fi
+    echo "Done"
   done
 else
   eval `cat $driver_file`
