@@ -1678,7 +1678,7 @@ if [ "$driver_file" = "" ] ; then
   for arch in $(echo $cmsplatf | sed 's|_[^_]*$||')_common common_$(echo $cmsplatf | sed 's|^[^_]*_||;s|_[^_]*$||')_common ; do
     driver="$cgi_server/cgi-bin/cmspkg${useDev}/driver/$repository/$arch?repo_uri=${server_main_dir}"
     echo_n "Downloading driver file $arch ..."
-    if download_${download_method} "$driver" $tempdir/$arch-driver.txt ; then
+    if ! download_${download_method} "$driver" $tempdir/$arch-driver.txt ; then
       echo "Not available"
       continue
     fi
