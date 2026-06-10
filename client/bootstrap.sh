@@ -1873,7 +1873,7 @@ echo_n "Harvesting system for locally available software..."
 generateSeedSpec
 
 RPM_EXTRA_OPTS=""
-RPM_VERSION_NUM=$(echo $rpm_version | sed -E -e 's|^([0-9]+)\.([0-9]+).*|\1.00\2|' | sed -E -e 's|\.0*([0-9]{3})$|\1|')
+RPM_VERSION_NUM=$(echo $rpm_version | sed -r -e 's|^([0-9]+)\.([0-9]+).*|\1.00\2|' | sed -r -e 's|\.0*([0-9]{3})$|\1|')
 if [ $(echo ${RPM_VERSION_NUM} | grep -E '^[0-9]+$' | wc -l) -gt 0 ] ; then
   [ $RPM_VERSION_NUM -ge 4020 ] && RPM_EXTRA_OPTS="--noplugins"
 fi
