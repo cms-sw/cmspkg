@@ -32,22 +32,23 @@ cleanup_and_exit () {
     exit $exitcode 
 }
 
-download_method=
 download_curl () { curl -L -f -H "Cache-Control: max-age=0" --user-agent "CMSPKG/1.0" --connect-timeout 60 --max-time 600 -q -s "$1" -o "$2.tmp" && mv "$2.tmp" "$2"; }
 download_wget () { wget --no-check-certificate --header="Cache-Control: max-age=0" --user-agent="CMSPKG/1.0" --timeout=600 -q -O "$2.tmp" "$1" 2>/dev/null && mv "$2.tmp" "$2"; }
 download_none () { cleanup_and_exit 1 "No curl or wget, cannot fetch $1" 
 }
 
 # Figure out how to download stuff
-if [ -z "$download_method" ]; then
-  if [ `wget --version 2>/dev/null | wc -l` != 0 ]; then
-    download_method=wget
-  elif [ `curl --version 2>/dev/null | wc -l` != 0 ]; then
-    download_method=curl
-  else
-    download_method=none
+function set_download_method() {
+  if [ -z "$download_method" ]; then
+    if [ `wget --version 2>/dev/null | wc -l` != 0 ]; then
+      download_method=wget
+    elif [ `curl --version 2>/dev/null | wc -l` != 0 ]; then
+      download_method=curl
+    else
+      download_method=none
+    fi
   fi
-fi
+}
 
 # Safely create a user-specific temp directory.
 # We look for TMPDIR since /tmp might not be user
@@ -1245,6 +1246,7 @@ server_main_dir=cmssw
 repository=cms
 unsupportedDistribution=false
 useDev=
+download_method=
 
 rootdir=$(pwd)
 xSeeds=""
@@ -1274,6 +1276,8 @@ while [ $# -gt 0 ]; do
             rootdir="$PWD/$2"
           fi
           shift; shift ;;
+        -curl ) download_method="curl" ; shift ;;
+        -wget ) download_method="wget" ; shift ;;
         -server )
           [ $# -gt 1 ] || cleanup_and_exit 1 "Option \`$1' requires an argument"
           server=$(echo $2 | cut -d/ -f1)
@@ -1366,6 +1370,7 @@ setup|reseed|check             Check/Setup a new installation area or reconfigur
 
 Optional options
 -p|-path <cms-path>            Location of where the installation must be done (default: $PWD).
+-curl|-wget                    Force use curl or wget tools to download packages
 -r|-repository <repository>    Use private cmspkg repository cms.<username> (default: cms).
 -server-path <download-path>   Package structure is found on <download-path> on server (default: cmssw).
 -server <server>               Repositories are to be found on server <server> (default: cmsrep.cern.ch).
@@ -1392,6 +1397,7 @@ EOF_HELP
         ;;
     esac
 done
+set_download_method
 
 # Get cmsos from the web.
 cgi_server=
