@@ -79,7 +79,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-01-25"
+cmspkg_tag   = "V00-01-26"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -309,14 +309,23 @@ def makedirs(path, force=False):
   return
 
 #Varifies a file size and md5sums
-def verify_download(ofile, size, md5sum, debug=True):
+
+def verify_download(ofile, size, chksum, debug=True):
   sinfo = stat(ofile)
   if sinfo[6] != size:
     if debug: cmspkg_print("Error: Download error: Size mismatch for %s (%s vs %s)." % (ofile, str(sinfo[6]), str(size)))
     return False
-  err, out = run_cmd("%s %s | sed 's| .*||'" % (cmd_md5sum, ofile))
-  if out != md5sum:
-    if debug: cmspkg_print("Error: Download error: Checksum mismatch for %s (%s vs %s)." % (ofile, out, md5sum))
+  chksum_cmd = cmd_md5sum
+  if ':' in chksum:
+    algorithm, chksum = chksum.split(':', 1)
+    if algorithm == "sha256":
+      chksum_cmd = cmd_sha256sum
+    elif algorithm != "md5":
+      cmspkg_print("Error: Invalid checksum algorithm %s for %s" % (algorithm, ofile))
+      return False
+  err, out = run_cmd("%s %s | sed 's| .*||'" % (chksum_cmd, ofile))
+  if out != chksum:
+    if debug: cmspkg_print("Error: Download error: Checksum mismatch for %s (%s vs %s)." % (ofile, out, chksum))
     return False
   return True
 
