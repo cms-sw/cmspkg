@@ -276,3 +276,6 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 
 ### V00-01-25
   - @sumuzaffar 2025-12-09 Do not use -r /path if system RPM is used
+
+### V00-01-26
+  - @sumuzaffar 2026-11-04 Added client support for sha256
