@@ -24,20 +24,20 @@ if len(argv)<2:
   exit(99)
 
 basedir = argv[1]
-md5dir  = basedir
-if len(argv)>2: md5dir = argv[2]
+chksum_dir  = basedir
+if len(argv)>2: chksum_dir = argv[2]
 
 RPMS_dir=join(basedir,"RPMS")
 if not exists (RPMS_dir):
   print ("Error: No such directory %s" % RPMS_dir)
   exit(99)
 
-md5sums = {}
-if exists (md5dir):
-  err, out =  getstatusoutput("cat %s/*.md5cache" % md5dir)
+chksums = {}
+if exists (chksum_dir):
+  err, out =  getstatusoutput("cat %s/*.md5cache" % chksum_dir)
   for line in out.split("\n"):
     items = line.split(" ")
-    md5sums [ items[0] ] = items[1]
+    chksums [ items[0] ] = items[1]
 
 cache={}
 arch=None
@@ -51,22 +51,21 @@ for r in glob(join(RPMS_dir,"*","*","*.rpm")):
   pack, rev = rpm2cmspkg(rpm)
   if pack not in cache: cache[pack]={}
   size = stat(r)[6]
-  md5sum = ""
-  if rpm in md5sums:
-    md5sum = md5sums[rpm]
+  chksum = ""
+  if rpm in chksums:
+    chksum = chksums[rpm]
   else:
-    print ("Running MD5SUM : %s" % rpm)
-    err, md5sum = getstatusoutput("md5sum %s | sed 's| .*||'" % r)
+    print ("Running CHECKSUM : %s" % rpm)
+    err, chksum = getstatusoutput("sha256sum %s |awk '{print \"sha256:\"$1}'" % r)
     if err: exit(1)
   deps = []
   dep_file = r[:-3]+"dep"
   if exists(dep_file):
     with open(dep_file) as ref:
       deps = [d for l in ref.readlines() for d in l.strip().split(" ") if d]
-  cache[pack][rev] = [rHash, rpm, md5sum, size, deps]
+  cache[pack][rev] = [rHash, rpm, chksum, size, deps]
 
 cache['hash'] = sha256(dumps(cache,sort_keys=True,separators=(',',': ')).encode()).hexdigest()
 with open(RPMS_dir+".json", 'w') as outfile:
   outfile.write(dumps(cache,sort_keys=True,indent=2,separators=(',',': ')))        
   outfile.close()
-
