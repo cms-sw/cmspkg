@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from os import stat
+from os import stat, environ
 from sys import argv, exit
 from os.path import exists, join
 from glob import glob
@@ -32,13 +32,13 @@ if not exists (RPMS_dir):
   exit(99)
 
 chksums = {}
-gpg = False
+gpg = True if environ.get("PKG_GPG_SIGN", "false") == "true" else False
 if exists (chksum_dir):
   err, out =  getstatusoutput("cat %s/*.md5cache" % chksum_dir)
   for line in out.split("\n"):
     items = line.split(" ")
     chksums [ items[0] ] = items[1]
-  gpg = exists(join(chksum_dir, "gpg.txt"))
+  gpg = gpg or exists(join(chksum_dir, "gpg.txt"))
 
 cache={}
 arch=None

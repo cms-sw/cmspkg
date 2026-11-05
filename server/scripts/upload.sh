@@ -49,9 +49,12 @@ DES_REPO="$4"            #Required: Name of destination repo, for sync-back it s
 TMPREPO_BASE="$5"        #Required: Tmp directory name under TMPDIR obtained via INIT request
 INCREMENTAL="$6"         #Do not copy packages from parent repo but just create an incremental repo
                          #- every thing missing will be picked up from parent repo
+PKG_GPG_SIGN="$7"        #GPG Sign the uploaded packages cache
 
+if [ "${PKG_GPG_SIGN}" != "true" ] ; then PKG_GPG_SIGN="false" ; fi
 if [ "${INCREMENTAL}" != "true" ] ; then INCREMENTAL="false" ; fi
 export INCREMENTAL
+export PKG_GPG_SIGN
 
 #Make sure COMMAND, SRC_REPO and ARCH command-line args are provided and have valid values
 if [ "X${COMMAND}" = "X" -o "X${SRC_REPO}" = "X" -o "X${ARCH}" = "X" ] ; then

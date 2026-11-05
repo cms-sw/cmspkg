@@ -195,6 +195,7 @@ fi
 #We know mv is a atomic operation, so we create a temp next symlink and then use mv command
 ln -sf ${NEW_UPLOAD_HASH} ${CMSPKG_REPOS}/${DES_REPO}/${ARCH}/next-${NEW_UPLOAD_HASH}
 mv -T ${CMSPKG_REPOS}/${DES_REPO}/${ARCH}/next-${NEW_UPLOAD_HASH} ${CMSPKG_REPOS}/${DES_REPO}/${ARCH}/latest
+rm -f ${CMSPKG_REPOS}/${DES_REPO}/${ARCH}/latest/gpg.txt
 
 #if new sources are upload then create a symlink
 if [ -d ${CMSPKG_REPOS}/${DES_REPO}/${ARCH}/${NEW_UPLOAD_HASH}/SOURCES ] ; then
