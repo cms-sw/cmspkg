@@ -45,10 +45,6 @@ def show_archs(repo, archs={}, xrepo=None):
     if prepo:
       show_archs(prepo, archs, xrepo)
       return
-  e, o = cmd ("ls -d %s/%s/apt/*/base 2>/dev/null" % (base_dir, repo))
-  for r in o.split("\n"):
-    archs [basename(dirname(r))] =1
-
   for r in sorted(archs.keys()):
     print ("<a href='%s/%s/%s'>%s</a><br>\n" % (uri, xrepo, r, r))
 
@@ -103,27 +99,6 @@ def show_rpms(repo, arch, rpm_to_get=None):
         continue
       orpms.append(nrpm)
       rpms[nrpm] = ["<a href='/cmssw/%s'>%s</a>" % (rpm,nrpm),"%s %s" % (xx[-3],xx[-2]), xx[-4]]
-  else:
-    prepo = repo
-    while not found:
-      rdir = "%s/%s/apt/%s" % (base_dir, prepo, arch)
-      if not exists (rdir):
-        prepo = '.'.join(prepo.split(".")[:-1])
-        if prepo=="":break
-      else:
-        found = True
-    if found:
-      e,o = cmd("ls %s --time-style='+%%d-%%b-%%Y %%H:%%M' %s/%s/RPMS/cache/*/%s/*.rpm 2>/dev/null" % (ldopt, base_dir, prepo, arch))
-      for r in o.split("\n"):
-        xx = r.split(" ")
-        link = xx[-1] 
-        rpm = xx[-1].replace(base_dir+"/","")
-        nrpm = basename(rpm)
-        if rpm_to_get:
-          if rpm_to_get==nrpm: redirect("/cmssw/%s" % rpm)
-          continue
-        orpms.append(nrpm)
-        rpms[nrpm] = ["<a href='/cmssw/%s'>%s</a>" % (rpm,nrpm),"%s %s" % (xx[-3],xx[-2]), xx[-4]]
   if rpm_to_get: exit(1)
   if "C=N" == sort:
     orpms = sorted(orpms)
