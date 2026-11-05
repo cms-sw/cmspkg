@@ -1,8 +1,10 @@
 from json import loads, dumps
 from hashlib import sha256
 from subprocess import getstatusoutput
+import re
 
 CMS_GPG_SIGN = 'CMSPKG-METADATA-SIGNATURE-V1'
+ReSha256Hash = r'^([0-9a-f]{64})$'
 
 #Merge Two transactions
 def merge_meta(bHash, uHash, nHash="", dryRun=False):
@@ -30,16 +32,20 @@ def save_cache(cache, cfile):
   with open(cfile, 'w') as outfile:
     outfile.write(cache_data_pretty(cache))
 
+def get_gpg_signature(sha256_hash):
+  if not re.match(ReSha256Hash, sha256_hash): return ""
+  err, gpg = getstatusoutput("echo -n '%s %s' | gpg --batch --yes --armor --detach-sign | base64 -w 0" % (CMS_GPG_SIGN, sha256_hash))
+  if err:
+    return ""
+  return gpg
+
 def fix_cache(cache, gpg):
   cache.pop("hash", None)
   cache.pop("gpg", None)
   cache['hash'] = sha256(dumps(cache,sort_keys=True,separators=(',',': ')).encode()).hexdigest()
   res = True
   if gpg:
-    err, out = getstatusoutput("echo -n '%s %s' | gpg --batch --yes --armor --detach-sign | base64 -w 0" % (CMS_GPG_SIGN, cache['hash']))
-    if err:
-      print("Failed GPG sign the cache", out)
-      out = ""
+    cache['gpg'] = get_gpg_signature(cache['hash'])
+    if not cache['gpg']:
       res = False
-    cache['gpg'] = out
   return res
