@@ -19,12 +19,16 @@ debug = False
 optional = False
 search_depth = 0
 useDev = ""
+client_features = {
+  'sha256' : 'V00-01-26'
+}
+client_version = None
 
 
 ReArch      = r'[a-zA-Z0-9]+_[a-zA-Z0-9]+_[a-zA-Z0-9]+'
 ReRepo      = r'[a-zA-Z0-9_-]+((\.[a-zA-Z0-9_-]+)+|)'
 ReHash      = r'[0-9a-f]{32}'
-ReRepoHash  = r'(apt|[0-9a-f]{64})'
+ReRepoHash  = r'([0-9a-f]{64})'
 ReSrcName   = r'[+a-zA-Z0-9._-]+'
 RePkgName   = r'(cms|lcg|external)[+][a-zA-Z0-9_-]+[+][a-zA-Z0-9._-]+'
 ReOtherName = r'(cmsos|bootstrap.sh|README.md|WEB/[0-9a-zA-Z._/+-]+)'
@@ -60,18 +64,15 @@ def latest_client_version():
     sys.path.pop(0)
   except: pass
   return version
-  
-def newer_version(new_ver, prev_ver):
-  return int(new_ver[1:].replace("-",""))>int(prev_ver[1:].replace("-",""))
 
-def get_apt_md5sums(md5dir):
-  md5sums = {}
-  if exists (md5dir):
-    err, out =  getstatusoutput("cat %s/*.md5cache" % md5dir)
-    for line in out.split("\n"):
-      items = line.split(" ")
-      md5sums [ items[0] ] = items[1]
-  return md5sums
+def version2int(version):
+  return int(version[1:].replace("-",""))
+
+def newer_version(new_ver, prev_ver):
+  return version2int(new_ver)>version2int(prev_ver)
+
+def client_feature_support(feature):
+  return  version2int(client_version)>=version2int(client_features[feature])
 
 def check_read_only(repo, arch):
   if (not repo) or (not arch): return
@@ -89,15 +90,6 @@ def get_parent_repo(repo):
   repox = repo.split(".")
   if len(repox)==1: return None
   return ".".join(repox[0:-1])
-
-def apt_repo(repo):
-  prepo = repo.split(".")[0]
-  while repo:
-    if debug: debug_msg.append("Checking %s/%s" % (repo, "apt"))
-    cdir = join(basedir, repo, 'apt')
-    if exists (cdir): return repo
-    repo = get_parent_repo(repo)
-  return prepo
 
 def get_new_cache(repo, arch, uHash):
   arch_dir = join(basedir, "repos", repo, arch)
@@ -148,27 +140,13 @@ def search_file(repo, arch, uHash, name, package=True):
     pFile = join("repos", name)
     if debug: debug_msg.append("Searching %s" % (pFile))
     if exists (join(basedir, pFile)): return pFile
-    if name.startswith("drivers/"): name = name[8:]
-    if not orepo: return None
-    repo = apt_repo(orepo)
-    search_depth+=1
-    pFile = join(repo, name)
-    if debug: debug_msg.append("Searching %s" % (pFile))
-    if exists (join(basedir, pFile)): return pFile
   return None
 
 def get_package(repo, arch, hash, name, ref_hash):
   global search_depth
   check_read_only(repo, arch)
   search_depth = 0
-  if ref_hash != 'apt':
-    return search_file (repo, arch, ref_hash, join("RPMS", hash[0:2], hash, name), package=True)
-  else:
-    repo = apt_repo(repo)
-    search_depth+=1
-    rfile = join(repo,'RPMS', 'cache', hash, arch, name)
-    if exists (join(basedir, rfile)): return rfile
-  return None
+  return search_file (repo, arch, ref_hash, join("RPMS", hash[0:2], hash, name), package=True)
 
 def get_file(repo, arch, name):
   global search_depth
@@ -196,16 +174,11 @@ def get_source(repo, hash, name):
         if debug: debug_msg.append("Searching %s" % (rfile))
         if exists (join(basedir, rfile)): return rfile
     xrepo = get_parent_repo(xrepo)
-  search_depth+=1
-  repo = apt_repo(repo)
-  rfile = join(repo,'SOURCES', 'cache', hash, name)
-  if debug: debug_msg.append("Searching %s" % (rfile))
-  if exists (join(basedir, rfile)): return rfile
   return None
 
 def check_request(req):
   valid_fields = {
-    'ref_hash'   : r'^(apt|[0-9a-f]{64}|[0-9a-f]{32})$',
+    'ref_hash'   : r'^([0-9a-f]{64}|[0-9a-f]{32})$',
     'repo_uri'   : r'^(/|)[a-zA-Z0-9_.-]+(/[a-zA-Z0-9_.-]+)*$',
     'version'    : r'^V\d\d-\d\d-\d\d$',
     'info'   : '^1$',
@@ -245,16 +218,10 @@ def caches(repo, arch):
       data['caches'].append([prepo, uHash, hash])
       if debug: debug_msg.append("Found hash %s/%s" % (uHash, hash))
     prepo, pHash  = get_parent (prepo, arch, uHash)
-  if len(data['caches'])==0:
-    repo = apt_repo(repo)
-    cdir = join(basedir, repo, 'apt', arch)
-    if exists (cdir):
-      data['caches'].append([repo, "apt", str(int(getmtime(cdir)))])
-      if debug: debug_msg.append("Found parent %s/%s" % (repo, 'apt'))
-  if ('version' in req):
+  if client_version:
     ser_vesion = latest_client_version ()
     try:
-      if newer_version(ser_vesion, req.getvalue('version')):
+      if newer_version(ser_vesion, client_version):
         info_msg.append("A newer cmspkg client '%s' is available to download/install." % ser_vesion)
         info_msg.append("Please run 'cmspkg -a <arch> upgrade' command to see the changes and upgrade your local cmspkg client.")
     except: pass
@@ -263,33 +230,9 @@ def caches(repo, arch):
 def cache(repo, arch, uHash):
   check_read_only(repo, arch)
   data = {}
-  if uHash != "apt":
-    cache = join(basedir, "repos", repo, arch, uHash, "RPMS.json")
-    if exists (cache): redirect("repos/%s/%s/%s/RPMS.json" % (repo, arch, uHash))
-    if debug: debug_msg.append("Not found package cache for %s/%s/%s" % (repo, arch, uHash))
-    data['hash'] = sha256(json.dumps(data,sort_keys=True,separators=(',',': ')).encode()).hexdigest()
-    return_json(data)
-
-  repo = apt_repo(repo)
-  cdir = join(basedir, repo, uHash, arch)
-  if exists (cdir):
-    md5sums = get_apt_md5sums(join(basedir, repo, "md5cache", arch, "genpkglist"))
-    ReRPM = re.compile(r'(.+)[-]1[-]((1|\d+)(.%s|))\.%s\.rpm' % (arch,arch))
-    err, out = getstatusoutput("find %s -maxdepth 2 -mindepth 2 -name '*.rpm' -type l | sort | xargs -i readlink '{}'" % cdir)
-    for line in out.split("\n"):
-      items = line.split("/")
-      rpm   = items[-1]
-      rHash = items[-3]
-      g,p,vx = rpm.split("+",2)
-      m = ReRPM.match (vx)
-      v = m.group(1)
-      r = m.group(3)
-      pk = "+".join([g,p,v])
-      if not pk in data: data[pk]={}
-      md5sum = ""
-      if rpm in md5sums: md5sum = md5sums[rpm]
-      data[pk][r] = [rHash, rpm, md5sum, "", []]
-    if debug: debug_msg.append("Found APT package cache for %s/%s/%s" % (repo, arch, uHash))
+  cache = join(basedir, "repos", repo, arch, uHash, "RPMS.json")
+  if exists (cache): redirect("repos/%s/%s/%s/RPMS.json" % (repo, arch, uHash))
+  if debug: debug_msg.append("Not found package cache for %s/%s/%s" % (repo, arch, uHash))
   data['hash'] = sha256(json.dumps(data,sort_keys=True,separators=(',',': ')).encode()).hexdigest()
   return_json(data)
 
@@ -298,9 +241,14 @@ def get_file_info (rfile, name):
   info['path'] = rfile
   rfile = join(basedir, rfile)
   if ('info' in req) or ('sha' in req):
-    err, out = getstatusoutput("md5sum %s | sed 's| .*||'" % rfile)
+    chksum_cmd = "md5sum"
+    chkprefix=""
+    if client_feature_support("sha256"):
+      chksum_cmd = "sha256sum"
+      chkprefix="sha256:"
+    err, out = getstatusoutput("%s %s | sed 's| .*||'" % (chksum_cmd, rfile))
     if err: error_msg("Unable to find checksum: %s" % (name))
-    info['sha']=out
+    info['sha']="%s%s" % (chkprefix, out)
   if ('info' in req) or ('size' in req):
     info['size'] = os.stat(rfile)[6]
   return info
@@ -326,15 +274,14 @@ def upgrade():
     ver = latest_client_version()
     info = get_file_info (cmspkg_client,cmspkg_client)
     info['version'] = ver
-    if not 'version' in req: return_json(info)
-    client_ver = req.getvalue('version')
-    if newer_version(client_ver, ver): return return_json(info)
+    if not client_version: return_json(info)
+    if newer_version(client_version, ver): return return_json(info)
     readme = join(basedir, "repos", "README%s.md" % useDev)
     if not exists (readme): return_json(info)
     infile = open(readme)
     if not infile: return_json(info)
     flag = 0
-    cver = "### "+client_ver+":"
+    cver = "### "+client_version+":"
     nver = "### "+ver+":"
     changelog=[]
     for line in infile:
@@ -385,9 +332,7 @@ def process(req):
   if ftype == "SOURCES":
     return file_search_result(get_source (*items[1:]), "%s" % (rpath))
   elif ftype == "RPMS":
-    rHash = "apt"
-    if "ref_hash" in req: rHash = req.getvalue('ref_hash')
-    items.append(rHash) 
+    items.append(req.getvalue('ref_hash'))
     return file_search_result(get_package(*items[1:]), "%s" % (rpath))
   elif ftype == "cache":
     return cache(*items[1:])
@@ -433,6 +378,7 @@ if 'ping' in req:
   sys.exit(0)
 if 'debug' in req: debug=True
 if 'optional' in req: optional= True
+if 'version' in req: client_version = req.getvalue('version')
 if 'repo_uri' in req:
   repo_uri=req.getvalue('repo_uri')
 else:
