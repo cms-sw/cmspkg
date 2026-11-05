@@ -24,19 +24,19 @@ def merge_meta(bHash, uHash, nHash="", dryRun=False):
   return
 
 def cache_data(cache):
-  return dumps(data,sort_keys=True,indent=2,separators=(',',': '))
+  return dumps(cache,sort_keys=True,separators=(',',': '))
 
 def save_cache(cache, cfile):
   with open(cfile, 'w') as outfile:
-    outfile.write(cache_data(cache))
+    outfile.write(dumps(cache,sort_keys=True,indent=2,separators=(',',': ')))
 
 def fix_cache(cache, gpg):
   cache.pop("hash", None)
   cache.pop("gpg", None)
-  cache['hash'] = sha256(cache_data(data).encode()).hexdigest()
+  cache['hash'] = sha256(cache_data(cache).encode()).hexdigest()
   res = True
   if gpg:
-    err, out = getstatusoutput("echo -n '%s %s' | gpg --batch --yes --armor --detach-sign | base64 -w 0" % (CMS_GPG_SIGN, cache_hash))
+    err, out = getstatusoutput("echo -n '%s %s' | gpg --batch --yes --armor --detach-sign | base64 -w 0" % (CMS_GPG_SIGN, cache['hash']))
     if err:
       print("Failed GPG sign the cache", out)
       out = ""
