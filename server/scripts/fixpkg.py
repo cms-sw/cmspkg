@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-from sys import argv,stdout
-from hashlib import sha256
-from json import dumps,load
+from sys import argv, stdout, exit
+from json import load
+from cmspkg_utils import fix_cache, cache_data
 
 with open(argv[1]) as ref:
   cache = load(ref)
-  cache.pop("hash",None)
-  cache['hash'] = sha256(dumps(cache,sort_keys=True,separators=(',',': ')).encode()).hexdigest()
-  stdout.write(dumps(cache,sort_keys=True,indent=2,separators=(',',': ')))
+  if not fix_cache(cache, 'gpg' in cache):
+    exit(1)
+  stdout.write(cache_data(cache))

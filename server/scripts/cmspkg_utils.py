@@ -1,21 +1,45 @@
 from json import loads, dumps
 from hashlib import sha256
+from subprocess import getstatusoutput
+
+CMS_GPG_SIGN = 'CMSPKG-METADATA-SIGNATURE-V1'
 
 #Merge Two transactions
 def merge_meta(bHash, uHash, nHash="", dryRun=False):
   data=loads(open(bHash).read())
   updates=loads(open(uHash).read())
+  gpg = ("gpg" in updates) or ("gpg" in data)
+  for k in ["gpg", "hash"]:
+    data.pop(k, None)
+    updates.pop(k, None)
   for pkg in updates:
-    if pkg == 'hash': continue
     if not pkg in data:
       data[pkg]=updates[pkg]
     else:
       for revision in updates[pkg]: data[pkg][revision]=updates[pkg][revision]
-  data.pop('hash', None)
-  data['hash'] = sha256(dumps(data,sort_keys=True,separators=(',',': ')).encode()).hexdigest()
+  fix_cache(data, gpg)
   if not dryRun:
     if not nHash: nHash=bHash
-    with open(nHash, 'w') as outfile:
-      outfile.write(dumps(data,sort_keys=True,indent=2,separators=(',',': ')))
+    save_cache(data, nHash)
   return
 
+def cache_data(cache):
+  return dumps(data,sort_keys=True,indent=2,separators=(',',': '))
+
+def save_cache(cache, cfile):
+  with open(cfile, 'w') as outfile:
+    outfile.write(cache_data(cache))
+
+def fix_cache(cache, gpg):
+  cache.pop("hash", None)
+  cache.pop("gpg", None)
+  cache['hash'] = sha256(cache_data(data).encode()).hexdigest()
+  res = True
+  if gpg:
+    err, out = getstatusoutput("echo -n '%s %s' | gpg --batch --yes --armor --detach-sign | base64 -w 0" % (CMS_GPG_SIGN, cache_hash))
+    if err:
+      print("Failed GPG sign the cache", out)
+      out = ""
+      res = False
+    cache['gpg'] = out
+  return res

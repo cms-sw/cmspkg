@@ -25,6 +25,41 @@ environ["LANG"] = "C"
 environ["LC_CTYPE"] = "C"
 environ["LC_ALL"] = "C"
 
+CMS_GPG_PUBLIC_KEY = """-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+mQINBGrjwZMBEAD6FNkMlDVofaxEgRPsqQnrcJGXsWPUApCb3QizYoFc6hXmENXv
+rDCLq58vPZG1cWoyMhvX1Xv+lRMgsv5eUeaojdgRI/s1WwbsQ3ZthhVqxwsPu/CX
+W6mEHF3hc1cLn2ZL6gSqYPSeKbybSwHcjVzHsqk5QFJraWnS/qhONQTu9utKAqYQ
+6QjjmzgLLvbUp6x+DxwnePi3d/Pt3T8PuOgeBYJ0NrJusAhP2Y3MhTzg8leKeZHv
+8m2bIkF8KdN28G8YQKxj5CiXbRmR41/5dVa1K/tJLd2pnAT9R1hGeh7KRlgW4FWQ
+4ViywwAQIN9akL6uZ44v7wIm3ElbLsgmGbbgnSLyYebWmdiMdNMw3W0PFNhNh+Yv
+e/jU9+7f0xnPT9t+OJxujJZfhU4+GoTVQb/43qMcjqsO+ePEyhdfOxFNjUs0F7e5
+/XkkE35p13xsDCUae4pG8j429gggGaFny7V3Hw0dlV695hlIViazIgklDYZJ2yxm
+cLVck8D4jSerFTiKbWOho8M+CTY0SxewLSCzZ55yam8xXyIksmIGJQTbKYuz5EEo
+5qBdMOE4X0mGCwIQquuizDELDYBHdQZxtzTrI4g5IwaBKEusyJFG1v6G5m0khuea
+W0zT24KN/JJVjDZwjNg+/0z+yb+BdVcDG3bfAuM/a9Ail5W+Edd/9ArrMwARAQAB
+tFhDTVMgUlBNIFBhY2thZ2UgU2lnbmluZyAoUlBNIHBhY2thZ2Ugc2lnbmluZyBm
+b3IgQ01TIHNvZnR3YXJlIHN0YWNrcykgPGNtc2J1aWxkQGNlcm4uY2g+iQJRBBMB
+CAA7FiEEaR12MYGsTy1HiFni2/aR3vi/Y4YFAmrjwZMCGwMFCwkIBwICIgIGFQoJ
+CAsCBBYCAwECHgcCF4AACgkQ2/aR3vi/Y4b4JBAA5C4cjBx0cNyVl0ZwpVd3xRLi
+hlEDeCSPwL0qZgJvsg5e8fuskHPGNdFqnjxBwHUtLMBMdnjaBhbuYAl3Z8cY2Fd3
+aqJi3p3unwGPdrPwY17XMu0zC+s9btVX1E31h9n6Xne1v0UCcJTg4usQ9VcMaI0M
+jGvM1yZ0j8bdb+4N1hhjYF4ADBk2UFU8bIxWNrkLJJjvuow6oKdYcZMLwDjnCaOh
+tct4y/z1shnh97MO13Q/kNGjaRpDgv7IQFVYbd/VwJ3D13dD6rZq0fD4DbCKqixn
+JJU2levJ8HbLfdu2qxLupHP/r2AsLfNT4m+ezc9+LaYGuXKtEbTrlWqOuf9PQyg6
+CZHLJxhTs04HotuNZo+f5gkEXYUvYBrBcP5gOoKXf98Ct76Dl9njojBPot2yjwP8
+fay1oEP/qt0JOftG9Qpi+hlMP4U2pR19yp7Rkw8YTQP5QwRvFVvLWxG/08e8jRzA
+VtYHUAJkKrDKsFSaaCNhuAKfWRri/Rd12fh+5BVy7TXS92dtmec7MKUE0wQ2qkXb
+8waw1QCqqFKwlQ5v8qyyTIf++KK5u45rWMjWIkz0u7QpoW01yAkp68qr1AEXdBZA
+80+tjO5jWtieKjf/N3AU0C1YGa20/67opz1Ml72HG4wMW26sxb4a1y8UoxAAnBgR
+eiqOumdxvyN6cJcB6cE=
+=Fbsr
+-----END PGP PUBLIC KEY BLOCK-----
+"""
+
+CMS_GPG_FINGERPRINT = '691D763181AC4F2D478859E2DBF691DEF8BF6386'
+CMS_GPG_SIGN = 'CMSPKG-METADATA-SIGNATURE-V1'
+
 #to work with python 2 and 3
 def cmspkg_print(msg): stdout.write(msg+"\n")
 
@@ -79,12 +114,13 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-01-26"
+cmspkg_tag   = "V00-01-27"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
 pkgs_dir     = None
 rpm_download = None
+gpg_home     = None
 rpm_env      = None
 rpm_partial  = "partial"
 getcmd       = None
@@ -232,6 +268,38 @@ def set_get_cmd():
   cmspkg_print("Error: Unable to find any of the following commands. Please make sure you have any one of these installed.")
   cmspkg_print(" "+"\n  ".join([x[0] for x in getcmds]))
   exit(1)
+
+## GPG related functions
+def setup_gpg():
+  if not exists(gpg_home):
+    err, out = run_cmd("mkdir -p %s; chmod 0700 %s" % (gpg_home, gpg_home))
+    if err:
+      cmspkg_print("Error: Unable to create directory: %s" % gpg_home)
+      exit(1)
+  err, out = run_cmd("echo -n '%s' | gpg  --armor --homedir %s --batch --import" % (CMS_GPG_PUBLIC_KEY, gpg_home))
+  if err:
+    cmspkg_print("Error: Cannot import CMS GPG public key: %s" %  str(out))
+    exit(1)
+
+def verify_gpg_signature(hash_value, signature_b64, cache_file):
+  setup_gpg()
+  sigfile = cache_file+".sig"
+  run_cmd("echo '%s' | base64 -w 0 -d > %s" % (signature_b64, sigfile))
+  msg = '%s %s' % (CMS_GPG_SIGN, hash_value)
+  err, out = run_cmd("echo -n '%s' | gpg  --armor --homedir %s --batch --status-fd 1 --verify %s -"  % (msg, gpg_home, sigfile))
+  run_cmd("rm -rf %s" %  sigfile)
+  if err:
+    cmspkg_print("Error: Failed to verify the signatures: %s" % out)
+    return False
+  # Check the expected signing-key fingerprint.
+  for line in out.splitlines():
+    fields = line.split()
+    if len(fields) >= 3 and fields[0] == '[GNUPG:]' and fields[1] == 'VALIDSIG':
+      fingerprint = fields[2].upper()
+      primary_fingerprint = fields[-1].upper()
+      if CMS_GPG_FINGERPRINT in (fingerprint, primary_fingerprint):
+        return True
+  return False
 
 def download_file_if_changed(uri, ofile, optional=False):
   uri_data = {'uri': uri, 'info':1}
@@ -619,6 +687,9 @@ class CmsPkg:
       err, out = fetch_url({'uri':'cache/%s/%s/%s' % (c[0], opts.architecture, c[1]), "stamp": int(time()*1000000)})
       cache = json.loads(out)
       check_server_reply(cache)
+      gpg = None
+      if 'gpg' in cache:
+        gpg = cache.pop('gpg')
       if not 'hash' in cache:
         cmspkg_print("Error: server error: hash of cache missing in server reply")
         exit(1)
@@ -627,6 +698,9 @@ class CmsPkg:
       cl_sha = get_cache_hash(cache, dirname(cfile))
       if cl_sha != sr_sha:
         cmspkg_print("Error: Communication error: Cache size mismatch %s vs %s" % (cl_sha , sr_sha))
+        exit(1)
+      if gpg and not verify_gpg_signature(sr_sha, gpg, cfile):
+        cmspkg_print("Error: Unable to varify the GPG signatures")
         exit(1)
       cache['hash'] = sr_sha
       #save the cache for future use
@@ -1379,6 +1453,7 @@ if __name__ == '__main__':
   cache_dir    = join(cmspkg_local_dir, 'cache')
   pkgs_dir     = join(cmspkg_local_dir, 'pkgs')
   rpm_download = join(cmspkg_local_dir, 'rpms')
+  gpg_home     = join(cmspkg_local_dir, 'gpg')
   if not args[0] in cmspkg_cmds: parser.error("Unknown command "+args[0])
 
   if args[0] in ["install","reinstall","download","remove"]: 

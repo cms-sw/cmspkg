@@ -3,9 +3,8 @@ from os import stat
 from sys import argv, exit
 from os.path import exists, join
 from glob import glob
-from hashlib import sha256
 import re
-from json import dumps
+from cmspkg_utils import fix_cache, save_cache
 from subprocess import getstatusoutput
 
 ReRPM = None
@@ -33,11 +32,13 @@ if not exists (RPMS_dir):
   exit(99)
 
 chksums = {}
+gpg = False
 if exists (chksum_dir):
   err, out =  getstatusoutput("cat %s/*.md5cache" % chksum_dir)
   for line in out.split("\n"):
     items = line.split(" ")
     chksums [ items[0] ] = items[1]
+  gpg = exists(join(chksum_dir, "gpg.txt"))
 
 cache={}
 arch=None
@@ -65,7 +66,6 @@ for r in glob(join(RPMS_dir,"*","*","*.rpm")):
       deps = [d for l in ref.readlines() for d in l.strip().split(" ") if d]
   cache[pack][rev] = [rHash, rpm, chksum, size, deps]
 
-cache['hash'] = sha256(dumps(cache,sort_keys=True,separators=(',',': ')).encode()).hexdigest()
-with open(RPMS_dir+".json", 'w') as outfile:
-  outfile.write(dumps(cache,sort_keys=True,indent=2,separators=(',',': ')))        
-  outfile.close()
+if not fix_cache(cache, gpg):
+  exit(1)
+save_cache(cache, RPMS_dir+".json")
