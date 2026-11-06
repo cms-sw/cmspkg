@@ -282,3 +282,6 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 
 ### V00-01-27
   - @sumuzaffar 2026-11-05 Added GPG signing support
+
+### V00-01-28
+  - @sumuzaffar 2026-11-06 Allow to override gpghome via env

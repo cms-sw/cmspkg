@@ -114,7 +114,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-01-27"
+cmspkg_tag   = "V00-01-28"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -1454,6 +1454,8 @@ if __name__ == '__main__':
   pkgs_dir     = join(cmspkg_local_dir, 'pkgs')
   rpm_download = join(cmspkg_local_dir, 'rpms')
   gpg_home     = join(cmspkg_local_dir, 'gpg')
+  if 'PGK_GPGHOME' in environ:
+    gpg_home = environ['PKG_GPGHOME']
   if not args[0] in cmspkg_cmds: parser.error("Unknown command "+args[0])
 
   if args[0] in ["install","reinstall","download","remove"]: 
