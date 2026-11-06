@@ -285,3 +285,6 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 
 ### V00-01-28
   - @sumuzaffar 2026-11-06 Allow to override gpghome via env
+
+### V00-01-29
+  - @sumuzaffar 2026-11-06 Fix PKG_GPGHOME env
