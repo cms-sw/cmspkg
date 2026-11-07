@@ -114,7 +114,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-01-29"
+cmspkg_tag   = "V00-01-30"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -276,7 +276,7 @@ def setup_gpg():
     if err:
       cmspkg_print("Error: Unable to create directory: %s" % gpg_home)
       exit(1)
-  err, out = run_cmd("echo -n '%s' | gpg  --armor --homedir %s --batch --import" % (CMS_GPG_PUBLIC_KEY, gpg_home))
+  err, out = run_cmd("echo -n '%s' | gpg --homedir %s --batch --import" % (CMS_GPG_PUBLIC_KEY, gpg_home))
   if err:
     cmspkg_print("Error: Cannot import CMS GPG public key: %s" %  str(out))
     exit(1)

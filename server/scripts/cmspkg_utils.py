@@ -32,9 +32,10 @@ def save_cache(cache, cfile):
   with open(cfile, 'w') as outfile:
     outfile.write(cache_data_pretty(cache))
 
-def get_gpg_signature(sha256_hash):
+def get_gpg_signature(sha256_hash, base64=True):
   if not re.match(ReSha256Hash, sha256_hash): return ""
-  err, gpg = getstatusoutput("echo -n '%s %s' | gpg --batch --yes --armor --detach-sign | base64 -w 0" % (CMS_GPG_SIGN, sha256_hash))
+  xstr = "| base64 -w 0" if base64 else ""
+  err, gpg = getstatusoutput("echo -n '%s %s' | gpg --batch --yes --armor --detach-sign %s" % (CMS_GPG_SIGN, sha256_hash, xstr))
   if err:
     return ""
   return gpg

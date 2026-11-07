@@ -288,3 +288,6 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 
 ### V00-01-29
   - @sumuzaffar 2026-11-06 Fix PKG_GPGHOME env
+
+### V00-01-30
+  - @sumuzaffar 2026-11-07 Cleanup for GPG signing
