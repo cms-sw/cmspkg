@@ -1,5 +1,5 @@
 #!/bin/bash
-cd $(dirname $0)/../..
+cd $(dirname $0)
 deploy="$1"
 xtype="$2"
 [ "${deploy}" != "" ] || exit 1
