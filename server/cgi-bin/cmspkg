@@ -31,7 +31,7 @@ ReHash      = r'[0-9a-f]{32}'
 ReRepoHash  = r'([0-9a-f]{64})'
 ReSrcName   = r'[+a-zA-Z0-9._-]+'
 RePkgName   = r'(cms|lcg|external)[+][a-zA-Z0-9_-]+[+][a-zA-Z0-9._-]+'
-ReOtherName = r'(cmspkg.py|cmsos|bootstrap.sh|README.md|WEB/[0-9a-zA-Z._/+-]+)(.sig|)'
+ReOtherName = r'(drivers/%s-driver.txt|cmspkg.py|cmsos|bootstrap.sh|README.md|WEB/[0-9a-zA-Z._/+-]+)(.sig|)' % ReArch
 
 REQUESTS = {
   'SOURCES' : [ReRepo, ReHash, ReSrcName],
