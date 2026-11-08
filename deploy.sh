@@ -2,8 +2,8 @@
 cd $(dirname $0)/../..
 deploy="$1"
 xtype="$2"
-[ "${deploy}" != "" ] && exit 1
-[ ! -d "${deploy}" ] && exit 1
+[ "${deploy}" != "" ] || exit 1
+[ -d "${deploy}" ] || exit 1
 for sfile in client/bootstrap.sh client/cmspkg.py README.md; do
   dfile=$(basename $sfile)
   if [ "${xtype}" != "" ]; then
