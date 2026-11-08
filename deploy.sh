@@ -21,5 +21,5 @@ for sfile in client/bootstrap.sh client/cmspkg.py README.md; do
     fi
   fi
   [ $cpy -eq 1 ] && install -D "${sfile}" "${deploy}/${dfile}"
-  [ $gpg -eq 1 ] && ${dir}/server/scripts/gpg-signature.py $(sha256sum ${sfile} | cut -d' ' -f1) > ${sig}
+  [ $gpg -eq 1 ] && ./server/scripts/gpg-signature.py $(sha256sum ${sfile} | cut -d' ' -f1) > ${sig}
 done
