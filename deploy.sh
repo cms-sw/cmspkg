@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -e
 cd $(dirname $0)
 deploy="$1"
 xtype="$2"
@@ -21,5 +21,12 @@ for sfile in client/bootstrap.sh client/cmspkg.py README.md; do
     fi
   fi
   [ $cpy -eq 1 ] && install -D "${sfile}" "${deploy}/${dfile}"
-  [ $gpg -eq 1 ] && ./server/scripts/gpg-signature.py $(sha256sum ${sfile} | cut -d' ' -f1) > ${sig}
+  if [ $gpg -eq 1 ] ; then
+    sha=$(sha256sum ${sfile} | cut -d' ' -f1)
+    if ./server/scripts/gpg-signature.py $sha > "${sig}.tmp" ; then
+      mv "${sig}.tmp" "${sig}"
+    else
+      rm -f "${sig}.tmp"
+    fi
+  fi
 done
