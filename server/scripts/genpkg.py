@@ -32,13 +32,11 @@ if not exists (RPMS_dir):
   exit(99)
 
 chksums = {}
-gpg = True if environ.get("PKG_GPG_SIGN", "false") == "true" else False
 if exists (chksum_dir):
   err, out =  getstatusoutput("cat %s/*.md5cache" % chksum_dir)
   for line in out.split("\n"):
     items = line.split(" ")
     chksums [ items[0] ] = items[1]
-  gpg = gpg or exists(join(chksum_dir, "gpg.txt"))
 
 cache={}
 arch=None
@@ -66,6 +64,6 @@ for r in glob(join(RPMS_dir,"*","*","*.rpm")):
       deps = [d for l in ref.readlines() for d in l.strip().split(" ") if d]
   cache[pack][rev] = [rHash, rpm, chksum, size, deps]
 
-if not fix_cache(cache, gpg):
+if not fix_cache(cache):
   exit(1)
 save_cache(cache, RPMS_dir+".json")

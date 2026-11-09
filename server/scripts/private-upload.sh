@@ -1,9 +1,10 @@
 #!/bin/bash -ex
+SCRIPT_DIR="$(dirname $0)"
 [ $(pgrep -x -f "^/bin/bash .*/private-upload.sh  *($2:|)$3 .*" | wc -l) -gt 2 ] && exit 20
 
 #This script can only be run from upload.sh script. Any other attempt will not process
 #Check if script was run from upload.sh otherwise exit
-[ $(ps -o args= $PPID | grep "$(dirname $0)/upload.sh CLONE $2 $3 " | wc -l) -eq 0 ] && echo "Error: Looks like it was not run from upload.sh" && exit 19
+[ $(ps -o args= $PPID | grep "${SCRIPT_DIR}/upload.sh CLONE $2 $3 " | wc -l) -eq 0 ] && echo "Error: Looks like it was not run from upload.sh" && exit 19
 
 #Command line args pass from upload.sh
 ARCH=$2
@@ -105,7 +106,6 @@ elif [ "${INCREMENTAL}" = "false" ] ; then
           rsync -a --ignore-existing --chmod=a+rX ${SRC_REPO_DIR}/${ARCH}/${REPO_HASH}/${subdir}/ ${TMPREPO_DES}/${subdir}/
         fi
       done
-
     fi
 
     #If it is default hash then stop processing as default repo has no parent
@@ -123,7 +123,7 @@ elif [ "${INCREMENTAL}" = "false" ] ; then
     [ "X${REPO_HASH}" = "X" ] && REPO_HASH="${DEFAULT_HASH}"
   done
   #Merge the transactions. Read the trnasactions hashes and merge them back to DEFAULT
-  MERGE_META_SCRIPT=$(dirname $0)/merge-meta.py
+  MERGE_META_SCRIPT=${SCRIPT_DIR}/merge-meta.py
   for h in ${ALL_HASHES} ; do
     ${MERGE_META_SCRIPT} ${TMPREPO_ARCH}/${DEFAULT_HASH}/RPMS.json ${SRC_REPO_DIR}/${ARCH}/${h}/RPMS.json
   done
@@ -136,6 +136,20 @@ fi
 #Find the new upload hash
 NEW_UPLOAD_HASH=$(ls ${TMPREPO_BASE}/upload | grep '^[0-9a-f]\{64\}$')
 
+#GPG sign sources and driver
+for subdir in SOURCES/cache drivers; do
+  if [ -d ${TMPREPO_BASE}/upload/${NEW_UPLOAD_HASH}/${subdir} ] ; then
+    for src in $(find ${TMPREPO_BASE}/upload/${NEW_UPLOAD_HASH}/${subdir} -type f | grep -v '.sha256$') ; do
+      if [ -e "${src}.sha256" ] ; then
+        ${SCRIPT_DIR}/gpg-signature.py $(cat "${src}.sha256") > "${src}.sig"
+        rm -f "${src}.sha256"
+      else
+        ${SCRIPT_DIR}/gpg-sign-file.sh ${src} > "${src}.sig"
+      fi
+    done
+  fi
+done
+
 #For new arch/repo, we just rename new upload hash to default hash
 if [ "${CREATE_REPO}" = "YES" ] ; then
   mv ${TMPREPO_BASE}/upload/${NEW_UPLOAD_HASH} ${TMPREPO_BASE}/upload/${DEFAULT_HASH}
@@ -143,7 +157,7 @@ if [ "${CREATE_REPO}" = "YES" ] ; then
 fi
 
 #create the RPMS.json file with md5 sum of all rpms
-$(dirname $0)/genpkg.py ${TMPREPO_BASE}/upload/${NEW_UPLOAD_HASH}
+${SCRIPT_DIR}/genpkg.py ${TMPREPO_BASE}/upload/${NEW_UPLOAD_HASH}
 rm -f ${TMPREPO_BASE}/upload/${NEW_UPLOAD_HASH}/rpms.md5cache
 rm -f ${TMPREPO_BASE}/upload/${NEW_UPLOAD_HASH}/RPMS/*/*/*.dep >/dev/null 2>&1 || true
 
