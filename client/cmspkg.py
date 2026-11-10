@@ -114,7 +114,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-01-30"
+cmspkg_tag   = "V00-01-31"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -272,11 +272,11 @@ def set_get_cmd():
 ## GPG related functions
 def setup_gpg():
   if not exists(gpg_home):
-    err, out = run_cmd("mkdir -p %s; chmod 0700 %s" % (gpg_home, gpg_home))
+    err, out = run_cmd("mkdir -p %s" % gpg_home)
     if err:
       cmspkg_print("Error: Unable to create directory: %s" % gpg_home)
       exit(1)
-  err, out = run_cmd("echo -n '%s' | gpg --homedir %s --batch --import" % (CMS_GPG_PUBLIC_KEY, gpg_home))
+  err, out = run_cmd("echo -n '%s' | gpg --no-default-keyring --keyring %s/cms-trustedkeys.gpg --import" % (CMS_GPG_PUBLIC_KEY, gpg_home))
   if err:
     cmspkg_print("Error: Cannot import CMS GPG public key: %s" %  str(out))
     exit(1)
@@ -286,7 +286,7 @@ def verify_gpg_signature(hash_value, signature_b64, cache_file):
   sigfile = cache_file+".sig"
   run_cmd("echo '%s' | base64 -w 0 -d > %s" % (signature_b64, sigfile))
   msg = '%s %s' % (CMS_GPG_SIGN, hash_value)
-  err, out = run_cmd("echo -n '%s' | gpg  --armor --homedir %s --batch --status-fd 1 --verify %s -"  % (msg, gpg_home, sigfile))
+  err, out = run_cmd("echo -n '%s' | gpgv --keyring %s/cms-trustedkeys.gpg --status-fd 1 %s -"  % (msg, gpg_home, sigfile))
   run_cmd("rm -rf %s" %  sigfile)
   if err:
     cmspkg_print("Error: Failed to verify the signatures: %s" % out)

@@ -291,3 +291,6 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 
 ### V00-01-30
   - @sumuzaffar 2026-11-07 Cleanup for GPG signing
+
+### V00-01-31
+  - @sumuzaffar 2026-11-09 Avoid starting gpg-agent
