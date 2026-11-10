@@ -294,3 +294,6 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 
 ### V00-01-31
   - @sumuzaffar 2026-11-09 Avoid starting gpg-agent
+
+### V00-01-32
+  - @sumuzaffar 2026-11-09 Used prebuild keyring
