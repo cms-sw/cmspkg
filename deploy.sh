@@ -4,7 +4,7 @@ deploy="$1"
 xtype="$2"
 [ "${deploy}" != "" ] || exit 1
 [ -d "${deploy}" ] || exit 1
-for sfile in client/bootstrap.sh client/cmspkg.py README.md; do
+for sfile in client/bootstrap.sh client/cmspkg.py README.md gpg/cms-trustedkeys.gpg; do
   dfile=$(basename $sfile)
   if [ "${xtype}" != "" ]; then
     dfile=$(echo $dfile | sed -r -e "s|^(.+)\.([^.]+)|\1-${xtype}.\2|")
