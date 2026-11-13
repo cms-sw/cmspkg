@@ -2,6 +2,8 @@
 # Revision: $Revision: 1.81 $
 
 set -e
+CMS_GPG_FINGERPRINT='691D763181AC4F2D478859E2DBF691DEF8BF6386'
+CMS_GPG_SIGN='CMSPKG-METADATA-SIGNATURE-V1'
 
 if [ X"$(id -u)" = X0 ]; then
   echo "*** CMS SOFTWARE INSTALLATION ABORTED ***" 1>&2
@@ -30,6 +32,30 @@ cleanup_and_exit () {
     [ "X$DOWNLOAD_DIR" = X ] || [ -d $DOWNLOAD_DIR ] && rm -rf $DOWNLOAD_DIR
     [ "X$importTmp" = X ] || [ -d $importTmp ] && rm -rf $importTmp
     exit $exitcode 
+}
+
+doDownload() {
+  url="$1"
+  download_${download_method} "$url" "$2"
+  if [ -e "$2" ] ; then
+    if [ "$3" == "" ] ; then
+      case $url in
+        *\?*) url=$(echo "$url" | sed 's|\?|.sig?|');;
+        *)  url="${url}.sig";;
+      esac
+      download_${download_method} "$url" "$2.sig"
+      if [ -e "$2.sig" ] ; then
+        sha256=$(sha256sum $2 | cut -d' ' -f1)
+        if [ $(echo -n "${CMS_GPG_SIGN} $sha256" | gpgv --keyring ${PKG_GPGHOME}/cms-trustedkeys.gpg --status-fd 1 "$2.sig" - 2>&1 | grep '\[GNUPG:\]' | grep ' VALIDSIG ' | grep " ${CMS_GPG_FINGERPRINT} " |wc -l) -eq 0 ] ; then
+          echo "Error: Failed to validate GPG signature."
+          exit 1
+        fi
+      else
+        echo "Error: Failed to download the signed file: $url"
+        exit 1
+      fi
+    fi
+  fi
 }
 
 download_curl () { curl -L -f -H "Cache-Control: max-age=0" --user-agent "CMSPKG/1.0" --connect-timeout 60 --max-time 600 -q -s "$1" -o "$2.tmp" && mv "$2.tmp" "$2"; }
@@ -1405,7 +1431,7 @@ found_server=no
 for x in $(echo ${server}/${server_main_dir} | tr / ' ') ; do
   [ "X$cgi_server" = "X" ] && cgi_server=$x || cgi_server=$cgi_server/$x
   rm -f $tempdir/ping
-  download_${download_method} "$cgi_server/cgi-bin/cmspkg${useDev}?ping=1" $tempdir/ping || true
+  doDownload "$cgi_server/cgi-bin/cmspkg${useDev}?ping=1" $tempdir/ping no || true
   if [ -f $tempdir/ping ] ; then
     if [ "X$(cat $tempdir/ping)" = "XCMSPKG OK" ] ; then
       found_server=yes
@@ -1415,12 +1441,24 @@ for x in $(echo ${server}/${server_main_dir} | tr / ' ') ; do
 done
 [ "$found_server" = "yes" ] || cleanup_and_exit 1 "Unable to find /cgi-bin/cmspkg on $server"
 
+if [ ! -e $rootdir/etc/gpg/cms-trustedkeys.gpg ]  ; then
+  SHA256GPG="502cd754de868c241693b2568ad1c7087f2b8019d5a25e51572e10ed422952af"
+  url="$(echo $server | cut -d/ -f1)/${server_main_dir}/cms-trustedkeys.gpg"
+  doDownload "$url" $tempdir/cms-trustedkeys.gpg no
+  [ -f $tempdir/cms-trustedkeys.gpg ] || cleanup_and_exit 1 "FATAL: Unable to download cmsos: $url"
+  sha256="$(sha256sum $tempdir/cms-trustedkeys.gpg | cut -d' ' -f1)"
+  [ "${SHA256GPG}" == "${sha256}" ] || cleanup_and_exit 1 "FATAL: Checksum for cms-trustedkeys.gpg did not match: ${SHA256GPG} vs ${sha256}"
+  export PKG_GPGHOME=$tempdir
+else
+  export PKG_GPGHOME=$rootdir/etc/gpg
+fi
+
 # Use cmsos to guess the platform if it is not set on command line.
 if [ "X$cmsplatf" = X ] ; then
-  cmsos="$(echo $server | cut -d/ -f1)/${server_main_dir}/repos/cmsos"
+  url="$(echo $server | cut -d/ -f1)/${server_main_dir}/repos/cmsos"
   [ "X$verbose" = Xtrue ] && echo_n "Downloading cmsos file..."
-  download_${download_method} "$cmsos" $tempdir/cmsos
-  [ -f $tempdir/cmsos ] || cleanup_and_exit 1 "FATAL: Unable to download cmsos: $cmsos"
+  doDownload "$url" $tempdir/cmsos
+  [ -f $tempdir/cmsos ] || cleanup_and_exit 1 "FATAL: Unable to download cmsos: $url"
   source $tempdir/cmsos
   cmsarch=`cmsos`
   cmsplatf=${cmsarch}_`defaultCompiler`
@@ -1674,17 +1712,17 @@ seed ()
 get_driver() {
 # Get the architecture driver from the web
 if [ "$driver_file" = "" ] ; then
-  driver="$cgi_server/cgi-bin/cmspkg${useDev}/driver/$repository/$cmsplatf?repo_uri=${server_main_dir}"
+  driver="$cgi_server/cgi-bin/cmspkg${useDev}/file/$repository/$cmsplatf/drivers/${cmsplatf}-driver.txt?repo_uri=${server_main_dir}"
   echo_n "Downloading driver file $cmsplatf..."
-  download_${download_method} "$driver" $tempdir/$cmsplatf-driver.txt
+  doDownload "$driver" $tempdir/$cmsplatf-driver.txt
   [ -f $tempdir/$cmsplatf-driver.txt ] || cleanup_and_exit 1 "Unable to download platform driver: $driver"
   eval `cat $tempdir/$cmsplatf-driver.txt`
   echo "Done"
   #Setting up optional drivers
   for arch in $(echo $cmsplatf | sed 's|_[^_]*$||')_common common_$(echo $cmsplatf | sed 's|^[^_]*_||;s|_[^_]*$||')_common ; do
-    driver="$cgi_server/cgi-bin/cmspkg${useDev}/driver/$repository/$arch?repo_uri=${server_main_dir}"
+    driver="$cgi_server/cgi-bin/cmspkg${useDev}/file/$repository/$arch/drivers/${arch}-driver.txt?repo_uri=${server_main_dir}"
     echo_n "Downloading driver file $arch ..."
-    if ! download_${download_method} "$driver" $tempdir/$arch-driver.txt ; then
+    if ! doDownload "$driver" $tempdir/$arch-driver.txt ; then
       echo "Not available"
       continue
     fi
@@ -1707,7 +1745,11 @@ setup() {
 [ "$rootdir" = "" ] && cleanup_and_exit 1 "Installation path not specified."
 
 rootdir=`echo $rootdir | perl -p -e 's|/$||'`
-mkdir -p $rootdir
+mkdir -p $rootdir/etc/gpg
+if [ ! -e $rootdir/etc/gpg/cms-trustedkeys.gpg ]  ; then
+  cp ${tempdir}/cms-trustedkeys.gpg  $rootdir/etc/gpg/cms-trustedkeys.gpg
+  export PKG_GPGHOME=$rootdir/etc/gpg
+fi
 eval `echo $rootdir | awk -F \/ '{print "fakelink=$rootdir/"$2}'`
 if [ ! -e $fakelink ]
 then
@@ -1731,7 +1773,7 @@ if [ "$cmspkg_script_path" ] ; then
   cp ${cmspkg_script_path} $tempdir/cmspkg.py
 else
   cmspkg=$(echo $server | cut -d/ -f1)/${server_main_dir}/repos/cmspkg${useDev}.py
-  download_${download_method} $cmspkg $tempdir/cmspkg.py
+  doDownload $cmspkg $tempdir/cmspkg.py
 fi
 [ -f $tempdir/cmspkg.py ] || cleanup_and_exit 1 "FATAL: Unable to download cmspkg: $cmspkg"
 chmod +x $tempdir/cmspkg.py

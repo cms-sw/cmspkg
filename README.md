@@ -297,3 +297,6 @@ To run `rpm` commands, one can use `cmspkg -a arch rpm -- <rpm command and optio
 
 ### V00-01-32
   - @sumuzaffar 2026-11-09 Used prebuild keyring
+
+### V00-01-33
+  - @sumuzaffar 2026-11-13 Make sure bootstrap.sh also verifies the download files

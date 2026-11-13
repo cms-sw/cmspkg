@@ -82,7 +82,7 @@ except:
     getstatusoutput("rm -f %s" % tmpfile)
     return sha
 
-cmspkg_tag   = "V00-01-32"
+cmspkg_tag   = "V00-01-33"
 cmspkg_cgi   = 'cgi-bin/cmspkg'
 opts         = None
 cache_dir    = None
@@ -1409,7 +1409,7 @@ if __name__ == '__main__':
   cache_dir    = join(cmspkg_local_dir, 'cache')
   pkgs_dir     = join(cmspkg_local_dir, 'pkgs')
   rpm_download = join(cmspkg_local_dir, 'rpms')
-  gpg_home     = join(cmspkg_local_dir, 'gpg')
+  gpg_home     = join(opts.install_prefix, 'etc', 'gpg')
   if 'PKG_GPGHOME' in environ:
     gpg_home = environ['PKG_GPGHOME']
   if not args[0] in cmspkg_cmds: parser.error("Unknown command "+args[0])
